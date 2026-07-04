@@ -1,0 +1,34 @@
+{
+  "description": "HMC convergence diagnostics for the hierarchical-GP hyperparameter posterior at the published iteration (15).",
+  "source": "results/less_x_new_manuscript_revisions/{rhat,ess}_value_15.txt",
+  "paper_reference": "Jones & Dowling 2026, Figure 10",
+  "param_order": [
+    "std_dev",
+    "lengthscale_1",
+    "lengthscale_2"
+  ],
+  "rhat": [
+    1.0052293594973998,
+    1.007299297050778,
+    1.0087925428203124
+  ],
+  "ess": [
+    1468.290059163196,
+    2428.079062828777,
+    653.1449308937772
+  ],
+  "rhat_paper_rounded": [
+    1.0052,
+    1.0073,
+    1.0088
+  ],
+  "ess_paper_rounded": [
+    1468.3,
+    2428.1,
+    653.1
+  ],
+  "tol": {
+    "rhat_atol": 0.0005,
+    "ess_rtol": 0.001
+  }
+}

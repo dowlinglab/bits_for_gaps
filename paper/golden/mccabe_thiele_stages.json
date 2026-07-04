@@ -1,0 +1,65 @@
+{
+  "description": "McCabe-Thiele equilibrium-stage liquid/vapor mole fractions of PrOH for the Geankoplis 11.4-1 column, computed with the Wilson ground truth vs the BITS-for-GAPS GP surrogate.",
+  "source": "run_example.py: solve_distillation_model(n=4, feed_stage=3, ...) with equilibrium.water_proh_eqm_julia (Wilson) and water_proh_eqm (surrogate).",
+  "paper_reference": "Jones & Dowling 2026, Figure 9c",
+  "column_spec": {
+    "xW": 0.01,
+    "F": 100.0,
+    "xF": 0.1,
+    "R": 1.0,
+    "xD": 0.43,
+    "n_stages": 4,
+    "feed_stage": 3
+  },
+  "component": "PrOH",
+  "stages": [
+    {
+      "stage": 1,
+      "wilson": {
+        "liquid": 0.22,
+        "vapor": 0.43
+      },
+      "surrogate": {
+        "liquid": 0.25,
+        "vapor": 0.43
+      }
+    },
+    {
+      "stage": 2,
+      "wilson": {
+        "liquid": 0.05,
+        "vapor": 0.32
+      },
+      "surrogate": {
+        "liquid": 0.05,
+        "vapor": 0.34
+      }
+    },
+    {
+      "stage": 3,
+      "wilson": {
+        "liquid": 0.03,
+        "vapor": 0.24
+      },
+      "surrogate": {
+        "liquid": 0.03,
+        "vapor": 0.24
+      }
+    },
+    {
+      "stage": 4,
+      "wilson": {
+        "liquid": 0.02,
+        "vapor": 0.14
+      },
+      "surrogate": {
+        "liquid": 0.02,
+        "vapor": 0.15
+      }
+    }
+  ],
+  "tol": {
+    "report_atol": 0.005,
+    "surrogate_vs_wilson_atol": 0.03
+  }
+}

@@ -1,8 +1,46 @@
 # HANDOFF — bits_for_gaps
 
-State of the fresh `bits_for_gaps` repo as of the Opus bootstrap session (2026-07-03).
-Read this + `REFACTOR_PLAN.md` before continuing. Intended reader: the implementation
-(Sonnet) session.
+State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before continuing.
+
+- Bootstrap (Phase 0 + Phase 3-lite): Opus, 2026-07-03.
+- **Phase 2 (regression/test harness): done 2026-07-03 on branch `phase2-regression-harness`
+  — awaiting review/merge to `main` before Phase 4 begins.**
+
+## Phase 2 — regression/test harness (done; review gate before Phase 4)
+
+Behavior is now pinned BEFORE any refactor. `pytest -q` = **56 passed, 1 deselected**
+(the deselected one is the `vle` McCabe-Thiele recompute; the pure-Python core needs no
+Julia). Full suite runs in ~16 s.
+
+```
+paper/golden/            golden scalars from the archived iter-15 published run (+ README)
+  hmc_diagnostics.json         R-hat / ESS            (Fig 10)
+  fig5_error_metrics.json      train/test RMSE & MAE, iters 1 & 15, over 500 draws (Fig 5)
+  hyperparameter_posterior.json  kernel-hyperparam posterior summary (Fig 10 marginals)
+  mccabe_thiele_stages.json    distillation stage table, Wilson vs surrogate (Fig 9c)
+tests/conftest.py        `golden` loader fixture (resolves paper/golden/)
+tests/unit/              + test_kernels.py, test_means.py, test_util.py  (was entropy/design)
+tests/regression/        reads golden, pins vs published paper values; vle recompute gated
+tests/integration/       test_end_to_end.py — seeded synthetic (no-Julia) adaptiveEntropy run
+```
+
+Key facts for the next session:
+- **Golden extraction** was done offline by `scratchpad/extract_golden.py` (pure NumPy,
+  reads the read-only old-repo archive). All but the McCabe-Thiele table came from
+  archived data; the stage table is transcribed from paper Fig 9c (its recompute needs
+  the Phase-6 VLE backend → `@pytest.mark.vle`, deselected by default via `addopts`).
+- **The sampler is deterministic** for a fixed seed in-process (verified bitwise: R-hat,
+  ESS, entropy field, selected point all diff = 0.0 across two runs). The integration
+  test asserts this with `atol=1e-10` — it is the guard against nondeterminism creeping
+  into the Phase 4 decomposition.
+- The integration test **mirrors `run_model` but skips the plotting-only `gp_predict_2D`**
+  (~20 s; 100 full-cov draws over a 50×50 grid). It does not feed the acquisition
+  (`entropy_objective` re-seeds NumPy and re-assigns every kernel param before each
+  deterministic `predict_f`), so entropy/next-point are unchanged by skipping it.
+- Fig 5 golden captures the paper's headline: median **test** RMSE falls 4.34 → 0.67
+  (iter 1 → 15); train RMSE 0.77 → 0.49. The regression test pins the ≥3× test-error drop.
+- Markers registered in `pyproject.toml`: `vle` (Julia backend, deselected by default),
+  `slow` (integration; still runs by default). Run gated tests with `pytest -m vle`.
 
 ## What exists now (Phase 0 + Phase 3-lite done)
 
@@ -21,7 +59,7 @@ src/bits_for_gaps/
   sampler.py     adaptiveEntropy engine from driver_new.py, DECOUPLED from the example
                  (no module-level juliacall / proh_water_class; example helpers removed;
                   `i += 50` -> `self.startIter`). Body otherwise faithful to the paper.
-tests/unit/      test_entropy.py (analytic + regression pin), test_design.py  -> 14 pass
+tests/unit/      test_entropy.py (analytic + regression pin), test_design.py  (+ Phase 2 tests)
 ```
 
 `BitsForGaps` is exported as an alias of `adaptiveEntropy` (target public name).
@@ -52,14 +90,9 @@ Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_
 
 ## Next steps (in order — see REFACTOR_PLAN.md phases)
 
-1. **Phase 2 — regression harness FIRST (before refactoring sampler.py).**
-   - Extract golden scalars from the archived iter-15 run into `paper/golden/`:
-     R̂ = [1.005, 1.007, 1.009], ESS = [1468.3, 2428.1, 653.1], MAP hyperparameters,
-     Fig 9 stage-composition table, Fig 5 RMSE/MAE. Add tolerance-based tests.
-   - Add an integration test: a tiny seeded end-to-end `adaptiveEntropy` run
-     (e.g. noSamples=100, 1 iter) on a synthetic pure-Python `fwd_model` (no Julia),
-     asserting stable output. This pins sampler behavior before decomposition.
-   - Add unit tests for kernels (K PSD, shapes), means, and _util.
+1. **Phase 2 — regression harness FIRST (before refactoring sampler.py). ✅ DONE.**
+   See the "Phase 2" section above. On branch `phase2-regression-harness`; merge to
+   `main` after review, then start Phase 4. The green suite is the safety net.
 
 2. **Phase 4 — decompose `sampler.py`** into gp / mixture / acquisition / state modules;
    replace disk-as-state with in-memory state + optional checkpointing. Keep tests green.
