@@ -21,6 +21,10 @@ They serve two purposes:
 | `mccabe_thiele_stages.json` | Fig 9c | Distillation stage liquid/vapor mole fractions (Wilson vs surrogate) | paper Fig 9c / `run_example.py` |
 
 **Regenerating** (needs read access to the old-repo archive; pure NumPy):
-`scratchpad/extract_golden.py` in the Phase 2 session produced all but the
-McCabe-Thiele table (which is transcribed from the paper — its recompute needs the
-Julia VLE backend ported in Phase 6).
+
+```bash
+python paper/extract_golden.py
+```
+
+produces all but the McCabe-Thiele table (which is transcribed from the paper — its
+recompute needs the Julia VLE backend ported in Phase 6).
