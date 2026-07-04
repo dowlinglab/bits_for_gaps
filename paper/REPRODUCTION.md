@@ -96,3 +96,133 @@ purely visual and don't change the figure's content or claim:
   differs from golden's `"wilson"` entries by up to 0.01 -- this is the golden
   file's own transcription precision limit, not a port error (see `HANDOFF.md`
   Phase 6 for the full analysis).
+
+## Phase 9: from-scratch stochastic reproduction
+
+Everything above regenerates figures from the published run's *plot-input data* --
+it never re-executes the paper's sequential-design loop. This section does: it runs
+`paper/full_reproduction.py`, which drives `bits_for_gaps.sampler.BitsForGaps` through
+the same 15-iteration adaptive HMC + entropy-acquisition loop as the published
+`less_x_new_manuscript_revisions` run (same bounds, seed, transforms, kernel, and HMC
+config -- see the script's module docstring for the full paper-trail), starting from a
+*fresh* 10-train/10-test LHS design and a live Clapeyron/Wilson black box -- no
+archived data read as input anywhere in this section.
+
+```bash
+export PYTHON_JULIACALL_HANDLE_SIGNALS=yes
+python paper/full_reproduction.py --out-dir results_remaked/phase9_fullrun   # ~25 min
+```
+
+This is a **one-time validation exercise**, not a regression test -- there is no
+gated CI test for it (re-running it is expensive and its whole point is to check
+statistical/qualitative, not bitwise, agreement). The run below completed
+2026-07-04; artifacts stayed in the gitignored `results_remaked/phase9_fullrun/`; the
+numbers and two summary plots below are committed under `paper/phase9_validation/`
+so this section doesn't rot into an unverifiable claim.
+
+**Headline result: closer to bitwise than expected.** Everything in the loop that
+runs through a `self.seed`-seeded path (LHS design, HMC sampling, the entropy-
+acquisition optimizer) turned out to reproduce the published run to 6-8 significant
+figures -- not just "qualitatively similar." The only place real stochastic drift
+shows up is the GP posterior-*predictive* mixture sampling (`gpflow`'s
+`predict_f_samples`, which draws from TensorFlow's ambient RNG -- documented as
+non-reproducible in `bits_for_gaps/mixture.py`'s module docstring, and already known
+to differ run-to-run even in the original paper code). That function feeds exactly
+two things: the test-RMSE curve below, and the Fig-8-style surrogate phase diagram.
+Everything else pinned on the HMC trace directly (R-hat/ESS, hyperparameter
+posterior, entropy field) lines up almost exactly.
+
+### HMC diagnostics (iteration 15, trained on the same 24 points as `gp_model_15`)
+
+| | R-hat | ESS |
+|---|---|---|
+| Paper (`paper/golden/hmc_diagnostics.json`) | 1.0052, 1.0073, 1.0088 | 1468.3, 2428.1, 653.1 |
+| Fresh run (`full_run_summary.json`) | 1.00523, 1.00730, 1.00879 | 1468.29, 2428.09, 653.15 |
+
+All well under the R-hat < 1.1 convergence threshold, and ESS is healthy relative to
+20,000 raw HMC samples (4 chains x 5000). The near-exact match here is a strong,
+unplanned confirmation that Phases 2-8's refactor preserved the HMC path bit-for-bit
+-- this isn't the paper's own number re-displayed, it's an independently re-run HMC
+fit that happens to land on the same posterior.
+
+### Hyperparameter posterior (`std_dev`, `lengthscale_1`, `lengthscale_2`)
+
+| | mean | median |
+|---|---|---|
+| Paper (`paper/golden/hyperparameter_posterior.json`) | 1.35645, 0.86239, 3.19502 | 1.28619, 0.81949, 3.04407 |
+| Fresh run | 1.35645, 0.86239, 3.19502 | 1.28619, 0.81949, 3.04407 |
+
+Same ordering the paper reports in Fig 11: `lengthscale_2` (temperature) >
+`lengthscale_1` (composition) -- the GP trusts nearby-temperature extrapolation more
+than nearby-composition extrapolation, consistent with activity coefficients varying
+more sharply in composition than in temperature over this range.
+
+### Entropy decay (Fig 4 shape)
+
+Per-iteration max entropy (grid max of `entropy_{i}`, both committed and fresh):
+
+| Iteration | 1 | 2 | 3 | 10 | 14 | 15 |
+|---|---|---|---|---|---|---|
+| Paper (`paper/data/entropy_*`) | 1.4577 | 1.2470 | 0.6505 | 0.0215 | 0.0038 | -0.0084 |
+| Fresh run | 1.4577 | 1.2470 | 0.6505 | 0.0215 | 0.0038 | -0.0084 |
+
+Same monotonic-ish decay, same sign change (uncertainty-driven exploration
+"exhausts" the space) landing between iterations 14 and 15 in both runs. Plotted in
+`paper/phase9_validation/rmse_and_entropy.png`, panel (b).
+
+### Predictive accuracy (test RMSE, activity coefficient units)
+
+| | iteration 1 | iteration 15 |
+|---|---|---|
+| Paper (paper's reported headline number) | ~4.34 | ~0.67 |
+| Fresh run | 4.337 | 0.887 |
+
+Iteration 1 matches almost exactly (same initial design, same black box -- no HMC
+posterior involved yet beyond the seeded trace). Iteration 15 lands in the same
+regime (~5x reduction vs. the paper's ~6.5x) but not on the same value -- expected,
+since this metric is the one place `predict_f_samples`'s non-reproducible draws
+enter, compounded by a documented simplification: this run's mixture uses a
+15-component hyperparameter-posterior subset (`noGaussians`, the same size the
+acquisition function itself uses) rather than the paper's own
+`train_test_split_proh.py`, which drew a dedicated 500-sample subset just for this
+plot. The trend is non-monotonic in both runs (e.g. this run's RMSE ticks up at
+iterations 8 and 12 before falling again) -- expected for an entropy-driven
+acquisition, which optimizes information gain, not held-out error, at each step.
+Plotted in `paper/phase9_validation/rmse_and_entropy.png`, panel (a).
+
+### Phase diagram (Fig 8) and McCabe-Thiele stage table (Fig 9)
+
+The freshly recomputed Wilson (ground-truth) curve matches the archived
+`gt_Wilson_data` to within 0.20 K / 0.007 mole fraction (well inside the existing
+gated test's 0.5 K / 0.02 tolerance) -- expected, since this is a deterministic
+Clapeyron computation with no randomness anywhere in it.
+
+The **genuinely** 15-iteration-adaptive surrogate GP (this run's final, 24-point
+model -- not `fig09_mccabe_thiele.py`'s dedicated 30-point-LHS/MLE-fit stand-in) gives
+a phase diagram within 0.83 K / 0.02 mole fraction of the Wilson curve -- a good
+surrogate. See `paper/phase9_validation/phase_diagram_fresh.png`.
+
+It does **not**, however, converge to a physical McCabe-Thiele column
+(`column_surrogate_converged: false` in `full_run_summary.json`; one stage comes back
+with a liquid mole fraction of 1.73, outside `[0, 1]`). This is a genuine discrepancy,
+worth stating plainly rather than glossing over: entropy-driven acquisition optimizes
+for GP predictive accuracy at held-out points, not for producing a globally smooth
+enough equilibrium curve for the stage-stepping solver, which (per
+`fig09_mccabe_thiele.py`'s own comment on `Z_GRID_SIZE`) is sensitive to how
+well-resolved that curve is. The paper's dedicated 30-point space-filling LHS
+surrogate converges reliably for exactly this reason -- it doesn't concentrate points
+the way an information-seeking acquisition does. This isn't a bug in the port; it's a
+real property of entropy-driven design that the paper's own Fig 9 pipeline
+deliberately worked around (see this file's "Simplifications" section above).
+
+### Summary
+
+Qualitative/statistical agreement confirmed on every axis the acceptance criteria
+asked for, and considerably tighter than "qualitative" on the deterministic parts of
+the pipeline (HMC diagnostics, hyperparameter posterior, entropy field). The one
+real, explainable discrepancy -- the adaptive surrogate's McCabe-Thiele column not
+converging -- is a property of entropy-driven acquisition, not a refactor defect, and
+is exactly the kind of thing Phase 6/7 already worked around for Fig 9's own
+regression test. Full numbers: `paper/phase9_validation/full_run_summary.json`.
+Reproduce via `paper/full_reproduction.py` (module docstring has the full paper-trail
+for every constant); not gated in CI (see above).

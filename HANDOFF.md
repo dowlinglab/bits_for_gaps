@@ -8,10 +8,66 @@ State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before c
 - Phase 5 (generalize to N-D): done 2026-07-04, merged to `main`.
 - Phase 6 (port the VLE/distillation example): done 2026-07-04, merged to `main`.
 - Phase 7 (reproduce the paper's figures): done 2026-07-04, merged to `main`.
-- **Phase 8 (Sphinx + MyST + ReadTheDocs docs): done 2026-07-04 on branch
-  `phase8-docs` — awaiting review/merge to `main` before Phase 9 begins.**
+- Phase 8 (Sphinx + MyST + ReadTheDocs docs): done 2026-07-04, merged to `main`.
+- **Phase 9 (reproduce ALL paper results, including the from-scratch stochastic
+  HMC+acquisition loop; archive-free figure reproduction): done 2026-07-04 on branch
+  `phase9-repro` — awaiting review/merge to `main` before Phase 10 (publish).**
 
-## Phase 8 — documentation (done; review gate before Phase 9)
+## Phase 9 — full stochastic reproduction + archive-free figures (done; review gate before Phase 10)
+
+Two independent, separately-committed pieces (see REFACTOR_PLAN.md's Phase 9 entry
+and §7 decision 4):
+
+**STEP 1 -- archive-free figure reproduction.** `paper/reproduce.py` no longer needs
+private-archive access by default. Enumerated (from the code, not guessed) exactly
+which files every `paper/figures/*.py` module reads via `paper/figures/_archive.py`'s
+loaders, and copied exactly that set (~16 MB, well under the 30-50 MB budget --
+`gp_predict_2/3/4` turned out to not be read by anything, only `gp_predict_{1,15}`)
+into a new **tracked** `paper/data/`, with provenance in `paper/data/README.md`.
+Repointed `paper/reproduce.py`'s `DEFAULT_ARCHIVE` and
+`tests/regression/test_paper_figures.py`'s `ARCHIVE_DIR` at it. Re-gated
+`test_paper_figures.py`: the three tests that only *read* committed data (Fig 5 error
+metrics, Fig 10 HMC diagnostics, the hyperparameter posterior behind Fig 11) moved out
+of `@pytest.mark.vle` into the default suite; only the Fig 8 Wilson-curve cross-check
+(recomputes via live Clapeyron) stays gated. `pytest -q` went from 117/5 to
+**120 passed, 2 deselected**. `tests/regression/test_mccabe_thiele.py` needed **no**
+change -- it has no `ARCHIVE_DIR` at all (Fig 9's stage table is a pure physics
+recompute, no archived data read), contradicting the task's assumption that it needed
+repointing.
+
+**STEP 2/3 -- from-scratch stochastic reproduction.** New `paper/full_reproduction.py`
+drives `bits_for_gaps.sampler.BitsForGaps` through the paper's exact 15-iteration
+adaptive HMC+entropy-acquisition config (10 train/10 test LHS, seed 10, bounds
+`[[1e-6,0.999],[350,367]]`, `AnisotropicSE.paper_2d()`, `likelihood_var=0.1`, HMC
+`noSamples=5000/noBurnIn=0/noChains=4/noLeapfrogSteps=5/stepSize=0.05/noAdaptSteps=5/
+targetAccept=0.9/adaptRate=0.1`, `noGaussians=15/noRestarts=10`) starting from a
+*fresh* LHS design and a live Clapeyron/Wilson black box -- no archived data read.
+Ran once (2026-07-04, ~25 min wall time on this machine); artifacts stayed in the
+gitignored `results_remaked/phase9_fullrun/`. Committed: the script itself, and a
+small (~200 KB) `paper/phase9_validation/` (2 summary PNGs + `full_run_summary.json`)
+backing a new "Phase 9: from-scratch stochastic reproduction" section in
+`paper/REPRODUCTION.md`. **Not gated in CI** -- one-time validation artifact, per the
+task's explicit instruction.
+
+Headline finding, stronger than expected: everything in the loop that runs through a
+`self.seed`-seeded path (LHS design, HMC, the entropy-acquisition optimizer)
+reproduced the published run's R-hat/ESS, hyperparameter posterior, and entropy-decay
+curve to **6-8 significant figures** -- not just "qualitatively similar." The *only*
+place real stochastic drift shows up is `gpflow`'s `predict_f_samples` (documented in
+`bits_for_gaps/mixture.py` as drawing from TensorFlow's non-seedable ambient RNG),
+which feeds the test-RMSE curve (4.337 -> 0.887 here vs. the paper's ~4.34 -> ~0.67 --
+same regime, not the same value) and the surrogate phase diagram. One genuine,
+documented discrepancy: the **genuinely** 15-iteration-adaptive surrogate GP's
+McCabe-Thiele column did **not** converge to a physical solution (unlike
+`fig09_mccabe_thiele.py`'s dedicated 30-point-LHS/MLE-fit stand-in, which does) --
+entropy-driven acquisition optimizes for predictive accuracy at held-out points, not
+for a globally smooth-enough equilibrium curve for the stage-stepping solver. See
+`paper/REPRODUCTION.md`'s Phase 9 section for full numbers and discussion.
+
+`src/bits_for_gaps/` core, `paper/golden/*`, and the dependency stack were not
+touched. `import bits_for_gaps` confirmed still Julia-free.
+
+## Phase 8 — documentation (done; merged to main)
 
 `docs/` is a Sphinx 7 + MyST + furo site, repo-only (not shipped in the pip wheel --
 same policy as `examples/`/`paper/`), built via the existing `[docs]` extra.
@@ -579,12 +635,13 @@ Key facts for the next session:
 - Markers registered in `pyproject.toml`: `vle` (Julia backend, deselected by default),
   `slow` (integration; still runs by default). Run gated tests with `pytest -m vle`.
 
-## What exists now (Phase 0 + Phase 3-lite + Phases 4-8 done)
+## What exists now (Phase 0 + Phase 3-lite + Phases 4-9 done)
 
 A pip-installable package with the **algorithm decomposed into focused, tested modules**,
 **generalized to N input dimensions**, a **ported VLE/distillation example** repo-side,
-**all 11 paper figures reproduced** repo-side, and a **Sphinx/MyST/RTD docs site**
-(see the "Phase 4"-"Phase 8" sections above):
+**all 11 paper figures reproduced** repo-side (now archive-free by default),
+a **Sphinx/MyST/RTD docs site**, and a **from-scratch stochastic reproduction** of the
+full adaptive loop (see the "Phase 4"-"Phase 9" sections above):
 
 ```
 src/bits_for_gaps/
@@ -616,11 +673,18 @@ tests/regression/  golden-file checks vs published paper values (Phase 2, 2-D on
                  (Phase 7) @pytest.mark.vle recomputes
 examples/vle_distillation/  the H2O-PrOH case study on the public API (Phase 6) --
                  repo-only, not in the pip wheel; see the "Phase 6" section above
-paper/figures/ + paper/reproduce.py  all 11 paper figures reproduced from the
-                 archived published run (Phase 7) -- repo-only, not in the pip
-                 wheel; see the "Phase 7" section above
+paper/figures/ + paper/reproduce.py  all 11 paper figures reproduced (Phase 7),
+                 archive-free by default as of Phase 9 via the tracked paper/data/
+                 -- repo-only, not in the pip wheel; see the "Phase 7"/"Phase 9"
+                 sections above
 docs/ + .readthedocs.yaml  Sphinx/MyST/furo docs (Phase 8) -- repo-only, not in
                  the pip wheel; see the "Phase 8" section above for RTD import steps
+paper/data/      curated ~16 MB plot-input subset (Phase 9) -- tracked, not
+                 gitignored; see paper/data/README.md
+paper/full_reproduction.py + paper/phase9_validation/  from-scratch stochastic
+                 reproduction of the full adaptive loop (Phase 9) -- one-time
+                 validation artifact, not gated in CI; see the "Phase 9" section
+                 above and paper/REPRODUCTION.md
 ```
 
 `BitsForGaps` (public-API facade, REFACTOR_PLAN §4 kwarg names) and `adaptiveEntropy`
@@ -632,8 +696,8 @@ importable classes; both work at any input dimension as of Phase 5.
 ```bash
 conda env create -f environment.yml        # or reuse existing `bits_for_gaps` env
 conda activate bits_for_gaps               # /opt/anaconda3/envs/bits_for_gaps
-pip install -e ".[dev]"                     # add ,vle for the Julia example
-pytest -q                                   # 14 pass
+pip install -e ".[dev,vle]"                 # ,vle needed for the Julia example
+pytest -q                                   # 120 passed, 2 deselected (as of Phase 9)
 ```
 Stack: Python 3.9.23, gpflow 2.9.2, TF 2.16.2, TFP 0.24.0, numpy 1.26.4, scipy 1.13.1.
 **macOS: `export PYTHON_JULIACALL_HANDLE_SIGNALS=yes`** before any juliacall import
@@ -643,13 +707,18 @@ Stack: Python 3.9.23, gpflow 2.9.2, TF 2.16.2, TFP 0.24.0, numpy 1.26.4, scipy 1
 
 Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_hms/`.
 - Published run = `results/less_x_new_manuscript_revisions/`, **iteration 15** (R̂/ESS
-  match paper Fig 10 exactly). Archived figure PNGs + data are all there.
+  match paper Fig 10 exactly). Archived figure PNGs + data are all there. Full run
+  directory is 564 MB (not 2.5 GB -- that was the old repo's whole git history).
 - `driver_new.py` = active driver (NOT `driver.py`). `new_phase_diagram.py` = Fig 8.
   `run_example.py` = Fig 9. `train_test_split_proh.py` = Fig 5. `fxns/mcmc_plotter.py`
   + `fxns/plot_res.py` = figure library/CLI.
 - Repro-fix already applied there: `equilibrium.water_proh_eqm_julia` now reads
   `gt_Wilson_data` (original path was missing).
-- Do NOT copy `results/` here (2.5 GB); it will go to Zenodo (see paper/DATA.md TODO).
+- **Data decision (updated Phase 9, supersedes the old "never copy results/ here"
+  line): a curated ~16 MB plot-input subset IS committed, at `paper/data/`** (see
+  `paper/data/README.md` for the exact file manifest and `paper/DATA.md` for the
+  full policy). The full 564 MB run stays in this private old repo (archive of
+  record) -- **no Zenodo deposit** (REFACTOR_PLAN.md §7 decision 4).
 
 ## Next steps (in order — see REFACTOR_PLAN.md phases)
 
@@ -664,13 +733,17 @@ Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_
 
 5. **Phase 7 — reproduce all paper figures. ✅ DONE.** Merged to `main`.
 
-6. **Phase 8 — docs (Sphinx/RTD). ✅ DONE.** See the "Phase 8" section above. On branch
-   `phase8-docs`; merge to `main` after review, then start Phase 9. Actually connecting
-   the repo on readthedocs.org is a maintainer action requiring the user's RTD account
-   -- not attempted this session (see the numbered steps in the "Phase 8" section);
-   `.readthedocs.yaml` is ready and waiting for that one manual step.
+6. **Phase 8 — docs (Sphinx/RTD). ✅ DONE.** Merged to `main`. See the "Phase 8"
+   section above. Actually connecting the repo on readthedocs.org is a maintainer
+   action requiring the user's RTD account -- not attempted this session (see the
+   numbered steps in the "Phase 8" section); `.readthedocs.yaml` is ready and waiting
+   for that one manual step.
 
-7. **Phase 9 — publish (TestPyPI -> PyPI).** No Zenodo deposit (REFACTOR_PLAN.md §7
+7. **Phase 9 — full stochastic reproduction + archive-free figures. ✅ DONE.** On
+   branch `phase9-repro`; merge to `main` after review, then start Phase 10. See the
+   "Phase 9" section above.
+
+8. **Phase 10 — publish (TestPyPI -> PyPI).** No Zenodo deposit (REFACTOR_PLAN.md §7
    decision 4 -- the private old repo is the archive of record). Needs: bump
    `version` in `pyproject.toml` off `0.0.1.dev0`, a GitHub Actions trusted-publishing
    workflow (or manual `twine upload`), a TestPyPI dry run before the real PyPI
