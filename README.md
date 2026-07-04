@@ -46,3 +46,14 @@ docs/                Sphinx documentation (ReadTheDocs)
 ```bash
 pytest -q
 ```
+
+## Docs
+
+```bash
+pip install -e ".[docs]"
+sphinx-build -W docs docs/_build/html
+```
+
+Full docs (installation, a pure-Python quickstart, theory notes, the VLE example, and
+the API reference): `docs/index.md`, or built and browsed locally as above. See
+`HANDOFF.md` for ReadTheDocs setup status.

@@ -7,10 +7,121 @@ State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before c
 - Phase 4 (decompose `sampler.py`; retire disk-as-state): done 2026-07-03, merged to `main`.
 - Phase 5 (generalize to N-D): done 2026-07-04, merged to `main`.
 - Phase 6 (port the VLE/distillation example): done 2026-07-04, merged to `main`.
-- **Phase 7 (reproduce the paper's figures): done 2026-07-04 on branch
-  `phase7-reproduce` — awaiting review/merge to `main` before Phase 8 begins.**
+- Phase 7 (reproduce the paper's figures): done 2026-07-04, merged to `main`.
+- **Phase 8 (Sphinx + MyST + ReadTheDocs docs): done 2026-07-04 on branch
+  `phase8-docs` — awaiting review/merge to `main` before Phase 9 begins.**
 
-## Phase 7 — reproduce the paper's figures (done; review gate before Phase 8)
+## Phase 8 — documentation (done; review gate before Phase 9)
+
+`docs/` is a Sphinx 7 + MyST + furo site, repo-only (not shipped in the pip wheel --
+same policy as `examples/`/`paper/`), built via the existing `[docs]` extra.
+`sphinx-build -W docs docs/_build/html` succeeds with **zero warnings** (confirmed
+on repeated clean builds). `pytest -q` is unaffected: **117 passed, 5 deselected**
+(docs are additive; no source files under `src/bits_for_gaps/`, `examples/`, or
+`paper/` changed -- `git diff main -- <path>` is empty for all three).
+
+```
+docs/
+  conf.py            Sphinx config; see "RTD/TensorFlow decision" below
+  index.md           overview, paper DOI, status, page map
+  installation.md     core / dev / [docs] / optional [vle]+Julia install; explicit
+                      "examples/ and paper/ are repo-only, clone required" note
+  quickstart.md        pure-Python BitsForGaps(black_box, bounds, kernel=
+                      AnisotropicSE()) example, as inert code blocks (not executed
+                      at build time -- HMC is too slow for a docs build)
+  theory.md            brief method summary + citation; links into the API reference
+  vle_example.md       narrative walkthrough -> examples/vle_distillation/README.md
+  reproduce_paper.md   narrative walkthrough -> paper/REPRODUCTION.md +
+                      paper/DATA.md's private-archive-access note
+  api.rst              automodule/autoclass over the public surface
+  Makefile             `make html` (`sphinx-build -W`), `make clean`
+.readthedocs.yaml       RTD build config: Python 3.9, ubuntu-24.04,
+                      sphinx.fail_on_warning: true, `pip install .[docs]` only
+```
+
+Key facts for the next session:
+
+- **RTD/TensorFlow build-robustness decision: install the real stack, don't mock
+  it.** Autodoc imports `bits_for_gaps`, which imports gpflow/tensorflow/tfp for the
+  TF-backed modules. `pip install ".[docs]"` (what `.readthedocs.yaml` runs) already
+  pulls in the pinned TF 2.16.2/GPflow 2.9.2/TFP 0.24.0 stack, because pip's extras
+  are *additive* to a package's base `dependencies` -- there is no way to install
+  `[docs]` without also installing the base stack. This gives autodoc a real,
+  importable `AnisotropicSE` (a `gpflow.kernels.Kernel` subclass) to
+  introspect -- verified directly by inspecting the rendered HTML: its page shows
+  the full constructor signature and "Bases: Kernel", which mocking the import out
+  would have suppressed. `docs/conf.py` documents the fallback
+  (`autodoc_mock_imports = [...]`, commented out) in case a future RTD build times
+  out or OOMs installing TF -- not needed today, not exercised, just ready if it
+  ever is. `juliacall`/`juliapkg` are **never** imported by the docs build at all
+  (no autodoc directives target `examples/vle_distillation`; that page is narrative
+  only) -- no mock needed for them, no `[vle]` extra installed by
+  `.readthedocs.yaml`.
+- **Two real (not cosmetic-noise) issues found and fixed while verifying the
+  build:** (1) MyST's `dollarmath`/`amsmath` extensions were not enabled by
+  default, so `theory.md`'s `$$...$$` canonical-hyperparameter-ordering equation
+  silently rendered as literal text instead of math -- fixed by adding both to
+  `myst_enable_extensions` plus `sphinx.ext.mathjax`; verified the equation now
+  renders as an actual MathJax block. (2) `api.rst` had a cross-reference role
+  (`` :class:`~bits_for_gaps.sampler.adaptiveEntropy` ``) that got line-wrapped
+  mid-identifier when first drafted, which silently failed to resolve (a literal
+  newline inside the backticks becomes a space, breaking the dotted path) --
+  fixed by keeping the whole role on one line. Both were caught by rendering the
+  actual HTML and checking for resolved anchors/MathJax output, not just by
+  `sphinx-build -W` succeeding -- **a clean warnings-as-errors build does not by
+  itself prove cross-references resolved or math rendered**, because
+  `nitpicky = False` (the default, kept deliberately -- see next point) doesn't
+  warn on unresolved `:class:`/`:func:` targets, and a `$$...$$` block that isn't
+  recognized as math just becomes an ordinary (silently valid) paragraph.
+- **`nitpicky` is deliberately left `False` (i.e., unset -- Sphinx's default),
+  not enabled.** Turning it on was tried as a diagnostic (`sphinx-build -D
+  nitpicky=1`) and immediately produced ~40 warnings, almost all from NumPy-style
+  docstring parameter types (`np.ndarray, shape (n, m)`, `array-like`, `optional`,
+  `tfp.distributions.Distribution`, ...) that napoleon turns into cross-reference
+  attempts with no real Sphinx target -- these aren't bugs, they're the normal
+  cost of NumPy-style docstrings without a full `intersphinx` wiring to
+  numpy/scipy/tensorflow/gpflow/tfp's own docs. Fixing all of them would mean
+  either adding `intersphinx_mapping` (network-dependent at build time -- a
+  robustness risk for RTD builds, deliberately avoided; see the "no network
+  fetches" reasoning in this same decision) or extensively rewriting docstrings
+  purely for Sphinx's benefit, which the task explicitly says not to do ("docs
+  should surface them \[docstrings\], not rewrite them"). One genuine, low-value
+  broken reference remains as a result (`` :meth:`run` `` in a couple of
+  `sampler.py` docstrings, referring to an *inherited* method that isn't
+  separately autodoc'd since `:inherited-members:` isn't set) -- silently
+  harmless under `nitpicky = False`, left as-is rather than touched for a
+  docs-only cosmetic gain.
+- **The quickstart is inert code, verified against the real API, not run.** Every
+  name/signature/attribute the quickstart page uses
+  (`BitsForGaps(black_box=..., bounds=..., kernel=..., likelihood_variance=...)`,
+  `bfg.noSamples`/`.noBurnIn`/`.noChains`, `bfg.run(X_init, y_init)`,
+  `history.last`, `record.xStar`/`.max_entropy`/`.rhat`, the
+  `black_box(*xStar)` calling convention with `fwd_model_args=()` by default) was
+  cross-checked directly against `sampler.py`'s `BitsForGaps.__init__` and
+  `state.py`'s `IterationRecord`/`RunHistory`, not run through the actual HMC loop
+  (which the task explicitly says not to execute at docs-build time).
+- **RTD import steps for the user** (a maintainer action requiring the user's RTD
+  account -- NOT attempted this session, per the guardrail):
+  1. Sign in at [readthedocs.org](https://readthedocs.org) with the GitHub account
+     that owns/has admin on `dowlinglab/bits_for_gaps`.
+  2. "Add project" -> import `dowlinglab/bits_for_gaps` from the connected GitHub
+     account (or "Import Manually" with the repo URL if the GitHub App isn't
+     installed for this org yet).
+  3. RTD auto-detects `.readthedocs.yaml` at the repo root -- no further build
+     config needed in the web UI; confirm the default branch (`main`) and doc
+     type (Sphinx) look right on the project's Admin > Settings page.
+  4. Trigger a build (either automatically on import, or "Build Version" from the
+     project dashboard) and check it completes; if TF's install ever times out or
+     runs out of memory on RTD's builders, switch to the `autodoc_mock_imports`
+     fallback documented in `docs/conf.py` and rebuild.
+  5. Optional: enable "Build pull requests for this project" under Admin >
+     Settings if PR doc previews are wanted; set up a custom domain / project
+     slug as desired.
+- Doc-only touch-ups outside `docs/`: `README.md` gained a short "Docs" section
+  (build command + pointer to `docs/index.md`); no other file outside `docs/` and
+  `.readthedocs.yaml` changed.
+
+## Phase 7 — reproduce the paper's figures (done; merged to main)
 
 All 11 figures (2-12) regenerate from the archived published run through
 `paper/reproduce.py` + `paper/figures/`. `pytest -q` (default) = **117 passed, 5
@@ -468,12 +579,12 @@ Key facts for the next session:
 - Markers registered in `pyproject.toml`: `vle` (Julia backend, deselected by default),
   `slow` (integration; still runs by default). Run gated tests with `pytest -m vle`.
 
-## What exists now (Phase 0 + Phase 3-lite + Phase 4 + Phase 5 + Phase 6 + Phase 7 done)
+## What exists now (Phase 0 + Phase 3-lite + Phases 4-8 done)
 
 A pip-installable package with the **algorithm decomposed into focused, tested modules**,
 **generalized to N input dimensions**, a **ported VLE/distillation example** repo-side,
-and **all 11 paper figures reproduced** repo-side (see the "Phase 4"-"Phase 7" sections
-above):
+**all 11 paper figures reproduced** repo-side, and a **Sphinx/MyST/RTD docs site**
+(see the "Phase 4"-"Phase 8" sections above):
 
 ```
 src/bits_for_gaps/
@@ -508,6 +619,8 @@ examples/vle_distillation/  the H2O-PrOH case study on the public API (Phase 6) 
 paper/figures/ + paper/reproduce.py  all 11 paper figures reproduced from the
                  archived published run (Phase 7) -- repo-only, not in the pip
                  wheel; see the "Phase 7" section above
+docs/ + .readthedocs.yaml  Sphinx/MyST/furo docs (Phase 8) -- repo-only, not in
+                 the pip wheel; see the "Phase 8" section above for RTD import steps
 ```
 
 `BitsForGaps` (public-API facade, REFACTOR_PLAN §4 kwarg names) and `adaptiveEntropy`
@@ -549,21 +662,22 @@ Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_
 
 4. **Phase 6 — port the VLE example. ✅ DONE.** Merged to `main`.
 
-5. **Phase 7 — reproduce all paper figures. ✅ DONE.** See the "Phase 7" section above.
-   On branch `phase7-reproduce`; merge to `main` after review, then start Phase 8. Note
-   for anyone reading the pre-Phase-7 version of this note below: the earlier plan here
-   said Phase 7 would need to reproduce the paper's real 15-iteration adaptive run
-   bit-for-bit. That was superseded by an explicit approach decision before this phase
-   started: load the archived artifacts and render them through the new code (proving
-   the new code reproduces the published figures) rather than re-running the
-   stochastic, expensive adaptive loop. Fig 9's surrogate panel still uses a fresh
-   (non-adaptive) GP fit, same as Phase 6 -- reproducing the exact 15-iteration
-   surrogate bit-for-bit was explicitly out of scope for this phase too, not merely
-   deferred by accident.
+5. **Phase 7 — reproduce all paper figures. ✅ DONE.** Merged to `main`.
 
-6. **Phase 8 — docs (Sphinx/RTD)**; **Phase 9 — publish (TestPyPI -> PyPI) + Zenodo**.
-   Phase 8 should document the N-D kernel construction (`AnisotropicSE(variance_prior=...,
-   lengthscale_priors=[...])`) alongside the 2-D quickstart, plus the `paper_2d()` factory.
+6. **Phase 8 — docs (Sphinx/RTD). ✅ DONE.** See the "Phase 8" section above. On branch
+   `phase8-docs`; merge to `main` after review, then start Phase 9. Actually connecting
+   the repo on readthedocs.org is a maintainer action requiring the user's RTD account
+   -- not attempted this session (see the numbered steps in the "Phase 8" section);
+   `.readthedocs.yaml` is ready and waiting for that one manual step.
+
+7. **Phase 9 — publish (TestPyPI -> PyPI).** No Zenodo deposit (REFACTOR_PLAN.md §7
+   decision 4 -- the private old repo is the archive of record). Needs: bump
+   `version` in `pyproject.toml` off `0.0.1.dev0`, a GitHub Actions trusted-publishing
+   workflow (or manual `twine upload`), a TestPyPI dry run before the real PyPI
+   publish, and a `v0.1.0` tag. Also the actual RTD connection from step 6, and
+   double-check `python -m build --wheel` one more time post-any-final-tweaks (last
+   verified in Phase 6/7: wheel contents are exactly `bits_for_gaps/*`, no
+   `examples/`/`paper/`/`docs/`).
 
 ## Known issues / decisions already made (do not re-litigate)
 
