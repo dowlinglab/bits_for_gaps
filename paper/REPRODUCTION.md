@@ -202,27 +202,36 @@ model -- not `fig09_mccabe_thiele.py`'s dedicated 30-point-LHS/MLE-fit stand-in)
 a phase diagram within 0.83 K / 0.02 mole fraction of the Wilson curve -- a good
 surrogate. See `paper/phase9_validation/phase_diagram_fresh.png`.
 
-It does **not**, however, converge to a physical McCabe-Thiele column
-(`column_surrogate_converged: false` in `full_run_summary.json`; one stage comes back
-with a liquid mole fraction of 1.73, outside `[0, 1]`). This is a genuine discrepancy,
-worth stating plainly rather than glossing over: entropy-driven acquisition optimizes
-for GP predictive accuracy at held-out points, not for producing a globally smooth
-enough equilibrium curve for the stage-stepping solver, which (per
-`fig09_mccabe_thiele.py`'s own comment on `Z_GRID_SIZE`) is sensitive to how
-well-resolved that curve is. The paper's dedicated 30-point space-filling LHS
-surrogate converges reliably for exactly this reason -- it doesn't concentrate points
-the way an information-seeking acquisition does. This isn't a bug in the port; it's a
-real property of entropy-driven design that the paper's own Fig 9 pipeline
-deliberately worked around (see this file's "Simplifications" section above).
+**Update (Phase 9b, corrects the paragraph originally here):** this surrogate's
+McCabe-Thiele column *does* converge and track the Wilson column closely -- within
+0.03 mole fraction (liquid) / 0.014 (vapor) at every stage. The original run reported
+`column_surrogate_converged: false` with an unphysical stage-2 liquid mole fraction of
+1.73, and this file used to attribute that to a property of entropy-driven
+acquisition ("optimizes for GP predictive accuracy at held-out points, not for a
+globally smooth enough equilibrium curve"). **That attribution was wrong** -- a
+dedicated investigation (`paper/PHASE9B_INVESTIGATION.md`) traced it to a
+shared-mutable-state bug in `paper/full_reproduction.py`: the test-RMSE step mutated
+the same `GPmodel` object the phase-diagram step reused afterward
+(`bits_for_gaps.mixture.sample_gp_posterior_mixture` reassigns `GPmodel.kernel` in
+place, by design), leaving the kernel at an arbitrary leftover hyperparameter state by
+the time the phase diagram was built. Fixed by reordering the script and by adding a
+posterior-hyperparameter-averaged surrogate construction
+(`examples/vle_distillation/phase_diagram.py`'s `surrogate_gamma_averaged`, matching
+the paper's own `new_phase_diagram.py` method) for extra robustness. See
+`paper/PHASE9B_INVESTIGATION.md` for the full root-cause analysis, which hypotheses
+were tested, and the before/after numbers -- there is no real methodological
+limitation of entropy-driven design to report here after all.
 
 ### Summary
 
 Qualitative/statistical agreement confirmed on every axis the acceptance criteria
 asked for, and considerably tighter than "qualitative" on the deterministic parts of
-the pipeline (HMC diagnostics, hyperparameter posterior, entropy field). The one
-real, explainable discrepancy -- the adaptive surrogate's McCabe-Thiele column not
-converging -- is a property of entropy-driven acquisition, not a refactor defect, and
-is exactly the kind of thing Phase 6/7 already worked around for Fig 9's own
-regression test. Full numbers: `paper/phase9_validation/full_run_summary.json`.
-Reproduce via `paper/full_reproduction.py` (module docstring has the full paper-trail
-for every constant); not gated in CI (see above).
+the pipeline (HMC diagnostics, hyperparameter posterior, entropy field). The adaptive
+surrogate's McCabe-Thiele column, initially reported as not converging, does converge
+once a Phase 9b bug fix removed an accidental shared-mutable-state issue in
+`paper/full_reproduction.py` (see `paper/PHASE9B_INVESTIGATION.md`) -- there is no
+real methodological limitation of entropy-driven acquisition to report here. Full
+numbers: `paper/phase9_validation/full_run_summary.json` (the pre-fix run is preserved
+as `full_run_summary_pre_phase9b_fix.json` for the record). Reproduce via
+`paper/full_reproduction.py` (module docstring has the full paper-trail for every
+constant); not gated in CI (see above).
