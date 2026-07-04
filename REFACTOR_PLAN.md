@@ -178,10 +178,15 @@ Core has **zero Julia dependency**; `pip install bits_for_gaps` pulls GPflow/TF/
 - Ran the full adaptive loop from scratch (`paper/full_reproduction.py`, ~26 min): seeded parts (HMC posterior, R̂/ESS, hyperparam posterior, entropy decay) reproduce the paper to **7–8 sig figs**; only the non-seedable `predict_f_samples` path (test-RMSE, surrogate curve) drifts.
 - **Phase 9b correction:** Phase 9 initially reported the fully-adaptive surrogate's McCabe-Thiele column as non-converging and attributed it to entropy-driven design — that was a **bug** (shared-mutable-state in `full_reproduction.py`: the test-RMSE loop mutated `GPmodel.kernel` in place before the phase diagram reused it), **not** a scientific finding. Fixed (example layer only); the adaptive surrogate's column now converges and tracks Wilson within 0.03. See `paper/PHASE9B_INVESTIGATION.md`; retraction in `paper/REPRODUCTION.md`.
 
+### Phase 9c — Robustness hardening (make it a reliable package)  *(Sonnet + Opus check)*
+- Make BITS for GAPS as robust as possible **without changing numerical behavior** — the pre-Phase-4 baseline (`synthetic_baseline.json`, atol 1e-10) + all golden regressions are the safety net and stay green. First sanctioned core change since Phase 4.
+- Targets: (1) fix the `mixture.sample_gp_posterior_mixture` in-place kernel-mutation footgun (save/restore state) — the Phase-9b bug; (2) public-API input validation with clear errors (bounds vs kernel ndim, lo<hi, positive config, X/y shapes, black-box output); (3) guard fragile spots (distillation `fsolve` convergence check/message, entropy `assert`→explicit raise, GP/Cholesky conditioning); (4) optional TF seed so the one documented non-reproducibility (`predict_f_samples`) can be made deterministic on request.
+- Rerun `paper/full_reproduction.py` to confirm the paper still reproduces (column converges, HMC to 7–8 sig figs, stage table tracks Wilson).
+- Document all improvements/fixes over the original paper code in `docs/improvements_over_paper.md`.
+
 ### Phase 10 — Publish  *(Opus + user)*
 - Artifacts are already finalized (Phase 9 committed `paper/data/`; §7 decision 4). Release engineering: polish `pyproject.toml` → `0.1.0`, `CHANGELOG.md` + `RELEASE.md`, `python -m build` + `twine check`, clean-env install audit, GitHub Actions **trusted-publishing** workflow.
 - User actions: create PyPI/TestPyPI projects + configure trusted publishing (OIDC); TestPyPI dry-run; `git tag v0.1.0`; activate RTD (steps in `HANDOFF.md`).
-- **Consider (small core hardening):** `mixture.sample_gp_posterior_mixture`'s documented in-place kernel mutation caused the Phase-9 bug — a defensive save/restore (+ test) in core would prevent that class of footgun. Optional; decide before or just after v0.1.0.
 
 ---
 
