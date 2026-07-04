@@ -5,10 +5,132 @@ State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before c
 - Bootstrap (Phase 0 + Phase 3-lite): Opus, 2026-07-03.
 - Phase 2 (regression/test harness): done 2026-07-03, merged to `main`.
 - Phase 4 (decompose `sampler.py`; retire disk-as-state): done 2026-07-03, merged to `main`.
-- **Phase 5 (generalize to N-D): done 2026-07-04 on branch `phase5-nd` — awaiting
-  review/merge to `main` before Phase 6 begins.**
+- Phase 5 (generalize to N-D): done 2026-07-04, merged to `main`.
+- **Phase 6 (port the VLE/distillation example): done 2026-07-04 on branch
+  `phase6-vle-example` — awaiting review/merge to `main` before Phase 7 begins.**
 
-## Phase 5 — generalize to N-D (done; review gate before Phase 6)
+## Phase 6 — port the VLE/distillation example (done; review gate before Phase 7)
+
+The paper's H2O-PrOH case study now lives at `examples/vle_distillation/`, on the
+public `bits_for_gaps` API, with the Julia/Clapeyron activity model injected as the
+black box. `pytest -q` (default) = **117 passed, 1 deselected** (was 88 before Phase 6:
++29 new no-Julia unit tests for the example modules). `pytest -m vle` = **1 passed, 117
+deselected** (~54 s; needs Julia/Clapeyron) -- the gated stage-table regression now
+actually recomputes and checks, instead of skipping.
+
+```
+examples/vle_distillation/       repo-only -- NOT in the pip wheel (verified via
+                                 `python -m build --wheel`: contents are only
+                                 bits_for_gaps/*, no examples/ or paper/)
+  __init__.py
+  activity_model.py               Wilson gamma via Clapeyron.jl; LAZY juliacall import
+  calculate_activities.jl         ported from fxns/calculate_activities.jl
+  juliapkg.json                   pins Clapeyron.jl =0.6.26
+  gibbs_duhem.py                  gamma_water from a modeled gamma_proh curve. PURE.
+  phase_diagram.py                Antoine + bubble/dew point; wilson_gamma (Julia) /
+                                  surrogate_gamma (bits_for_gaps GP + Gibbs-Duhem)
+  equilibrium.py                  wraps a VLE curve as x_liquid -> y_vapor. PURE.
+  distillation.py                 McCabe-Thiele column solver (fsolve). PURE.
+  run_case_study.py               LHS -> Clapeyron -> BitsForGaps.run -> phase
+                                  diagram + column; paper's exact 2-D config
+  README.md                       setup + run, for a fresh clone
+tests/conftest.py                 + sys.path insert of examples/ (see below)
+tests/unit/                       + test_gibbs_duhem/phase_diagram/equilibrium/
+                                  distillation.py (no Julia, run by default)
+tests/regression/test_mccabe_thiele.py  gated recompute wired up (was a Phase-2
+                                  placeholder that skipped)
+```
+
+Key facts for the next session:
+
+- **Packaging mechanism (REFACTOR_PLAN §7.3), concretely implemented:**
+  `tests/conftest.py` does `sys.path.insert(0, REPO_ROOT / "examples")`, which makes
+  `import vle_distillation.<mod>` work in dev/CI without installing `examples/` as a
+  distribution. This same mechanism made `examples/vle_distillation/juliapkg.json`
+  auto-discoverable: `juliapkg` scans every `<sys.path entry>/<subdir>/juliapkg.json`
+  (confirmed directly by reading `juliapkg/deps.py` and by the resolution log), so
+  once `examples/` is on `sys.path`, the Clapeyron pin is found with **no extra
+  wiring** -- no `Pkg.add` step, no environment variable. `run_case_study.py` does the
+  equivalent `sys.path` insert itself (of its own parent's parent) so it works when
+  invoked as a standalone script, not just under pytest.
+- **Clapeyron.jl is pinned to 0.6.26** (uuid `7c7805af-46cc-48c9-995b-ed0ed2dc909a`,
+  the version already resolved in this machine's Julia depot -- read directly from
+  `~/.julia/environments/pyjuliapkg/Manifest.toml`). A fresh machine's first
+  `juliacall` import (anything calling into `activity_model.py`) auto-downloads Julia
+  itself plus this exact Clapeyron version into a per-conda-env directory
+  (`$CONDA_PREFIX/julia_env/`) -- no manual bootstrap step. See
+  `examples/vle_distillation/README.md`.
+- **Lazy Julia, verified both directions:** `import vle_distillation.activity_model`
+  (and every other example module that imports it) succeeds with **zero** Julia
+  touched (`sys.modules` has no `julia*` entries) -- confirmed directly. Calling
+  `activity_coefficients`/`black_box`/`wilson_gamma` triggers the lazy import and, if
+  Julia/`[vle]` isn't installed, raises a clear `ImportError` naming the fix. `import
+  bits_for_gaps` (the core) is unaffected either way -- it never touches
+  `examples/vle_distillation/` at all.
+- **Black-box adapter convention (the critical Phase-5-carryover contract):**
+  `adaptiveEntropy.call_model` calls `FwdModel(*FwdModelArgs, *xStar)` -- natural
+  dimension order, `xStar = [z_PrOH, T]` for this case study.
+  `activity_model.black_box(z_proh, temperature)` matches that signature directly and
+  returns `[gamma_proh]` (a 1-list, matching `call_model`'s `np.array(self.FwdModel(...))`
+  convention) -- **not** both coefficients: the GP surrogate models only
+  `gamma_PrOH(z, T)`; `gamma_water` is recovered via Gibbs-Duhem
+  (`gibbs_duhem.gamma_water_from_gamma_proh`), never learned by a second GP output.
+  Verified: `activity_coefficients(0.5, 350.0) == (1.4695, 1.7464)`, matching the
+  target sanity value `(1.469, 1.746)`.
+- **The paper's exact as-run manuscript config isn't committed verbatim anywhere in
+  the old repo** (`driver_new.py`/`driver.py`'s own `run_test()` examples use a
+  different, exploratory `"testing_12"`/`"SAFTγMie"` config, not
+  `"less_x_new_manuscript_revisions"`/`"Wilson"`). `run_case_study.py`'s config
+  (bounds `[(1e-6, 0.999), (350, 367)]`, `XTrsfFwd = [log(x+0.1), (T-350)/17]`,
+  `yTrsfFwd = log`, `thermoModel = "Wilson"`, seed `10`) was reconstructed from the
+  files that DO reference that experiment directly:
+  `train_test_split_proh.py`'s commented-out `run_test(...)` call (transforms, bounds,
+  seed) and `new_phase_diagram.py`'s `__main__` block (same transforms, confirms
+  `AnisotropicSE`'s exact 2-D config == `kernels.AnisotropicSE.paper_2d()`). This is a
+  physically-faithful reconstruction, not a byte-for-byte-verified original script --
+  flagged here for anyone who later finds the real one.
+- **The distillation solver's `fsolve` is fragile for arbitrary equilibrium curves**
+  (no bounds, inherited from the original MATLAB-derived port) -- confirmed
+  empirically: several hand-picked synthetic constant-relative-volatility test curves
+  either failed to converge or converged to spurious (unphysical, e.g. negative flow
+  rate) roots, while the real Wilson curve (with a 50-point z-grid, `Z_MESH`/`Z_GRID_SIZE`)
+  converges cleanly to the real Geankoplis 11.4-1 column every time it was tried.
+  `distillation.solve_column` now returns a `"warnings"` list (nonphysical mole
+  fractions/flow rates, fsolve non-convergence) instead of silently returning bad
+  numbers; both `run_case_study.py` and the gated regression test check `"converged"`
+  before trusting a result. **Do not shrink the z-grid casually** -- a coarser
+  (15-point) grid was enough to flip an otherwise-clean Wilson solve to a spurious
+  root in testing.
+- **The gated regression test's "surrogate" recompute intentionally does not use the
+  full adaptive `BitsForGaps.run`/HMC loop.** It trains a GP on a 30-point LHS design
+  (seed 10) evaluated against the same Clapeyron Wilson model, then fits it with
+  `gp.maximize_lml` (a fast, deterministic MLE point estimate) -- reproducing the
+  paper's real 15-iteration *adaptively*-designed surrogate bit-for-bit is Phase 7's
+  job (full figure reproduction), not this phase's backend-correctness check. This
+  recompute matches golden's `"wilson"` column within `atol=0.015` and `"surrogate"`
+  within `atol=0.05` (looser -- a non-adaptive, far-smaller-sample surrogate doesn't
+  track Wilson as tightly in the most dilute region near `xW=0.01` as the paper's
+  refined surrogate did; the biggest observed gap, ~0.03-0.04, is in stage 4's vapor
+  fraction there). A quick empirical note: a 4-iteration adaptive run from only 15
+  initial points did *worse* on this metric than the 30-point plain LHS + MLE fit
+  (too little HMC/data to beat a well-covering static design) -- consistent with the
+  paper's own thesis that adaptive design needs enough iterations to pay off, not
+  evidence against the adaptive loop itself.
+- **Golden's own `"wilson"` column has ~0.01-level transcription slop.** It was
+  hand-transcribed from reading paper Fig 9c (Phase 2, `paper/golden/README.md`), not
+  computed from archived data. My direct Clapeyron recompute reproduces real physical
+  landmarks exactly (`stage 1 vapor == xD == 0.43` exactly, by construction; pure-PrOH
+  bubble point `370.35 K` matches 1-propanol's real normal boiling point to 4
+  significant figures) yet differs from golden's `"wilson"` entries by up to `0.01`
+  (e.g. stage 4 liquid: recompute is exactly `xW = 0.01`, golden's transcription says
+  `0.02`) -- this is the eyeballed-figure-reading precision limit of that column, not
+  a bug in the port. `paper/golden/*` is unmodified (guardrail); the test's
+  `atol=0.015` for Wilson already accounts for this.
+- **`src/bits_for_gaps/` CORE is byte-for-byte untouched** (`git diff main...HEAD --
+  src/bits_for_gaps/` is empty) -- Phase 6 only added `examples/` + tests +
+  `tests/conftest.py`'s `sys.path` insert, per the guardrails.
+
+## Phase 5 — generalize to N-D (done; merged to main)
 
 The 2 inputs / 3 hyperparameters hardcoding flagged by the `TODO(Phase 5)` markers is
 gone. `pytest -q` = **88 passed, 1 deselected** (same `vle` marker). Full suite runs in
@@ -243,10 +365,11 @@ Key facts for the next session:
 - Markers registered in `pyproject.toml`: `vle` (Julia backend, deselected by default),
   `slow` (integration; still runs by default). Run gated tests with `pytest -m vle`.
 
-## What exists now (Phase 0 + Phase 3-lite + Phase 4 + Phase 5 done)
+## What exists now (Phase 0 + Phase 3-lite + Phase 4 + Phase 5 + Phase 6 done)
 
-A pip-installable package with the **algorithm decomposed into focused, tested modules**
-and **generalized to N input dimensions** (see the "Phase 4"/"Phase 5" sections above):
+A pip-installable package with the **algorithm decomposed into focused, tested modules**,
+**generalized to N input dimensions**, and a **ported VLE/distillation example** repo-side
+(see the "Phase 4"/"Phase 5"/"Phase 6" sections above):
 
 ```
 src/bits_for_gaps/
@@ -273,7 +396,10 @@ tests/unit/      entropy/design/kernels(+N-D)/means/_util/transforms/state
 tests/integration/ end-to-end (2-D, in-memory run()) + BitsForGaps facade parity +
                  nd_synthetic (1-D and 3-D, via BitsForGaps)
 tests/regression/  golden-file checks vs published paper values (Phase 2, 2-D only --
-                 the published run and paper/golden/* are inherently 2-D)
+                 the published run and paper/golden/* are inherently 2-D); +
+                 test_mccabe_thiele.py's @pytest.mark.vle recompute (Phase 6)
+examples/vle_distillation/  the H2O-PrOH case study on the public API (Phase 6) --
+                 repo-only, not in the pip wheel; see the "Phase 6" section above
 ```
 
 `BitsForGaps` (public-API facade, REFACTOR_PLAN §4 kwarg names) and `adaptiveEntropy`
@@ -311,21 +437,22 @@ Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_
 
 2. **Phase 4 — decompose `sampler.py`. ✅ DONE.** Merged to `main`.
 
-3. **Phase 5 — generalize to N-D. ✅ DONE.** See the "Phase 5" section above. On branch
-   `phase5-nd`; merge to `main` after review, then start Phase 6. The green suite
-   (regression + 2-D baseline pin + 1-D/3-D synthetic tests) is the safety net.
+3. **Phase 5 — generalize to N-D. ✅ DONE.** Merged to `main`.
 
-4. **Phase 6 — port the VLE example** into `examples/vle_distillation/` (activity model,
-   gibbs_duhem, phase_diagram, distillation, equilibrium) onto the public API, injecting
-   the Julia activity `fwd_model`. Pin Clapeyron via a `juliapkg.json`. **Note the
-   calling-convention change from Phase 5:** the injected `fwd_model` is now called as
-   `FwdModel(*FwdModelArgs, *xStar)` (natural dimension order), not the old reversed
-   `FwdModel(*args, x2, x1)` -- the Julia activity-coefficient wrapper's Python-side
-   signature needs to accept `(x1, x2, ...)` in that order, not the VLE-specific
-   `(T, x)` order the paper code used.
+4. **Phase 6 — port the VLE example. ✅ DONE.** See the "Phase 6" section above. On
+   branch `phase6-vle-example`; merge to `main` after review, then start Phase 7. The
+   green default + `-m vle` suites are the safety net.
 
 5. **Phase 7 — reproduce all paper figures** via `paper/reproduce.py`; diff vs golden
    (all still 2-D -- the published run is 2-D, so this phase doesn't touch N-D at all).
+   This is where the paper's real 15-iteration adaptive run needs reproducing
+   bit-for-bit (or within tolerance) -- Phase 6's `run_case_study.py` demonstrates the
+   pipeline but deliberately runs far fewer iterations, and the gated regression
+   test's "surrogate" recompute deliberately skips the adaptive loop entirely (see the
+   "Phase 6" section above for why). Also worth finding/committing the *actual*
+   as-run manuscript script if it turns up -- Phase 6 had to reconstruct the config
+   from indirect evidence (see "Phase 6" section); the McCabe-Thiele stage-table
+   comparison is the one place this reconstruction is checked against golden.
 
 6. **Phase 8 — docs (Sphinx/RTD)**; **Phase 9 — publish (TestPyPI -> PyPI) + Zenodo**.
    Phase 8 should document the N-D kernel construction (`AnisotropicSE(variance_prior=...,
