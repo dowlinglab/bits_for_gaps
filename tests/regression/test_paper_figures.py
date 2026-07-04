@@ -1,38 +1,37 @@
-"""Gated regression: recompute the paper's quantitative figures from the archived
-published run and diff against ``paper/golden/*``.
+"""Regression: recompute the paper's quantitative figures and diff against
+``paper/golden/*``.
 
-Needs the private archive (REFACTOR_PLAN.md §7 decision 4) -- gated behind
-``@pytest.mark.vle``, reusing the existing "needs a private/special environment,
-deselected by default" marker (Fig 9's gated test in ``test_mccabe_thiele.py``
-established this convention; none of the tests below specifically need Julia, but all
-need the archive, which is exactly as unavailable to most environments as Julia is).
-Point at the archive via the ``BFG_ARCHIVE_DIR`` environment variable if it isn't at
-the default path.
+As of Phase 9, the data these tests read comes from the curated, COMMITTED
+``paper/data/`` subset (see ``paper/data/README.md``) -- no private-archive access
+needed, so the three read-only tests below (Fig 10, Fig 5, the hyperparameter
+posterior behind Fig 11) run in the DEFAULT suite. Only
+``test_fig08_wilson_curve_matches_archived_ground_truth`` stays gated behind
+``@pytest.mark.vle``: it *recomputes* the Wilson curve via live Clapeyron calls
+(needs Julia), unlike the others, which only read committed text files.
+
+Point ``BFG_ARCHIVE_DIR`` at the full private archive instead of ``paper/data/`` if
+you want to check iterations beyond the curated subset.
 
 Fig 9's stage table already has its own gated test (``test_mccabe_thiele.py``) --
 not duplicated here. Fig 8 (phase diagram) has no dedicated golden file (it's a
 visual reproduction, not a pinned scalar target -- see ``paper/REPRODUCTION.md``);
-instead this cross-checks the freshly-recomputed Wilson curve against the archived
-``gt_Wilson_data`` the paper's own Fig 8 was built from.
+instead its test cross-checks the freshly-recomputed Wilson curve against the
+committed ``gt_Wilson_data`` the paper's own Fig 8 was built from.
 """
 import os
+from pathlib import Path
 
 import numpy as np
 import pytest
 
-ARCHIVE_DIR = os.environ.get(
-    "BFG_ARCHIVE_DIR",
-    os.path.expanduser(
-        "~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_hms/"
-        "results/less_x_new_manuscript_revisions"
-    ),
-)
+DEFAULT_DATA_DIR = Path(__file__).resolve().parents[2] / "paper" / "data"
+ARCHIVE_DIR = os.environ.get("BFG_ARCHIVE_DIR", str(DEFAULT_DATA_DIR))
 
-pytestmark = [pytest.mark.vle, pytest.mark.slow]
+pytestmark = pytest.mark.slow
 
 requires_archive = pytest.mark.skipif(
     not os.path.isdir(ARCHIVE_DIR),
-    reason=f"archive not found at {ARCHIVE_DIR!r} (private old repo; see paper/DATA.md)",
+    reason=f"data directory not found at {ARCHIVE_DIR!r} (see paper/data/README.md)",
 )
 
 
@@ -62,7 +61,7 @@ def test_fig05_parity_error_metrics_match_golden(golden):
 @requires_archive
 def test_hyperparameter_posterior_summary_matches_golden(golden):
     # Fig 11's quantitative backbone: recompute the same posterior summary statistics
-    # extract_golden.py pinned, straight from the archived param_posterior_samples_15.
+    # extract_golden.py pinned, straight from the committed param_posterior_samples_15.
     from paper.figures import _archive
 
     params = _archive.load_param_posterior_samples(ARCHIVE_DIR)
@@ -74,10 +73,12 @@ def test_hyperparameter_posterior_summary_matches_golden(golden):
 
 
 @requires_archive
+@pytest.mark.vle
 def test_fig08_wilson_curve_matches_archived_ground_truth():
     # No dedicated golden file for Fig 8 (visual reproduction) -- cross-check the
-    # freshly recomputed Wilson curve (live Clapeyron) against the archived
-    # gt_Wilson_data the paper's own Fig 8 was built from.
+    # freshly recomputed Wilson curve (live Clapeyron -- needs Julia, unlike the
+    # read-only tests above) against the committed gt_Wilson_data the paper's own
+    # Fig 8 was built from.
     from paper.figures import _archive
     from paper.figures.fig08_phase_diagram import wilson_curve
 

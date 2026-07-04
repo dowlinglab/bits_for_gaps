@@ -1,10 +1,13 @@
-"""Shared loaders for the archived published run (iteration 15) + common plot style.
+"""Shared loaders for the published run's plot-input data + common plot style.
 
-The archive is the PRIVATE old repo's ``results/less_x_new_manuscript_revisions/``
-(REFACTOR_PLAN.md §7 decision 4: archive of record, not committed here, not on
-Zenodo). Every figure module in this package reads from it via the functions below
-rather than hardcoding paths -- ``paper/reproduce.py`` is the one place that resolves
-the archive location (CLI arg / env var) and passes it down.
+As of Phase 9, ``paper/reproduce.py`` defaults ``archive_dir`` to the curated,
+COMMITTED ``paper/data/`` subset (~16 MB -- exactly the files the figures below
+read; see ``paper/data/README.md`` for the file manifest and provenance), so figure
+reproduction needs no private-archive access out of the box. ``archive_dir`` can
+still be pointed at the full private archive (the archive of record -- REFACTOR_PLAN
+§7 decision 4, ``paper/DATA.md``) via ``--archive``/``$BFG_ARCHIVE_DIR`` for
+iterations/figures beyond the curated subset. Every figure module reads via the
+functions below rather than hardcoding paths, so both sources work unchanged.
 
 Iteration 15 is the published run: its ``rhat_value_15.txt``/``ess_value_15.txt``
 match paper Fig 10 exactly (see ``paper/golden/hmc_diagnostics.json``).
@@ -17,14 +20,15 @@ PUBLISHED_ITERS = 15
 
 
 def require_archive(archive_dir):
-    """Raise a clear error if the archive directory isn't where expected."""
+    """Raise a clear error if the data directory isn't where expected."""
     if not os.path.isdir(archive_dir):
         raise FileNotFoundError(
-            f"Archive directory not found: {archive_dir!r}. This must point at the "
-            f"private old repo's "
-            f"'entropy_driven_hms/results/less_x_new_manuscript_revisions/' -- see "
-            f"paper/DATA.md. Pass it via `paper/reproduce.py --archive <path>` or the "
-            f"BFG_ARCHIVE_DIR environment variable."
+            f"Data directory not found: {archive_dir!r}. This should be the "
+            f"committed 'paper/data/' subset (see paper/data/README.md), or -- for "
+            f"iterations/figures beyond that curated subset -- the private old "
+            f"repo's 'entropy_driven_hms/results/less_x_new_manuscript_revisions/' "
+            f"(see paper/DATA.md). Pass it via `paper/reproduce.py --archive <path>` "
+            f"or the BFG_ARCHIVE_DIR environment variable."
         )
     return archive_dir
 
