@@ -1,26 +1,22 @@
 """Seeded end-to-end integration test for the BITS-for-GAPS sampler.
 
 Runs the full sequential-design decision pipeline of ``adaptiveEntropy`` on a *synthetic,
-pure-Python* black box (a smooth 2-D function -- NO Julia). This pins the sampler's
-behavior BEFORE the Phase 4 decomposition: the run must complete and its outputs (the
-selected next point, the R-hat/ESS shapes, and the entropy field) must be stable across
-two runs with the same seed.
+pure-Python* black box (a smooth 2-D function -- NO Julia), via the Phase 4 in-memory
+``run()`` API. The run must complete and its outputs (the selected next point, the
+R-hat/ESS shapes, and the entropy field) must be stable across two runs with the same
+seed, and reproduce ``tests/integration/data/synthetic_baseline.json`` -- a hard pin of
+this run's exact outputs captured from the pre-Phase-4 (monolithic, disk-based)
+``sampler.py``.
 
-We mirror ``adaptiveEntropy.run_model`` step by step but deliberately skip the
-plotting-only ``gp_predict_2D`` step: it re-pickles the model and writes the full-grid
-posterior-sample file used for figures, takes ~20 s (100 full-covariance draws over a
-50x50 grid), and does not feed the acquisition -- ``entropy_objective`` re-seeds NumPy and
-re-assigns every kernel hyperparameter before each deterministic ``predict_f`` call, so
-the entropy field and the selected point are identical whether or not it ran.
-
-``tests/integration/data/synthetic_baseline.json`` is a hard pin of this run's exact
-outputs, captured from the pre-Phase-4 (monolithic ``sampler.py``) code. It turns "did
-the Phase 4 decomposition change behavior?" into a mechanical atol=1e-10 check -- the
-module split (and, later, the disk-as-state removal) must reproduce these numbers
-exactly, not just match itself run-to-run.
+We deliberately don't pass ``predict_grid=True``: it re-pickles the model and computes
+the full-grid posterior-sample array used only for figures, takes ~20 s (100 full-
+covariance draws over a 50x50 grid), and does not feed the acquisition --
+``entropy_objective`` re-seeds NumPy and re-assigns every kernel hyperparameter before
+each deterministic ``predict_f`` call, so the entropy field and the selected point are
+identical whether or not it ran. (It is also not bitwise-reproducible in isolation --
+see ``mixture.py``'s note on ``predict_f_samples``' ambient TF randomness.)
 """
 import json
-import os
 from pathlib import Path
 
 import gpflow
@@ -45,21 +41,19 @@ def _fwd_model(x2, x1):
     return [float(_true_f(x1, x2))]
 
 
-def _write_initial_design(path, n=12, seed=0):
+def _initial_design(n=12, seed=0):
     rng = np.random.default_rng(seed)
     X = rng.uniform([b[0] for b in BOUNDS], [b[1] for b in BOUNDS], size=(n, 2))
     y = np.array([_true_f(xi[0], xi[1]) for xi in X])
-    np.savetxt(os.path.join(path, "activity_data_1"), np.column_stack([X, y]))
-    return n
+    return X, y
 
 
-def _build_sampler(path, seed=SEED):
+def _build_sampler(seed=SEED):
     s = adaptiveEntropy(
         exp_name="synthetic", iters=1, x_bounds=BOUNDS, likelihood_var=0.05,
         mean_fxn=gpflow.mean_functions.Zero(), kernel_fxn=AnisotropicSE(),
         fwd_model=_fwd_model, fwd_model_args=(),
     )
-    s.path = str(path)          # write all artifacts into the pytest tmp dir
     s.seed = seed
     # Tiny, fast configuration (the point is stability, not statistical quality).
     s.noSamples = 100
@@ -71,49 +65,31 @@ def _build_sampler(path, seed=SEED):
     return s
 
 
-def _run_once(path, seed=SEED, n_init=12):
-    """One end-to-end pass mirroring run_model (minus the plotting-only gp_predict_2D)."""
-    n_init = _write_initial_design(path, n=n_init)
-    s = _build_sampler(path, seed)
-
-    XData, yData = s.read_data(iters=1)
-    XGP, yGP = s.trsf_data(XData, yData, iters=1)
-    GPmodel = s.build_gp(XGP, yGP, iters=1)
-    trace, GPmodel = s.run_mcmc(GPmodel, iters=1)
-
-    rhat = np.loadtxt(os.path.join(path, "rhat_value_1.txt"))
-    ess = np.loadtxt(os.path.join(path, "ess_value_1.txt"))
-
-    s.gen_entropy_surface_data_2D(trace, GPmodel, iters=1)
-    entropy = np.loadtxt(os.path.join(path, "entropy_1"))
-
-    result = s.optimize_2D(trace, GPmodel)
-    xStar = np.array([bkwd(result.x[i]) for i, bkwd in enumerate(s.XTrsfBkwd)])
-
-    # Close the loop: evaluate the injected black box at the selected point.
-    s.call_model(xStar=xStar, XData=XData, yData=yData, iters=2)
-    next_data = np.loadtxt(os.path.join(path, "activity_data_2"))
-
+def _run_once(seed=SEED, n_init=12):
+    """One fully in-memory end-to-end pass via ``adaptiveEntropy.run`` (no disk I/O)."""
+    X_init, y_init = _initial_design(n=n_init)
+    s = _build_sampler(seed)
+    record = s.run(X_init, y_init).last
     return {
         "n_init": n_init,
-        "rhat": rhat,
-        "ess": ess,
-        "entropy": entropy,
-        "xStar": xStar,
-        "max_entropy": float(-result.fun),  # objective is -H, so -fun is the max entropy
-        "next_data": next_data,
-        "trace_shape": trace.shape,
+        "rhat": record.rhat,
+        "ess": record.ess,
+        "entropy": record.entropy_field,
+        "xStar": record.xStar,
+        "max_entropy": record.max_entropy,
+        "next_data": np.column_stack([record.XData, record.yData]),
+        "trace_shape": record.trace.shape,
     }
 
 
 @pytest.fixture(scope="module")
-def run_a(tmp_path_factory):
-    return _run_once(tmp_path_factory.mktemp("run_a"))
+def run_a():
+    return _run_once()
 
 
 @pytest.fixture(scope="module")
-def run_b(tmp_path_factory):
-    return _run_once(tmp_path_factory.mktemp("run_b"))
+def run_b():
+    return _run_once()
 
 
 @pytest.mark.slow
@@ -166,7 +142,7 @@ def test_stable_across_two_runs_with_same_seed(run_a, run_b):
 @pytest.mark.slow
 def test_matches_pre_phase4_baseline(run_a):
     # Hard pin against tests/integration/data/synthetic_baseline.json, captured from the
-    # monolithic (pre-decomposition) sampler.py. The Phase 4 module split -- and later the
+    # monolithic (pre-decomposition) sampler.py. The Phase 4 module split -- and the
     # disk-as-state removal -- must reproduce these exact numbers, not merely match itself.
     with open(BASELINE_PATH) as f:
         base = json.load(f)
@@ -179,3 +155,25 @@ def test_matches_pre_phase4_baseline(run_a):
     np.testing.assert_allclose(r["xStar"], base["xStar"], atol=1e-10)
     assert r["max_entropy"] == pytest.approx(base["max_entropy"], abs=1e-10)
     np.testing.assert_allclose(r["next_data"], base["next_data"], atol=1e-10)
+
+
+@pytest.mark.slow
+def test_run_writes_no_files_by_default(tmp_path, monkeypatch):
+    # Phase 4 retires disk-as-state: a full run must execute with zero disk writes
+    # unless the caller explicitly opts in via checkpoint_dir.
+    monkeypatch.chdir(tmp_path)
+    X_init, y_init = _initial_design(n=12)
+    s = _build_sampler()
+    s.run(X_init, y_init)
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.slow
+def test_run_checkpoint_dir_is_opt_in(tmp_path):
+    X_init, y_init = _initial_design(n=12)
+    s = _build_sampler()
+    checkpoint_dir = tmp_path / "checkpoints"
+    s.run(X_init, y_init, checkpoint_dir=str(checkpoint_dir))
+    written = {p.name for p in checkpoint_dir.iterdir()}
+    assert {"rhat_value_1.txt", "ess_value_1.txt", "activity_data_2",
+            "gp_model_1.pkl"} <= written
