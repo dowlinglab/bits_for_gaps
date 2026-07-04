@@ -4,9 +4,12 @@ Moved from the paper code's ``driver_new.py`` (``adaptiveEntropy.entropy_objecti
 ``gen_entropy_surface_data_2D`` / ``optimize_2D``). Pure functions over explicit
 arguments -- no disk I/O; ``entropy.py`` provides the underlying mixture-entropy math.
 
-TODO(Phase 5): hardcodes 2 input dimensions (grid/meshgrid, Sobol ``d=2``) and assigns
-kernel hyperparameters by name (assumes the 3-hyperparameter ``AnisotropicSE`` kernel),
-mirroring the sampler-level TODO. Keep the ``*_2D`` names until then.
+Phase 5: ``entropy_objective`` and ``optimize`` (was ``optimize_2D``) are dimension-
+general -- kernel hyperparameters are assigned via ``kernels.assign_hyperparameters``
+(the canonical-order contract, not hardcoded names), and ``optimize``'s Sobol restarts
+and bounds scale with ``len(x_bounds)``. ``entropy_surface_2D`` stays 2-D-only: a dense
+grid is exponential in d, and it is a visualization diagnostic that does not feed the
+acquisition -- it raises a clear error for d != 2 rather than silently degrading.
 """
 
 import numpy as np
@@ -14,12 +17,14 @@ from scipy.optimize import minimize
 from scipy.stats.qmc import Sobol
 
 from . import entropy as max_ent_design
+from . import kernels
 
 
 def entropy_objective(xStarGP, trace, GPmodel, seed, no_gaussians):
     """Negative 2nd-order-Taylor mixture entropy of the GP predictive posterior at a point.
 
-    Negated because ``optimize_2D`` minimizes it to maximize entropy.
+    Negated because ``optimize`` minimizes it to maximize entropy. Dimension-general:
+    ``xStarGP`` may have any number of columns.
     """
     xStarGP = xStarGP.reshape(-1, 1).T
     np.random.seed(seed)
@@ -28,9 +33,7 @@ def entropy_objective(xStarGP, trace, GPmodel, seed, no_gaussians):
     means = []
     variances = []
     for sample in sub_samples:
-        GPmodel.kernel.std_dev.assign(sample[0])
-        GPmodel.kernel.lengthscale_1.assign(sample[1])
-        GPmodel.kernel.lengthscale_2.assign(sample[2])
+        kernels.assign_hyperparameters(GPmodel.kernel, sample)
         mean, variance = GPmodel.predict_f(xStarGP, full_cov=True)
         means.append(mean.numpy().squeeze())
         variances.append(variance.numpy().squeeze())
@@ -47,11 +50,26 @@ def entropy_surface_2D(trace, GPmodel, x_bounds, mesh, x_trsf_fwd, x_trsf_bkwd, 
 
     Moved from ``adaptiveEntropy.gen_entropy_surface_data_2D``.
 
+    2-D-ONLY VISUALIZATION DIAGNOSTIC (Phase 5): a dense grid is exponential in the
+    input dimension d, so this is intentionally not generalized to N-D. It does not
+    feed the acquisition -- see ``optimize`` for the N-D-general acquisition path.
+
     Returns
     -------
     np.ndarray, shape (mesh[0] * mesh[1], 3)
         Columns ``[x1, x2, H]`` in the physical (untransformed) input space.
+
+    Raises
+    ------
+    ValueError
+        If ``len(x_bounds) != 2``.
     """
+    if len(x_bounds) != 2:
+        raise ValueError(
+            f"entropy_surface_2D is a 2-D-only visualization diagnostic (got "
+            f"{len(x_bounds)} input dimensions); it does not feed the acquisition -- "
+            f"see optimize() for the N-D-general acquisition optimizer."
+        )
     x1 = np.linspace(*x_bounds[0], mesh[0])
     x2 = np.linspace(*x_bounds[1], mesh[1])
     x1_grid, x2_grid = np.meshgrid(x1, x2)
@@ -64,11 +82,20 @@ def entropy_surface_2D(trace, GPmodel, x_bounds, mesh, x_trsf_fwd, x_trsf_bkwd, 
     return np.column_stack([XStar, H])
 
 
-def optimize_2D(trace, GPmodel, x_bounds, x_trsf_fwd, seed, no_gaussians, no_restarts):
-    """Multistart optimization of the entropy objective over ``x_bounds`` (2-D).
+def optimize(trace, GPmodel, x_bounds, x_trsf_fwd, seed, no_gaussians, no_restarts):
+    """Multistart optimization of the entropy objective over ``x_bounds`` (N-D).
 
-    Moved from ``adaptiveEntropy.optimize_2D``. Sobol-scrambled restarts drawn in the
-    physical space, optimized in GP (transformed) space.
+    Moved from ``adaptiveEntropy.optimize_2D``; generalized (Phase 5) to arbitrary
+    input dimension ``d = len(x_bounds)`` -- this is the acquisition path an N-D run
+    actually depends on (contrast ``entropy_surface_2D``, a 2-D-only diagnostic).
+    Sobol-scrambled restarts drawn in the physical space, optimized in GP (transformed)
+    space.
+
+    For ``d == 2`` this reproduces the pre-Phase-5 ``optimize_2D`` bit-for-bit: the
+    vectorized bound-scaling below (``lo + x0 * (hi - lo)``) is the same floating-point
+    operation order as the original per-dimension expression (IEEE 754 addition is
+    commutative, so ``lo[j] + x0[j] * (hi[j] - lo[j])`` and the original
+    ``x0[j] * (hi[j] - lo[j]) + lo[j]`` round identically).
 
     Returns
     -------
@@ -76,14 +103,15 @@ def optimize_2D(trace, GPmodel, x_bounds, x_trsf_fwd, seed, no_gaussians, no_res
         The best restart (lowest ``entropy_objective`` value); ``result.x`` is in GP
         (transformed) input space, ``-result.fun`` is the maximized entropy.
     """
+    lo = np.array([b[0] for b in x_bounds], dtype=float)
+    hi = np.array([b[1] for b in x_bounds], dtype=float)
     best_result = None
     best_value = np.inf
-    sobol = Sobol(d=2, scramble=True, seed=seed)
+    sobol = Sobol(d=len(x_bounds), scramble=True, seed=seed)
     XBndsGP = [(f(b[0]), f(b[1])) for f, b in zip(x_trsf_fwd, x_bounds)]
     for _ in range(no_restarts):
         x0 = sobol.random()[0]
-        x0 = np.array([x0[0] * (x_bounds[0][1] - x_bounds[0][0]) + x_bounds[0][0],
-                       x0[1] * (x_bounds[1][1] - x_bounds[1][0]) + x_bounds[1][0]])
+        x0 = lo + x0 * (hi - lo)
         x0GP = np.array([f(x0[i]) for i, f in enumerate(x_trsf_fwd)])
         result = minimize(entropy_objective, x0=x0GP, bounds=XBndsGP,
                           args=(trace, GPmodel, seed, no_gaussians))

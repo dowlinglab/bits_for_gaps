@@ -36,8 +36,9 @@ def _true_f(x1, x2):
     return np.sin(3.0 * x1) + np.cos(3.0 * x2)
 
 
-def _fwd_model(x2, x1):
-    # The sampler calls FwdModel(*args, x2, x1) and uses the [0]-th return value.
+def _fwd_model(x1, x2):
+    # Phase 5: the sampler calls FwdModel(*args, *xStar) -- natural dimension order
+    # (was a reversed, 2-D-specific FwdModel(*args, x2, x1) convention pre-Phase-5).
     return [float(_true_f(x1, x2))]
 
 

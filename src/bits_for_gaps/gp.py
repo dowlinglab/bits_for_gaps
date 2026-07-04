@@ -4,9 +4,14 @@ Moved from the paper code's ``driver_new.py`` (``adaptiveEntropy.build_gp`` /
 ``maximize_lml`` / ``run_mcmc``). These are pure functions over explicit arguments --
 no disk I/O; the orchestrator (``sampler.py``) decides whether/where to checkpoint.
 
-TODO(Phase 5): ``run_mcmc`` hardcodes exactly 3 trainable hyperparameters, indexed by
-position (``trainable_parameters[2], [0], [1]`` = variance, lengthscale_1,
-lengthscale_2) -- mirrors the kernel-level TODO in ``kernels.py``.
+Phase 5: ``run_mcmc`` no longer indexes ``GPmodel.trainable_parameters`` by hardcoded
+position. It uses ``GPmodel.kernel.hyperparameters`` (see
+``kernels.AnisotropicSE.hyperparameters``) directly as the HMC state -- any kernel that
+exposes a ``.hyperparameters`` property (a list of ``gpflow.Parameter``, in whatever
+order that kernel defines as canonical) works here, not just the paper's 3-hyperparameter
+2-D kernel. For the paper's kernel this is verified identity-equal to the old
+``[trainable_parameters[2], [0], [1]]`` indexing (same Parameter objects, same order),
+so d=2 runs are bit-exact with the pre-Phase-5 code.
 """
 
 import time
@@ -46,24 +51,24 @@ def maximize_lml(GPmodel, debug_cov=False):
 
 def run_mcmc(GPmodel, seed, no_samples, no_burn_in, no_chains, no_leapfrog_steps,
              step_size, no_adapt_steps, target_accept, adapt_rate):
-    """Run HMC over the GP's 3 kernel hyperparameters (variance, lengthscale_1,
-    lengthscale_2) and compute convergence diagnostics.
+    """Run HMC over the GP kernel's hyperparameters and compute convergence diagnostics.
+
+    Uses ``GPmodel.kernel.hyperparameters`` as the HMC state, in that kernel's own
+    canonical order -- this is the trace-column-order contract ``mixture.py`` /
+    ``acquisition.py`` rely on (via ``kernels.assign_hyperparameters``) when replaying a
+    trace row back onto the kernel.
 
     Returns
     -------
-    trace : np.ndarray, shape (no_samples, 3)
-        Chain-0 posterior samples in the *constrained* (untransformed) parameter space,
-        column order (std_dev, lengthscale_1, lengthscale_2).
-    chains_states : np.ndarray, shape (no_samples, no_chains, 3)
+    trace : np.ndarray, shape (no_samples, n_hyperparameters)
+        Chain-0 posterior samples in the *constrained* (untransformed) parameter space.
+    chains_states : np.ndarray, shape (no_samples, no_chains, n_hyperparameters)
         Every chain's samples in the unconstrained space (for diagnostics/checkpointing).
-    rhat, ess : np.ndarray, shape (3,)
+    rhat, ess : np.ndarray, shape (n_hyperparameters,)
     GPmodel : the same model instance (hyperparameters are left at HMC's last state).
     """
     hmc_helper = gpflow.optimizers.SamplingHelper(
-        GPmodel.log_posterior_density,
-        [GPmodel.trainable_parameters[2],
-         GPmodel.trainable_parameters[0],
-         GPmodel.trainable_parameters[1]],  # order: variance, l1, l2
+        GPmodel.log_posterior_density, GPmodel.kernel.hyperparameters,
     )
     hmc = tfp.mcmc.HamiltonianMonteCarlo(target_log_prob_fn=hmc_helper.target_log_prob_fn,
                                          num_leapfrog_steps=no_leapfrog_steps,

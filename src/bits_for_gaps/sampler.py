@@ -2,7 +2,7 @@
 
 Phase 4: ``adaptiveEntropy`` is now an *orchestrator* over the decomposed modules --
 :mod:`bits_for_gaps.gp` (GP construction + HMC + R-hat/ESS), :mod:`bits_for_gaps.mixture`
-(GMM predictive posterior), :mod:`bits_for_gaps.acquisition` (entropy objective + 2-D
+(GMM predictive posterior), :mod:`bits_for_gaps.acquisition` (entropy objective + N-D
 optimizer), :mod:`bits_for_gaps.transforms` (per-dimension input/output transforms), and
 :mod:`bits_for_gaps.state` (in-memory run history). It no longer contains the algorithm
 math itself -- that lives in the modules above, as pure functions over explicit
@@ -20,12 +20,15 @@ pins the tiny seeded synthetic run's exact outputs from before this decompositio
 the acquisition/gp/mixture modules were verified bit-exact (atol=1e-12) against the
 pre-decomposition methods before this rewrite.
 
-Known targets for later phases, deliberately left intact for now:
-
-    TODO(Phase 5): remove 2-D / 3-hyperparameter hardcoding -- gp.run_mcmc indexes
-                   trainable_parameters[2],[0],[1]; the mixture/acquisition code assigns
-                   kernel params by name (std_dev, lengthscale_1, lengthscale_2);
-                   predict_grid_2D / entropy_surface_2D / optimize_2D assume d=2.
+Phase 5: generalized to N input dimensions. ``optimize`` (was ``optimize_2D``) -- the
+acquisition path a run actually depends on -- is dimension-general. ``predict_grid_2D``
+and ``entropy_surface_2D`` stay 2-D-only (dense grids are exponential in d; they are
+visualization diagnostics that don't feed the acquisition): :meth:`run` only calls
+``entropy_surface_2D`` when ``len(self.XBnds) == 2``, leaving ``entropy_field=None``
+otherwise, and both raise a clear ``ValueError`` if called directly for d != 2.
+``call_model`` calls the injected black box as ``FwdModel(*FwdModelArgs, *xStar)`` --
+``xStar``'s components in natural dimension order (was a 2-D-specific, reversed
+``FwdModel(*args, x2, x1)`` convention inherited from the VLE example's Julia call).
 """
 
 import os
@@ -164,8 +167,11 @@ class adaptiveEntropy:
             seed=self.seed, no_gaussians=self.noGaussians,
         )
 
-    def optimize_2D(self, trace, GPmodel):
-        return acquisition.optimize_2D(
+    def optimize(self, trace, GPmodel):
+        """Dimension-general acquisition optimizer (was ``optimize_2D``); see
+        ``acquisition.optimize``.
+        """
+        return acquisition.optimize(
             trace, GPmodel, x_bounds=self.XBnds,
             x_trsf_fwd=self.input_transform.forward_fns,
             seed=self.seed, no_gaussians=self.noGaussians, no_restarts=self.noRestarts,
@@ -174,17 +180,18 @@ class adaptiveEntropy:
     def call_model(self, xStar, XData, yData):
         """Evaluate the injected black box at ``xStar`` and append it to the design.
 
-        Returns the extended ``(XData, yData)`` -- no disk write (contrast the paper
-        code's ``call_model``, which only ever wrote ``activity_data_{iters}``).
+        Calls ``self.FwdModel(*self.FwdModelArgs, *xStar)`` -- ``xStar``'s components
+        in natural dimension order (Phase 5: was a 2-D-specific, reversed
+        ``FwdModel(*args, x2, x1)`` convention inherited from the VLE example's Julia
+        call). Returns the extended ``(XData, yData)`` -- no disk write.
         """
         xStar = np.asarray(xStar, dtype=float).reshape(-1)
         XData = np.atleast_2d(np.asarray(XData, dtype=float))
         yData = np.atleast_1d(np.asarray(yData, dtype=float)).reshape(-1, 1)
-        x1Tot = np.append(XData[:, 0], xStar[0])
-        x2Tot = np.append(XData[:, 1], xStar[1])
-        yStar = np.array(self.FwdModel(*self.FwdModelArgs, x2Tot[-1], x1Tot[-1]))
-        y1Tot = np.append(yData[:, 0], yStar[0])
-        return np.column_stack([x1Tot, x2Tot]), y1Tot.reshape(-1, 1)
+        yStar = np.array(self.FwdModel(*self.FwdModelArgs, *xStar))
+        XData_new = np.vstack([XData, xStar])
+        yData_new = np.vstack([yData, [[float(yStar[0])]]])
+        return XData_new, yData_new
 
     ## ------------------------------------------------------------------
     ## Orchestration
@@ -204,8 +211,9 @@ class adaptiveEntropy:
         predict_grid : bool
             If True, additionally compute (but discard, unless ``checkpoint_dir`` is
             set) the full-grid GP posterior-predictive samples used only for plotting
-            (the paper code's ``gp_predict_2D``). Expensive and does not feed the
-            acquisition -- off by default.
+            (the paper code's ``gp_predict_2D``). Expensive, 2-D-only, and does not
+            feed the acquisition -- off by default; raises if the input space is not
+            2-D.
 
         Returns
         -------
@@ -235,9 +243,14 @@ class adaptiveEntropy:
             if predict_grid:
                 grid_predictions = self.predict_grid_2D(GPmodel, trace)
 
-            entropy_field = self.entropy_surface_2D(trace, GPmodel)
+            # entropy_surface_2D is a 2-D-only visualization diagnostic (dense grids
+            # are exponential in d) -- skip it for N-D input spaces rather than error,
+            # since it does not feed the acquisition below.
+            entropy_field = None
+            if len(self.XBnds) == 2:
+                entropy_field = self.entropy_surface_2D(trace, GPmodel)
 
-            opt_result = self.optimize_2D(trace, GPmodel)
+            opt_result = self.optimize(trace, GPmodel)
             xStar = self.input_transform.backward(opt_result.x.reshape(1, -1))[0]
             max_entropy = -float(opt_result.fun)
 
@@ -306,9 +319,9 @@ class BitsForGaps(adaptiveEntropy):
     Advanced/legacy configuration (HMC tuning, restarts, mesh density, ...) is still set
     via the same instance attributes as ``adaptiveEntropy`` (e.g. ``.noSamples``).
 
-    TODO(Phase 5/6): once the core is N-D and kernel parameters are introspected
-    generically, this can grow into the full target API (e.g. an ``mcmc=MCMCConfig(...)``
-    kwarg) without an ``adaptiveEntropy`` passthrough.
+    TODO(Phase 6): once the VLE example is ported onto this API, this can grow an
+    ``mcmc=MCMCConfig(...)``-style kwarg for HMC tuning, replacing the passthrough
+    instance attributes inherited from ``adaptiveEntropy`` (e.g. ``.noSamples``).
     """
 
     def __init__(self, black_box, bounds, kernel, mean_fxn=None, likelihood_variance=0.05,
