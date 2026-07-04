@@ -9,11 +9,42 @@ State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before c
 - Phase 6 (port the VLE/distillation example): done 2026-07-04, merged to `main`.
 - Phase 7 (reproduce the paper's figures): done 2026-07-04, merged to `main`.
 - Phase 8 (Sphinx + MyST + ReadTheDocs docs): done 2026-07-04, merged to `main`.
-- **Phase 9 (reproduce ALL paper results, including the from-scratch stochastic
-  HMC+acquisition loop; archive-free figure reproduction): done 2026-07-04 on branch
-  `phase9-repro` — awaiting review/merge to `main` before Phase 10 (publish).**
+- Phase 9 (reproduce ALL paper results, including the from-scratch stochastic
+  HMC+acquisition loop; archive-free figure reproduction): done 2026-07-04, merged to
+  `main`.
+- **Phase 9b (investigate + fix the McCabe-Thiele non-convergence Phase 9 flagged as a
+  discrepancy): done 2026-07-04 on branch `phase9b-investigation` — awaiting
+  review/merge to `main` before Phase 10 (publish).**
 
-## Phase 9 — full stochastic reproduction + archive-free figures (done; review gate before Phase 10)
+## Phase 9b — root-cause the McCabe-Thiele discrepancy (done; review gate before Phase 10)
+
+Phase 9's "genuine discrepancy" (the fully-adaptive surrogate's McCabe-Thiele column
+not converging, attributed to entropy-driven acquisition) turned out to be **wrong** --
+a shared-mutable-state bug in `paper/full_reproduction.py`: `_predict_split` (test-RMSE)
+mutates `GPmodel.kernel` in place via `bits_for_gaps.mixture.sample_gp_posterior_mixture`
+(by design -- documented, not a core bug), and the phase-diagram code reused that same
+mutated object afterward. Confirmed by reproducing the exact reported failure
+(stage-2 liquid=1.7258, to 4 decimal places) from the checkpointed `gp_model_15.pkl`.
+
+Of the 4 hypotheses posed (draw-count/averaging, monotonicity, deterministic mean,
+under-resolution), **none was the root cause** -- but testing them was still useful:
+monotonicity is definitively rejected (all 5 reconstructed curves, including the failing
+one, have zero violations), and the "deterministic posterior-mean" idea is falsified
+(exactly as smooth as the working curves, yet fails -- a solver initial-guess-
+sensitivity issue, not a curve-smoothness one). See `paper/PHASE9B_INVESTIGATION.md` for
+the full analysis.
+
+Fix (example layer only, `src/bits_for_gaps/` untouched): reordered
+`paper/full_reproduction.py` to build the phase diagram before the mutating RMSE loop,
+and added `examples/vle_distillation/phase_diagram.py`'s `surrogate_gamma_averaged`
+(matches the paper's own `new_phase_diagram.py` hyperparameter-posterior-averaging
+construction) for added robustness. Re-ran the full 15-iteration stochastic loop from
+scratch with the fix: `column_surrogate_converged` now `True`, stage table within 0.03
+mole fraction of Wilson at every stage. `pytest -q` (120/2) and `pytest -m vle` (2/120)
+both still green; `paper/reproduce.py --figures 8 9` still works. Pre-fix and post-fix
+`full_run_summary.json`s both committed under `paper/phase9_validation/` for the record.
+
+## Phase 9 — full stochastic reproduction + archive-free figures (done; merged to main)
 
 Two independent, separately-committed pieces (see REFACTOR_PLAN.md's Phase 9 entry
 and §7 decision 4):

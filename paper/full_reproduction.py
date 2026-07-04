@@ -39,6 +39,15 @@ EXAMPLES_DIR = os.path.join(REPO_ROOT, "examples")
 if EXAMPLES_DIR not in sys.path:
     sys.path.insert(0, EXAMPLES_DIR)
 
+# This script dispatches thousands of tiny TF ops (one predict_f/predict_f_samples
+# call per bisection step, per z, per posterior draw). On macOS, TF eager's default
+# multi-threaded op dispatch spends most wall-clock time on thread wake-up/
+# coordination for ops this small -- single-threading it removed a >10x slowdown
+# confirmed during Phase 9b's investigation (see paper/PHASE9B_INVESTIGATION.md).
+import tensorflow as tf
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+
 from bits_for_gaps import mixture
 from bits_for_gaps.design import latin_hypercube_design
 from bits_for_gaps.kernels import AnisotropicSE
@@ -116,9 +125,37 @@ def run(out_dir, n_init=N_INIT, n_test=N_TEST, n_iters=N_ITERS, seed=SEED):
     print(f"Done in {elapsed / 3600:.2f} h. Final design has "
          f"{history.last.XData.shape[0]} points.", flush=True)
 
+    # Fig 8/9-style phase diagram + McCabe-Thiele column from the final, genuinely
+    # 15-iteration adaptively-trained GP -- contrast with
+    # paper/figures/fig09_mccabe_thiele.py's surrogate_column(), which deliberately
+    # trains a throwaway 30-point-LHS/MLE-fit GP instead of running this loop.
+    #
+    # MUST run before the test-RMSE loop below: `_predict_split` (via
+    # `mixture.sample_gp_posterior_mixture`) mutates `record.GPmodel.kernel` in place,
+    # and `history.last.GPmodel` is the SAME object -- running the RMSE loop first
+    # once left the kernel at an arbitrary leftover single-hyperparameter state and
+    # produced a spurious non-converging column (see paper/PHASE9B_INVESTIGATION.md).
+    # Uses `surrogate_gamma_averaged` (matches the paper's own `new_phase_diagram.py`
+    # construction) rather than `surrogate_gamma`'s single point-estimate, for the same
+    # reason: robust to any one hyperparameter draw being atypical.
+    GPmodel = history.last.GPmodel
+    trace_final = history.last.trace
+    z_grid = np.linspace(0.0, 1.0, Z_GRID_SIZE)
+    z_w, T_w, y1_w = pd.vle_curve(pd.wilson_gamma, z_grid=z_grid)
+
+    def surrogate_gamma_fn(z, T):
+        return pd.surrogate_gamma_averaged(z, T, GPmodel, INPUT_TRANSFORM,
+                                           OUTPUT_TRANSFORM, trace_final, seed=seed)
+
+    z_s, T_s, y1_s = pd.vle_curve(surrogate_gamma_fn, z_grid=z_grid)
+    np.savetxt(os.path.join(out_dir, "gt_Wilson_data"), np.column_stack([z_w, T_w, y1_w]))
+    np.savetxt(os.path.join(out_dir, "phase_diagram_surrogate_final"),
+              np.column_stack([z_s, T_s, y1_s]))
+
     # Fig-5-style train/test posterior-predictive draws at the first and last
     # iteration (mirrors gp_predict_{train,test}_{iter} in paper/data/), plus a
     # per-iteration test-RMSE trace (paper's headline "accuracy improves" claim).
+    # Runs AFTER the phase-diagram/column above -- see the comment there.
     X_test_gp = INPUT_TRANSFORM.forward(X_test)
     X_train_gp = INPUT_TRANSFORM.forward(X_init)
     first_it, last_it = history[0].iteration, history[-1].iteration
@@ -133,22 +170,6 @@ def run(out_dir, n_init=N_INIT, n_test=N_TEST, n_iters=N_ITERS, seed=SEED):
                       yhat_train)
             np.savetxt(os.path.join(out_dir, f"gp_predict_test_{record.iteration}"),
                       yhat_test)
-
-    # Fig 8/9-style phase diagram + McCabe-Thiele column from the final, genuinely
-    # 15-iteration adaptively-trained GP -- contrast with
-    # paper/figures/fig09_mccabe_thiele.py's surrogate_column(), which deliberately
-    # trains a throwaway 30-point-LHS/MLE-fit GP instead of running this loop.
-    GPmodel = history.last.GPmodel
-    z_grid = np.linspace(0.0, 1.0, Z_GRID_SIZE)
-    z_w, T_w, y1_w = pd.vle_curve(pd.wilson_gamma, z_grid=z_grid)
-
-    def surrogate_gamma_fn(z, T):
-        return pd.surrogate_gamma(z, T, GPmodel, INPUT_TRANSFORM, OUTPUT_TRANSFORM)
-
-    z_s, T_s, y1_s = pd.vle_curve(surrogate_gamma_fn, z_grid=z_grid)
-    np.savetxt(os.path.join(out_dir, "gt_Wilson_data"), np.column_stack([z_w, T_w, y1_w]))
-    np.savetxt(os.path.join(out_dir, "phase_diagram_surrogate_final"),
-              np.column_stack([z_s, T_s, y1_s]))
 
     equil_wilson = equilibrium.make_equilibrium_function(z_w, y1_w)
     equil_surrogate = equilibrium.make_equilibrium_function(z_s, y1_s)
