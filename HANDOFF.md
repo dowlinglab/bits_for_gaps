@@ -3,10 +3,90 @@
 State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before continuing.
 
 - Bootstrap (Phase 0 + Phase 3-lite): Opus, 2026-07-03.
-- **Phase 2 (regression/test harness): done 2026-07-03 on branch `phase2-regression-harness`
-  — awaiting review/merge to `main` before Phase 4 begins.**
+- Phase 2 (regression/test harness): done 2026-07-03, merged to `main`.
+- **Phase 4 (decompose `sampler.py`; retire disk-as-state): done 2026-07-03 on branch
+  `phase4-decompose-sampler` — awaiting review/merge to `main` before Phase 5 begins.**
 
-## Phase 2 — regression/test harness (done; review gate before Phase 4)
+## Phase 4 — decompose sampler.py; retire disk-as-state (done; review gate before Phase 5)
+
+`sampler.py`'s `adaptiveEntropy` god-class is now an orchestrator over decomposed,
+independently-testable modules. Order of operations (per the task): pinned an exact-
+value characterization baseline BEFORE touching any code, then extracted modules one at
+a time (verifying bit-exact parity against the still-untouched monolith before wiring
+each one in), then rewrote `sampler.py` itself and retired disk-as-state in one final
+commit. `pytest -q` = **72 passed, 1 deselected** (same `vle` marker as Phase 2). Full
+suite runs in ~35 s (was ~17 s before Phase 4 — the two new modules' extra HMC/optimize
+runs and the `BitsForGaps` facade parity test each re-run the tiny synthetic pipeline).
+
+```
+src/bits_for_gaps/
+  gp.py            build_gp / maximize_lml / run_mcmc (GP construction + HMC + R-hat/ESS)
+  diagnostics.py   thin tfp.mcmc wrappers (potential_scale_reduction, effective_sample_size)
+  mixture.py       sample_gp_posterior_mixture (GMM predictive posterior) + predict_grid_2D
+                   (the plotting-only full-grid diagnostic, formerly gp_predict_2D)
+  acquisition.py   entropy_objective / entropy_surface_2D (was gen_entropy_surface_data_2D)
+                   / optimize_2D -- uses entropy.py; kept the *_2D names (Phase 5 generalizes)
+  transforms.py    InputTransform / OutputTransform -- lifts the XTrsfFwd/XTrsfBkwd/
+                   yTrsfFwd/yTrsfBkwd lambda-list convention into small testable classes,
+                   identity by default. Exported eagerly from __init__ (pure NumPy).
+  state.py         IterationRecord / RunHistory -- the in-memory replacement for disk-
+                   as-state (np.savetxt/pickle under results/{exp_name}/, read back next
+                   iteration)
+  sampler.py       adaptiveEntropy is now the orchestrator: thin delegating wrappers over
+                   the modules above, plus `run(X_init, y_init, checkpoint_dir=None,
+                   predict_grid=False)` -- the new entry point. Also adds `BitsForGaps`,
+                   a thin renamed-kwarg subclass (target public API, REFACTOR_PLAN §4).
+tests/unit/        + test_transforms.py, test_state.py
+tests/integration/ test_end_to_end.py rewritten to drive run() (in-memory, no files);
+                   + data/synthetic_baseline.json (exact-value pin from before Phase 4)
+                   + test_bits_for_gaps_facade.py (BitsForGaps reproduces the same pin)
+```
+
+Key facts for the next session:
+- **Disk-as-state is retired.** `adaptiveEntropy.run(X_init, y_init)` takes the initial
+  design directly in memory and returns a `state.RunHistory`; a full run writes **zero**
+  files by default (`test_run_writes_no_files_by_default` asserts this). File output is
+  opt-in via `run(..., checkpoint_dir=...)`, a best-effort equivalent of the paper code's
+  per-iteration dump (`test_run_checkpoint_dir_is_opt_in` asserts the key files land).
+  `run_model()` is kept as a deprecated, disk-based shim (reads `activity_data_1` from
+  `self.path`, the original zero-arg precondition) for anything still relying on it.
+- **`predict_grid_2D` (was `gp_predict_2D`) is opt-in, not run by default.** It's a
+  plotting-only diagnostic (~20 s in real config: 100 full-covariance draws over a 50x50
+  grid) that doesn't feed the acquisition. Pass `run(..., predict_grid=True)` to compute
+  it anyway. **It was never bitwise-reproducible even in the original paper code** --
+  confirmed directly: `GPmodel.predict_f_samples` draws from TensorFlow's ambient
+  (unseeded) global RNG, not NumPy's, so two successive calls on identical inputs in the
+  same process already differ. `np.random.seed(self.seed)` in `sample_gp_posterior_mixture`
+  only controls *which* posterior components are selected, not the draws themselves. This
+  is exactly why the Phase 2 integration test excluded it from the determinism/baseline
+  pins in the first place -- documented now in `mixture.py`.
+- **The decomposition is verified behavior-preserving, not just self-consistent.**
+  `tests/integration/data/synthetic_baseline.json` pins the tiny seeded synthetic run's
+  exact outputs (rhat, ess, entropy field, xStar, max_entropy, next_data) captured from
+  the pre-Phase-4 monolith; `test_matches_pre_phase4_baseline` checks the post-
+  decomposition `run()` reproduces them at atol=1e-10. Additionally, before rewriting
+  `sampler.py`, each extracted module (gp.py, mixture.py's non-predict_grid parts,
+  acquisition.py) was checked bit-exact (atol=1e-12) against the still-untouched
+  monolithic methods on the same run.
+- **`BitsForGaps` is a thin subclass, not a rewrite.** Renamed constructor kwargs
+  (`black_box`, `bounds`, `kernel`, `likelihood_variance`, `input_transform`,
+  `output_transform`) matching REFACTOR_PLAN §4's target API; inherits every method
+  (including `run`) unchanged from `adaptiveEntropy` -- no new computation, so no
+  numeric risk. `__init__.py`'s lazy map now resolves `BitsForGaps` to this real class
+  (previously it was just an alias for `adaptiveEntropy`). Advanced config (HMC tuning,
+  restarts, mesh density) is still set via the same instance attributes as
+  `adaptiveEntropy` (e.g. `.noSamples`) -- an `mcmc=MCMCConfig(...)`-style kwarg is
+  deferred to Phase 5/6, once the core is N-D and doesn't need this passthrough.
+- **`entropy.py` / `design.py` / `kernels.py` / `means.py` are byte-for-byte untouched**
+  (`git diff main...HEAD -- <those 4 files>` is empty) -- Phase 4 touched only the
+  sequential-design engine, per the guardrails.
+- `TODO(Phase 5)` markers preserved verbatim in `gp.py` (`run_mcmc`'s positional
+  `trainable_parameters[2],[0],[1]`), `mixture.py`/`acquisition.py` (by-name kernel
+  param assignment: `std_dev`, `lengthscale_1`, `lengthscale_2`), and `acquisition.py`/
+  `sampler.py`'s `*_2D` methods (hardcoded `d=2`). None of the 2-D / 3-hyperparameter
+  hardcoding was touched.
+
+## Phase 2 — regression/test harness (done; merged to main)
 
 Behavior is now pinned BEFORE any refactor. `pytest -q` = **56 passed, 1 deselected**
 (the deselected one is the `vle` McCabe-Thiele recompute; the pure-Python core needs no
@@ -42,13 +122,15 @@ Key facts for the next session:
 - Markers registered in `pyproject.toml`: `vle` (Julia backend, deselected by default),
   `slow` (integration; still runs by default). Run gated tests with `pytest -m vle`.
 
-## What exists now (Phase 0 + Phase 3-lite done)
+## What exists now (Phase 0 + Phase 3-lite + Phase 4 done)
 
-A pip-installable package scaffold with the **clean core pieces moved in and tested**:
+A pip-installable package with the **algorithm decomposed into focused, tested modules**
+(see the "Phase 4" section above for the sampler-engine breakdown):
 
 ```
 src/bits_for_gaps/
-  __init__.py    public API; pure pieces eager, TF-backed pieces lazy (PEP 562)
+  __init__.py    public API; pure pieces eager (entropy, design, transforms),
+                 TF-backed pieces lazy (kernels, means, sampler) via PEP 562
   entropy.py     GMM density + 1st/2nd-order Taylor entropy + closed-form lower bound
                  (from fxns/max_ent_design.py; dead commented variants removed). PURE.
   design.py      latin_hypercube_design / full_factorial_design, N-D, pure, no disk I/O
@@ -56,13 +138,21 @@ src/bits_for_gaps/
   kernels.py     AnisotropicSE (2-D, prior-bearing) from fxns/my_kermel_fxn.py
   means.py       FixedInverseMean from fxns/my_mean_fxn.py
   _util.py       standardize / normalize / make_tensor
-  sampler.py     adaptiveEntropy engine from driver_new.py, DECOUPLED from the example
-                 (no module-level juliacall / proh_water_class; example helpers removed;
-                  `i += 50` -> `self.startIter`). Body otherwise faithful to the paper.
-tests/unit/      test_entropy.py (analytic + regression pin), test_design.py  (+ Phase 2 tests)
+  transforms.py  InputTransform / OutputTransform (Phase 4). PURE.
+  state.py       IterationRecord / RunHistory (Phase 4).
+  diagnostics.py R-hat / ESS (Phase 4).
+  gp.py          GP construction + HMC (Phase 4).
+  mixture.py     GMM predictive posterior (Phase 4).
+  acquisition.py entropy-maximization acquisition function (Phase 4).
+  sampler.py     adaptiveEntropy (orchestrator, Phase 4) + BitsForGaps (public-API facade)
+tests/unit/      entropy/design/kernels/means/_util/transforms/state
+tests/integration/ end-to-end (in-memory run(), Phase 4) + BitsForGaps facade parity
+tests/regression/  golden-file checks vs published paper values (Phase 2)
 ```
 
-`BitsForGaps` is exported as an alias of `adaptiveEntropy` (target public name).
+`BitsForGaps` (public-API facade, REFACTOR_PLAN §4 kwarg names) and `adaptiveEntropy`
+(original name, kept for backward compatibility) are both real, independently
+importable classes as of Phase 4 -- see the "Phase 4" section above.
 
 ## Environment (verified working)
 
@@ -91,15 +181,20 @@ Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_
 ## Next steps (in order — see REFACTOR_PLAN.md phases)
 
 1. **Phase 2 — regression harness FIRST (before refactoring sampler.py). ✅ DONE.**
-   See the "Phase 2" section above. On branch `phase2-regression-harness`; merge to
-   `main` after review, then start Phase 4. The green suite is the safety net.
+   Merged to `main`.
 
-2. **Phase 4 — decompose `sampler.py`** into gp / mixture / acquisition / state modules;
-   replace disk-as-state with in-memory state + optional checkpointing. Keep tests green.
+2. **Phase 4 — decompose `sampler.py`. ✅ DONE.** See the "Phase 4" section above. On
+   branch `phase4-decompose-sampler`; merge to `main` after review, then start Phase 5.
+   The green suite (regression + integration baseline pin) is the safety net.
 
 3. **Phase 5 — generalize to N-D.** Remove the 2-D / 3-hyperparameter hardcoding flagged
-   by `TODO(Phase 5)` in kernels.py and sampler.py (run_mcmc trainable_parameters[2,0,1];
-   by-name kernel param assignment; *_2D methods). Add 1-D and 3-D synthetic tests.
+   by `TODO(Phase 5)` markers, now spread across `kernels.py` (per-dim lengthscale
+   attrs), `gp.py` (`run_mcmc`'s positional `trainable_parameters[2],[0],[1]`),
+   `mixture.py`/`acquisition.py` (by-name kernel param assignment: `std_dev`,
+   `lengthscale_1`, `lengthscale_2`), and `acquisition.py`/`sampler.py`'s `*_2D` methods
+   (hardcoded `d=2` grids/meshes/Sobol dimension). Add 1-D and 3-D synthetic tests. The
+   Phase 4 module boundaries (gp/mixture/acquisition as pure functions over explicit
+   args) should make this a *local* change per module rather than a `sampler.py` rewrite.
 
 4. **Phase 6 — port the VLE example** into `examples/vle_distillation/` (activity model,
    gibbs_duhem, phase_diagram, distillation, equilibrium) onto the public API, injecting

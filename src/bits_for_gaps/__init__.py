@@ -12,7 +12,7 @@ from importlib import import_module
 __version__ = "0.0.1.dev0"
 
 # Pure (NumPy/SciPy) -- safe to import eagerly.
-from . import design, entropy
+from . import design, entropy, transforms
 from .design import full_factorial_design, latin_hypercube_design
 from .entropy import (
     entropy_lower_bound,
@@ -20,13 +20,14 @@ from .entropy import (
     gaussian_mixture_density,
     second_order_entropy,
 )
+from .transforms import InputTransform, OutputTransform
 
 # TensorFlow/GPflow-backed -- imported on first access.
 _LAZY = {
     "AnisotropicSE": ("kernels", "AnisotropicSE"),
     "FixedInverseMean": ("means", "FixedInverseMean"),
     "adaptiveEntropy": ("sampler", "adaptiveEntropy"),
-    "BitsForGaps": ("sampler", "adaptiveEntropy"),  # target public name (Phase 4 rename)
+    "BitsForGaps": ("sampler", "BitsForGaps"),  # target public API (Phase 4)
 }
 
 
@@ -52,6 +53,9 @@ __all__ = [
     "FixedInverseMean",
     "adaptiveEntropy",
     "BitsForGaps",
+    "InputTransform",
+    "OutputTransform",
     "entropy",
     "design",
+    "transforms",
 ]
