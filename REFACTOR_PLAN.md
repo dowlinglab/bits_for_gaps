@@ -108,7 +108,7 @@ bits_for_gaps/
 │   ├── reproduce.py  Makefile
 │   ├── figures/                # mcmc_plotter split into per-figure scripts (5,8,9,10, etc.)
 │   ├── golden/                 # small scalar targets (R̂, ESS, MAP, stage table) + tolerances
-│   └── DATA.md                 # DOI/pointer to archived 2.5 GB results (Zenodo)
+│   └── DATA.md                 # pointer to the archived 2.5 GB results in the private old repo
 └── tests/
     ├── unit/                   # entropy math, transforms, kernels, GD integral, Antoine, design
     ├── integration/            # tiny end-to-end seeded run (few samples, 1 iter)
@@ -175,7 +175,7 @@ Core has **zero Julia dependency**; `pip install bits_for_gaps` pulls GPflow/TF/
 - Sphinx + MyST: install/env (incl. the juliacall gotcha), quickstart on the 1-D synthetic, API autodoc, a "reproduce the paper" guide, theory notes linking to the paper. Wire ReadTheDocs (`.readthedocs.yaml`); build the pure-Python parts without Julia.
 
 ### Phase 9 — Publish  *(Opus + user)*
-- `python -m build` → **TestPyPI** → **PyPI** (GitHub Actions trusted publishing). Tag `v0.1.0`. Archive the 2.5 GB `results/` to **Zenodo** (get a DOI; reference from `paper/DATA.md` and the paper's data-availability). Turn on RTD.
+- `python -m build` → **TestPyPI** → **PyPI** (GitHub Actions trusted publishing). Tag `v0.1.0`. The 2.5 GB `results/` archive stays in the **private old repo** (archive of record; no Zenodo — see §7 decision 4). Turn on RTD.
 
 ---
 
@@ -183,7 +183,7 @@ Core has **zero Julia dependency**; `pip install bits_for_gaps` pulls GPflow/TF/
 
 - **Dependency stack:** freeze the exact old stack (Py3.9/TF2.16/GPflow2.9/TFP0.24) as the reproduction baseline first. Modernization (newer Python/TF) is a *later, separate* effort — GPflow ties us to TensorFlow, so it's non-trivial; note GPJax/alternatives as future work, don't block on it.
 - **Determinism:** every stochastic path takes an explicit seed; document that HMC exact bitwise reproducibility can vary across TF/BLAS builds → regression uses tolerances, not equality.
-- **Data:** never commit `results/` to the package repo. Small golden scalars only; bulk artifacts → Zenodo.
+- **Data:** never commit `results/` to the package repo. Small golden scalars only; the bulk 2.5 GB archive lives in the private old repo (archive of record; no Zenodo).
 - **License:** add one (BSD-3-Clause or MIT recommended for scientific Python; paper text is CC BY 4.0).
 - **Session handoff:** keep a `LOG.md` + this `REFACTOR_PLAN.md` in the new repo so Opus↔Sonnet sessions hand off cleanly (the `codex-refactor` `reactor_log.md` is a good template).
 
@@ -192,7 +192,9 @@ Core has **zero Julia dependency**; `pip install bits_for_gaps` pulls GPflow/TF/
 ## 7. Decisions (locked — 2026-07-03)
 
 1. **Package name = `bits_for_gaps`.** Import `import bits_for_gaps`.
-2. **Examples in the same repo**, as `examples/` + `paper/` cleanly separated from `src/`; bulk `results/` go to Zenodo, not committed.
-3. **2-D faithful first, then N-D.** Clean 2-D refactor + lock regression (Phases 3–4), then generalize to N-D as Phase 5 with new synthetic tests.
-4. **Freeze the current dependency stack** (Py3.9 / TF 2.16.2 / GPflow 2.9.2 / TFP 0.24.0) as the reproduction baseline; modernization is a separate later effort.
-5. **Core is pure Python** (GPflow/TF/numpy/scipy); Julia/Clapeyron only for the `[vle]` example extra.
+2. **One repo, no separate paper repo.** The old `entropy_driven_hybrid_models_code` repo stays **private** (with its bloated history) as the archive of record; the paper-reproduction code migrates into this `bits_for_gaps` repo.
+3. **Examples + paper-reproduction are repo-only — NOT shipped in the pip wheel** (keeps the package lightweight). Only `src/bits_for_gaps/` ships. Layout: `examples/vle_distillation/` = the reusable H2O–PrOH case study; `paper/` = thin reproduction scripts (import from `examples/`) + `golden/` + `DATA.md`. Both are importable in dev/CI via a `tests/conftest.py` `sys.path` insert, not via install.
+4. **Bulk 2.5 GB archived results are NOT deposited to Zenodo** (updated 2026-07-04): the private old repo is the archive of record. `bits_for_gaps` commits only the small golden scalars; Phase 7 figure reproduction assumes author access to the old repo.
+5. **2-D faithful first, then N-D.** Clean 2-D refactor + lock regression (Phases 3–4), then generalize to N-D as Phase 5 with new synthetic tests.
+6. **Freeze the current dependency stack** (Py3.9 / TF 2.16.2 / GPflow 2.9.2 / TFP 0.24.0) as the reproduction baseline; modernization is a separate later effort.
+7. **Core is pure Python** (GPflow/TF/numpy/scipy); Julia/Clapeyron only for the `[vle]` example extra, imported lazily.
