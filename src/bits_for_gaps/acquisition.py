@@ -10,6 +10,19 @@ general -- kernel hyperparameters are assigned via ``kernels.assign_hyperparamet
 and bounds scale with ``len(x_bounds)``. ``entropy_surface_2D`` stays 2-D-only: a dense
 grid is exponential in d, and it is a visualization diagnostic that does not feed the
 acquisition -- it raises a clear error for d != 2 rather than silently degrading.
+
+Phase 9c: ``entropy_objective`` is called many times per ``optimize``/
+``entropy_surface_2D`` call (once per Sobol restart x scipy.optimize.minimize
+iteration, or once per grid point), each time reassigning ``GPmodel.kernel``'s
+hyperparameters -- it used to leave the kernel at whichever sample the *last* such call
+happened to use, not any meaningful state. Since ``sampler.py``'s ``run()`` calls
+``optimize``/``entropy_surface_2D`` on the same ``GPmodel`` it then stores in
+``IterationRecord.GPmodel`` (and optionally checkpoints), every iteration's returned
+model used to carry this arbitrary leftover state -- the same class of footgun Phase 9b
+found in ``mixture.sample_gp_posterior_mixture`` (see
+``paper/PHASE9B_INVESTIGATION.md``). Now saves/restores the kernel around each call, so
+``GPmodel`` is unchanged after ``entropy_objective`` returns -- behavior-preserving for
+the entropy value itself (computed before the restore).
 """
 
 import numpy as np
@@ -24,19 +37,26 @@ def entropy_objective(xStarGP, trace, GPmodel, seed, no_gaussians):
     """Negative 2nd-order-Taylor mixture entropy of the GP predictive posterior at a point.
 
     Negated because ``optimize`` minimizes it to maximize entropy. Dimension-general:
-    ``xStarGP`` may have any number of columns.
+    ``xStarGP`` may have any number of columns. ``GPmodel.kernel``'s hyperparameters are
+    reassigned once per posterior sample during the call, then restored before
+    returning (see the module docstring) -- ``GPmodel`` is unchanged from the caller's
+    perspective.
     """
     xStarGP = xStarGP.reshape(-1, 1).T
     np.random.seed(seed)
     subset_indices = np.random.choice(len(trace), size=no_gaussians, replace=False)
     sub_samples = trace[subset_indices]
-    means = []
-    variances = []
-    for sample in sub_samples:
-        kernels.assign_hyperparameters(GPmodel.kernel, sample)
-        mean, variance = GPmodel.predict_f(xStarGP, full_cov=True)
-        means.append(mean.numpy().squeeze())
-        variances.append(variance.numpy().squeeze())
+    saved_hyperparameters = kernels.save_hyperparameters(GPmodel.kernel)
+    try:
+        means = []
+        variances = []
+        for sample in sub_samples:
+            kernels.assign_hyperparameters(GPmodel.kernel, sample)
+            mean, variance = GPmodel.predict_f(xStarGP, full_cov=True)
+            means.append(mean.numpy().squeeze())
+            variances.append(variance.numpy().squeeze())
+    finally:
+        kernels.assign_hyperparameters(GPmodel.kernel, saved_hyperparameters)
     means = np.array(means)
     variances = np.array(variances)
     H = max_ent_design.second_order_entropy(

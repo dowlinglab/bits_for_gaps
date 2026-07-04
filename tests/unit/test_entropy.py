@@ -8,7 +8,9 @@ regression pin against the paper code's 5-component mixture example (huber_et_al
 import numpy as np
 import pytest
 
-from bits_for_gaps.entropy import entropy_lower_bound, second_order_entropy
+from bits_for_gaps.entropy import (
+    entropy_lower_bound, first_order_entropy_approx, second_order_entropy,
+)
 
 
 def gaussian_entropy(det_cov, d):
@@ -62,3 +64,22 @@ def test_huber_5d_mixture_regression():
     weights = np.ones(5) * 0.2
     H = second_order_entropy(weights=weights, means=means, covs=covs)
     assert H == pytest.approx(2.9564178831291565, rel=1e-9)
+
+
+## ---------------------------------------------------------------------------
+## Phase 9c: assert -> explicit exception for the runtime, data-dependent density
+## check (asserts are silently stripped under python -O).
+## ---------------------------------------------------------------------------
+
+def test_first_order_entropy_approx_raises_on_nonpositive_density():
+    # A zero-weight component contributes nothing to the mixture density, driving
+    # pl to exactly 0 -- a real, reachable condition (e.g. a badly-conditioned or
+    # degenerate mixture), not a contrived one.
+    with pytest.raises(ValueError, match="must be positive"):
+        first_order_entropy_approx(weights=[0.0], means=[0.0], covs=[1.0])
+
+
+def test_first_order_entropy_approx_well_formed_mixture_unaffected():
+    # The happy path must be completely unchanged by the assert -> raise conversion.
+    H = first_order_entropy_approx(weights=[0.5, 0.5], means=[0.0, 1.0], covs=[1.0, 1.0])
+    assert np.isfinite(H)

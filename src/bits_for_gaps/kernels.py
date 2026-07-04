@@ -162,3 +162,14 @@ def assign_hyperparameters(kernel, values):
     """
     for param, value in zip(kernel.hyperparameters, values):
         param.assign(value)
+
+
+def save_hyperparameters(kernel):
+    """Snapshot ``kernel.hyperparameters``' current (constrained) values.
+
+    Phase 9c: pairs with :func:`assign_hyperparameters` to save/restore a kernel's
+    state around code that reassigns it in a loop (``mixture.sample_gp_posterior_mixture``,
+    ``acquisition.entropy_objective``) -- see their docstrings. Returns a plain list of
+    floats, not live references, so later mutating the kernel cannot change the snapshot.
+    """
+    return [float(param.numpy()) for param in kernel.hyperparameters]

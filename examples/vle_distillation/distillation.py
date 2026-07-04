@@ -132,46 +132,11 @@ def _resolve_fixed_indices(n_stages, var_names, var_values):
     return fixed_idx, F_initial
 
 
-def solve_column(n_stages, feed_stage, equil, var_names, var_values):
-    """Solve the column's nonlinear equation system and return the stage table.
-
-    Parameters
-    ----------
-    n_stages : int
-        Number of theoretical stages, excluding the reboiler (``n`` in the paper code).
-    feed_stage : int
-        1-based feed tray number.
-    equil : callable
-        Vapor PrOH mole fraction as a function of liquid PrOH mole fraction,
-        ``y = equil(x)`` -- see ``equilibrium.make_equilibrium_function``.
-    var_names, var_values : sequence
-        Fixed-variable names/values, e.g. ``['xW', 'F', 'xF', 'R', 'xD']`` /
-        ``[0.01, 100.0, 0.10, 1.0, 0.43]`` (the Geankoplis 11.4-1 column spec).
-
-    Returns
-    -------
-    dict with keys ``"converged"`` (bool), ``"stages"`` (list of
-    ``{"stage": i, "liquid": x_i, "vapor": y_i}`` for ``i = 1..n_stages``), the 0-based
-    solution arrays ``"L"``, ``"V"``, ``"x"``, ``"y"``, and the scalars ``"D"``, ``"R"``,
-    ``"W"``, ``"F"``, ``"xF"``, ``"q"``.
+def _try_solve_column(v0, n, feed_stage_idx, equil, fixed_idx, fixed_vals, num_stages):
+    """One ``fsolve`` attempt from ``v0``; returns the same dict :func:`solve_column`
+    does. Factored out (Phase 9c) so :func:`solve_column` can retry from alternate
+    initial guesses without duplicating the residual/extraction/diagnostic logic.
     """
-    n = n_stages
-    feed_stage_idx = feed_stage - 1
-    num_stages = n + 1
-
-    fixed_idx, F_initial = _resolve_fixed_indices(n, var_names, var_values)
-    fixed_vals = np.array(var_values, dtype=float)
-
-    v0 = np.concatenate([
-        F_initial * np.ones(num_stages),   # L
-        F_initial * np.ones(num_stages),   # V
-        0.5 * np.ones(num_stages),         # x
-        0.5 * np.ones(num_stages),         # y
-        np.array([0.5 * F_initial, 2.0, 0.5 * F_initial, F_initial, 0.5, 1.0]),
-    ])
-    for i, idx in enumerate(fixed_idx):
-        v0[idx] = fixed_vals[i]
-
     def residual_func(v_solve):
         return _distillation_residuals(v_solve, n, feed_stage_idx, equil, fixed_idx,
                                        fixed_vals)
@@ -189,7 +154,7 @@ def solve_column(n_stages, feed_stage, equil, var_names, var_values):
 
     # Stage i's liquid/vapor (both leaving stage i): x[i] / y[i-1] in the 0-based arrays.
     stages = [{"stage": i, "liquid": float(x[i]), "vapor": float(y[i - 1])}
-             for i in range(1, n + 1)]
+             for i in range(1, num_stages)]
 
     # fsolve has no bounds: given a poorly-resolved equil() (e.g. too coarse a z-grid
     # in phase_diagram.vle_curve), it can converge (residual ~ 0) to a spurious root
@@ -212,6 +177,91 @@ def solve_column(n_stages, feed_stage, equil, var_names, var_values):
         "D": float(D), "R": float(R), "W": float(W), "F": float(F),
         "xF": float(xF), "q": float(q),
     }
+
+
+# Phase 9c: generic (not physics-informed) alternate (x, y) initial-guess levels to
+# retry with if the default (0.5, 0.5) guess below doesn't converge -- see
+# solve_column. Deliberately generic rather than curve-specific, so this doesn't
+# encode any assumption about which equilibrium curve is passed in.
+_RETRY_INITIAL_GUESS_LEVELS = [(0.3, 0.3), (0.7, 0.7), (0.2, 0.8)]
+
+
+def solve_column(n_stages, feed_stage, equil, var_names, var_values):
+    """Solve the column's nonlinear equation system and return the stage table.
+
+    Parameters
+    ----------
+    n_stages : int
+        Number of theoretical stages, excluding the reboiler (``n`` in the paper code).
+    feed_stage : int
+        1-based feed tray number.
+    equil : callable
+        Vapor PrOH mole fraction as a function of liquid PrOH mole fraction,
+        ``y = equil(x)`` -- see ``equilibrium.make_equilibrium_function``.
+    var_names, var_values : sequence
+        Fixed-variable names/values, e.g. ``['xW', 'F', 'xF', 'R', 'xD']`` /
+        ``[0.01, 100.0, 0.10, 1.0, 0.43]`` (the Geankoplis 11.4-1 column spec).
+
+    Returns
+    -------
+    dict with keys ``"converged"`` (bool), ``"stages"`` (list of
+    ``{"stage": i, "liquid": x_i, "vapor": y_i}`` for ``i = 1..n_stages``), the 0-based
+    solution arrays ``"L"``, ``"V"``, ``"x"``, ``"y"``, and the scalars ``"D"``, ``"R"``,
+    ``"W"``, ``"F"``, ``"xF"``, ``"q"``.
+
+    Notes
+    -----
+    Phase 9c: if the default (0.5, 0.5) initial guess below doesn't converge, retries
+    from a few generic alternate initial guesses before giving up (this is exactly the
+    kind of solver fragility that produced a spurious non-convergence Phase 9b traced
+    to an unrelated bug -- see ``paper/PHASE9B_INVESTIGATION.md``; retrying here is
+    cheap, generic insurance against genuine cases of it, not a fix for that bug).
+    The primary attempt is untouched -- identical inputs/outputs to before this change
+    -- so nothing that already converges is affected; retries only run when the first
+    attempt's own ``converged`` flag is ``False``, and the first converging result
+    (default or a retry) is returned as-is, with a note appended to ``"warnings"`` if
+    a retry was needed.
+    """
+    n = n_stages
+    feed_stage_idx = feed_stage - 1
+    num_stages = n + 1
+
+    fixed_idx, F_initial = _resolve_fixed_indices(n, var_names, var_values)
+    fixed_vals = np.array(var_values, dtype=float)
+
+    def make_v0(x_level=0.5, y_level=0.5):
+        v0 = np.concatenate([
+            F_initial * np.ones(num_stages),   # L
+            F_initial * np.ones(num_stages),   # V
+            x_level * np.ones(num_stages),      # x
+            y_level * np.ones(num_stages),      # y
+            np.array([0.5 * F_initial, 2.0, 0.5 * F_initial, F_initial, 0.5, 1.0]),
+        ])
+        for i, idx in enumerate(fixed_idx):
+            v0[idx] = fixed_vals[i]
+        return v0
+
+    result = _try_solve_column(make_v0(), n, feed_stage_idx, equil, fixed_idx,
+                               fixed_vals, num_stages)
+    if result["converged"]:
+        return result
+
+    for x_level, y_level in _RETRY_INITIAL_GUESS_LEVELS:
+        retry = _try_solve_column(make_v0(x_level, y_level), n, feed_stage_idx, equil,
+                                  fixed_idx, fixed_vals, num_stages)
+        if retry["converged"]:
+            retry["warnings"] = retry["warnings"] + [
+                f"converged only after retrying with an alternate initial guess "
+                f"(x0={x_level}, y0={y_level}) -- the default initial guess did not "
+                f"converge for this equilibrium curve"
+            ]
+            return retry
+
+    result["warnings"] = result["warnings"] + [
+        f"also retried with {len(_RETRY_INITIAL_GUESS_LEVELS)} alternate initial "
+        f"guesses; none converged"
+    ]
+    return result
 
 
 def plot_mccabe_thiele(result, equil, feed_stage, ax=None):

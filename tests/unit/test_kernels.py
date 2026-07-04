@@ -12,7 +12,7 @@ import pytest
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from bits_for_gaps.kernels import AnisotropicSE, assign_hyperparameters
+from bits_for_gaps.kernels import AnisotropicSE, assign_hyperparameters, save_hyperparameters
 
 f64 = gpflow.utilities.to_default_float
 
@@ -129,6 +129,32 @@ def test_assign_hyperparameters_round_trips(kernel):
     assert _val(kernel.lengthscale_2) == pytest.approx(7.0)
     # Read back through the same canonical-order property used to assign.
     np.testing.assert_allclose([_val(p) for p in kernel.hyperparameters], [9.0, 8.0, 7.0])
+
+
+## ---------------------------------------------------------------------------
+## Phase 9c: save/restore -- the save_hyperparameters half of the mutation-footgun fix
+## (mixture.py/acquisition.py use these together; see their tests for the full loop).
+## ---------------------------------------------------------------------------
+
+def test_save_hyperparameters_captures_current_values(kernel):
+    assign_hyperparameters(kernel, [9.0, 8.0, 7.0])
+    saved = save_hyperparameters(kernel)
+    assert saved == [9.0, 8.0, 7.0]
+
+
+def test_save_then_assign_then_restore_round_trips(kernel):
+    saved = save_hyperparameters(kernel)   # the defaults: [1.25, 2.0, 0.5]
+    assign_hyperparameters(kernel, [9.0, 8.0, 7.0])
+    assert [_val(p) for p in kernel.hyperparameters] != saved
+    assign_hyperparameters(kernel, saved)
+    np.testing.assert_allclose([_val(p) for p in kernel.hyperparameters], saved)
+
+
+def test_save_hyperparameters_returns_plain_values_not_live_references(kernel):
+    # A snapshot must not change if the kernel is mutated afterward.
+    saved = save_hyperparameters(kernel)
+    assign_hyperparameters(kernel, [9.0, 8.0, 7.0])
+    assert saved == pytest.approx([1.25, 2.0, 0.5])
 
 
 def test_construct_1d_kernel_with_explicit_priors():
