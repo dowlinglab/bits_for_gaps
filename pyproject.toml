@@ -53,4 +53,10 @@ packages = ["src/bits_for_gaps"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+# `vle` tests need the Julia/Clapeyron backend; deselect them by default so a plain
+# `pytest -q` is green on the pure-Python core. Run them with `pytest -m vle`.
+addopts = "-ra -m 'not vle'"
+markers = [
+    "vle: requires the Julia/Clapeyron VLE example backend (deselected by default)",
+    "slow: slower end-to-end tests (still run by default)",
+]

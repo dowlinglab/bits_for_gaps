@@ -1,0 +1,39 @@
+{
+  "description": "Posterior summary of the GP kernel hyperparameters at the published iteration (chain-0 constrained HMC samples).",
+  "source": "results/less_x_new_manuscript_revisions/param_posterior_samples_15 (5000 x 3)",
+  "paper_reference": "Jones & Dowling 2026, Fig 10 (marginals)",
+  "param_order": [
+    "std_dev",
+    "lengthscale_1",
+    "lengthscale_2"
+  ],
+  "n_samples": 5000,
+  "mean": {
+    "std_dev": 1.3564531882074533,
+    "lengthscale_1": 0.8623896057604686,
+    "lengthscale_2": 3.1950173594889164
+  },
+  "median": {
+    "std_dev": 1.2861854383008142,
+    "lengthscale_1": 0.8194858029390522,
+    "lengthscale_2": 3.044073585620267
+  },
+  "std": {
+    "std_dev": 0.3976191813363844,
+    "lengthscale_1": 0.28146818322758144,
+    "lengthscale_2": 1.135009779105147
+  },
+  "q05": {
+    "std_dev": 0.8464533412715158,
+    "lengthscale_1": 0.47946877191290993,
+    "lengthscale_2": 1.6390858083393822
+  },
+  "q95": {
+    "std_dev": 2.1162970383344275,
+    "lengthscale_1": 1.3971298169813513,
+    "lengthscale_2": 5.386261614759295
+  },
+  "tol": {
+    "rtol": 0.05
+  }
+}
