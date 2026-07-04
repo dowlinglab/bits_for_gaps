@@ -12,8 +12,16 @@ posterior-sample file used for figures, takes ~20 s (100 full-covariance draws o
 50x50 grid), and does not feed the acquisition -- ``entropy_objective`` re-seeds NumPy and
 re-assigns every kernel hyperparameter before each deterministic ``predict_f`` call, so
 the entropy field and the selected point are identical whether or not it ran.
+
+``tests/integration/data/synthetic_baseline.json`` is a hard pin of this run's exact
+outputs, captured from the pre-Phase-4 (monolithic ``sampler.py``) code. It turns "did
+the Phase 4 decomposition change behavior?" into a mechanical atol=1e-10 check -- the
+module split (and, later, the disk-as-state removal) must reproduce these numbers
+exactly, not just match itself run-to-run.
 """
+import json
 import os
+from pathlib import Path
 
 import gpflow
 import numpy as np
@@ -24,6 +32,7 @@ from bits_for_gaps.sampler import adaptiveEntropy
 
 BOUNDS = [(0.0, 1.0), (0.0, 1.0)]
 SEED = 123
+BASELINE_PATH = Path(__file__).parent / "data" / "synthetic_baseline.json"
 
 
 def _true_f(x1, x2):
@@ -152,3 +161,21 @@ def test_stable_across_two_runs_with_same_seed(run_a, run_b):
     np.testing.assert_allclose(a["entropy"], b["entropy"], atol=1e-10)
     np.testing.assert_allclose(a["xStar"], b["xStar"], atol=1e-10)
     assert a["max_entropy"] == pytest.approx(b["max_entropy"], abs=1e-10)
+
+
+@pytest.mark.slow
+def test_matches_pre_phase4_baseline(run_a):
+    # Hard pin against tests/integration/data/synthetic_baseline.json, captured from the
+    # monolithic (pre-decomposition) sampler.py. The Phase 4 module split -- and later the
+    # disk-as-state removal -- must reproduce these exact numbers, not merely match itself.
+    with open(BASELINE_PATH) as f:
+        base = json.load(f)
+    r = run_a
+    assert r["n_init"] == base["n_init"]
+    assert r["trace_shape"] == tuple(base["trace_shape"])
+    np.testing.assert_allclose(r["rhat"], base["rhat"], atol=1e-10)
+    np.testing.assert_allclose(r["ess"], base["ess"], atol=1e-10)
+    np.testing.assert_allclose(r["entropy"], base["entropy"], atol=1e-10)
+    np.testing.assert_allclose(r["xStar"], base["xStar"], atol=1e-10)
+    assert r["max_entropy"] == pytest.approx(base["max_entropy"], abs=1e-10)
+    np.testing.assert_allclose(r["next_data"], base["next_data"], atol=1e-10)
