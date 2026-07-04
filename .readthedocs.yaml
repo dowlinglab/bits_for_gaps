@@ -1,0 +1,26 @@
+# .readthedocs.yaml -- Read the Docs build configuration.
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html
+#
+# Installs `.[docs]`, which (via pip's normal extras semantics) also installs the
+# package's base `dependencies` -- the frozen TF 2.16.2 / GPflow 2.9.2 / TFP 0.24.0
+# stack -- so autodoc can import bits_for_gaps for real (see docs/conf.py's notes on
+# the autodoc_mock_imports fallback if this ever becomes too slow/flaky on RTD's
+# builders). Julia/Clapeyron (the `[vle]` extra) are never installed here -- the docs
+# build never needs them (see docs/vle_example.md).
+version: 2
+
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.9"
+
+sphinx:
+  configuration: docs/conf.py
+  fail_on_warning: true
+
+python:
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
