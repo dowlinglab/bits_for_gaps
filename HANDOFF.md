@@ -6,10 +6,113 @@ State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before c
 - Phase 2 (regression/test harness): done 2026-07-03, merged to `main`.
 - Phase 4 (decompose `sampler.py`; retire disk-as-state): done 2026-07-03, merged to `main`.
 - Phase 5 (generalize to N-D): done 2026-07-04, merged to `main`.
-- **Phase 6 (port the VLE/distillation example): done 2026-07-04 on branch
-  `phase6-vle-example` — awaiting review/merge to `main` before Phase 7 begins.**
+- Phase 6 (port the VLE/distillation example): done 2026-07-04, merged to `main`.
+- **Phase 7 (reproduce the paper's figures): done 2026-07-04 on branch
+  `phase7-reproduce` — awaiting review/merge to `main` before Phase 8 begins.**
 
-## Phase 6 — port the VLE/distillation example (done; review gate before Phase 7)
+## Phase 7 — reproduce the paper's figures (done; review gate before Phase 8)
+
+All 11 figures (2-12) regenerate from the archived published run through
+`paper/reproduce.py` + `paper/figures/`. `pytest -q` (default) = **117 passed, 5
+deselected** (was 117/1 -- the 4 new gated tests in `test_paper_figures.py`).
+`pytest -m vle` = **5 passed, 117 deselected** (~80 s; needs the archive, 4 of the 5
+also need Julia). Full details, including known discrepancies and simplifications:
+`paper/REPRODUCTION.md`.
+
+```
+paper/
+  __init__.py                package marker (repo-only, not in the wheel -- same
+                              policy as examples/, verified via `python -m build`)
+  reproduce.py                CLI entry: --archive / $BFG_ARCHIVE_DIR (default: the
+                              private old-repo path), --figures (subset),
+                              --out-dir (default results_remaked/, gitignored)
+  REPRODUCTION.md              figure -> script -> archived-inputs -> golden-diff table
+  figures/
+    _archive.py               shared loaders (rhat/ess, HMC traces, param_posterior_
+                              samples, activity_data, gp_predict, entropy, lhs_design,
+                              cont_data, phase_diagram, gt_Wilson_data) + apply_plot_
+                              settings(); verified directly against the real archive
+    fig02_lhs_design.py        Fig 2  -- visual
+    fig03_entropy_field.py     Fig 3  -- visual
+    fig04_entropy_evolution.py Fig 4  -- visual
+    fig05_parity.py            Fig 5  -- PINNED (fig5_error_metrics.json)
+    fig06_gp_posterior_surface.py  Fig 6  -- visual
+    fig07_gp_posterior_isotherms.py  Fig 7  -- visual
+    fig08_phase_diagram.py     Fig 8  -- archive cross-check (no dedicated golden file)
+    fig09_mccabe_thiele.py     Fig 9  -- PINNED (mccabe_thiele_stages.json, Phase 6);
+                              wilson_column()/surrogate_column() moved here from
+                              tests/regression/test_mccabe_thiele.py (Phase 6), which
+                              now imports them instead of reimplementing
+    fig10_traces.py            Fig 10 -- PINNED (hmc_diagnostics.json)
+    fig11_marginals.py         Fig 11 -- PINNED (hyperparameter_posterior.json)
+    fig12_joint_marginals.py   Fig 12 -- visual
+tests/regression/test_paper_figures.py  gated (@pytest.mark.vle) recompute-vs-golden
+                              for Fig 5/8/10/11 (Fig 9 already gated in Phase 6)
+tests/conftest.py              + repo root on sys.path (alongside examples/, Phase 6)
+                              so `import paper.figures.*` works without installing it
+```
+
+Key facts for the next session:
+
+- **The approach is "load archive, render through the new code" -- not "re-run the
+  loop."** Every figure either reads archived text/pickle files (all 11) or calls
+  live into `examples/vle_distillation`'s Clapeyron-backed physics for the
+  ground-truth curve (Fig 8, 9) -- none of them re-run the paper's 15-iteration
+  adaptive HMC loop (stochastic, expensive, and orthogonal to "does the new code
+  reproduce the published figure"). This was an explicit guardrail, not just a time-
+  saving shortcut: re-running would produce a *different* (though qualitatively
+  similar) stochastic realization, not a reproduction of the specific published one.
+- **Packaging mirrors `examples/`'s policy exactly.** `paper/__init__.py` +
+  `paper/figures/__init__.py` make it a real package; `tests/conftest.py` now also
+  puts the repo root on `sys.path` (added to the existing `examples/` insert from
+  Phase 6) so `import paper.figures.fig10_traces` works without installing anything.
+  Wheel exclusion is automatic (hatchling's `packages = ["src/bits_for_gaps"]` is an
+  allowlist -- nothing outside `src/` is ever included regardless of `__init__.py`
+  presence), not separately re-verified this phase (Phase 6 already confirmed the
+  mechanism with `python -m build --wheel`).
+- **Quantitative pins reuse `paper/golden/*` exactly as extracted in Phase 2** --
+  no new golden files were added or existing ones modified (guardrail). Fig 8 has no
+  dedicated golden *file* (the paper doesn't report its curve as a scalar target);
+  its regression instead cross-checks the freshly-recomputed (live Clapeyron) Wilson
+  curve against the archived `gt_Wilson_data` the paper's own Fig 8 was built from --
+  confirmed matching (z exactly, since both use the same `linspace(0,1,75)` grid;
+  T within 0.5 K; y1 within 0.02).
+- **Fig 9's recompute logic moved, not duplicated.** `wilson_column()`/
+  `surrogate_column()` lived in `tests/regression/test_mccabe_thiele.py` (Phase 6);
+  Phase 7 moved them into `paper/figures/fig09_mccabe_thiele.py` (since the figure
+  and the test need the exact same recompute) and the test now imports them. Verified
+  the gated test still passes after the move.
+- **The gated `vle` marker is reused for "needs the private archive," not just
+  "needs Julia."** `test_paper_figures.py`'s 4 tests are marked `@pytest.mark.vle`
+  even though 3 of them (`fig10_traces`, `fig05_parity`, hyperparameter-posterior)
+  never touch Julia -- what actually gates all of them is needing the archive
+  directory, which is exactly as unavailable to most environments/CI as Julia is.
+  Introducing a separate marker for "needs archive" seemed like unwarranted plumbing
+  for a distinction without a practical difference in this repo; each test also has
+  its own `skipif` on the archive directory existing, so it degrades gracefully
+  (skip, not error) if pointed at a missing path.
+- **Simplifications from the 847-line `fxns/mcmc_plotter.py`** (this is reproduction
+  code, not a library API -- ported pragmatically, not verbatim): dropped Fig 5's
+  zoomed inset and Fig 12's KDE contour overlay (both purely visual, not the
+  figure's quantitative content); Fig 3 is a 2x3 grid of the first 6 iterations
+  rather than 60 separate per-iteration files; Fig 12's "MAP" marker is the sample
+  nearest the coordinate-wise median (a cheap visual proxy), not a true density
+  mode -- use `hyperparameter_posterior.json`'s `mean`/`median` for a real point
+  estimate. Full list in `paper/REPRODUCTION.md`.
+- **All 11 figures were visually spot-checked** against the archived PNGs' described
+  structure while building them (not just "the code runs") -- e.g. Fig 8 shows the
+  expected minimum-boiling-azeotrope T-x-y diagram with the archived surrogate
+  ensemble tightly tracking the freshly-recomputed Wilson dashed curve; Fig 6 shows
+  visibly tighter credible-interval wireframes and denser training coverage at
+  iteration 15 vs. iteration 1; Fig 4 shows the expected monotonic-ish decreasing
+  max-entropy trend across all 60 archived iterations.
+- **`src/bits_for_gaps/` CORE, `examples/vle_distillation/` (Phase 6 physics), and
+  `paper/golden/*` are all byte-for-byte untouched** (`git diff main...HEAD --
+  <path>` empty for each) -- Phase 7 only added `paper/figures/`, `paper/reproduce.py`,
+  `paper/REPRODUCTION.md`, one new test file, and extended `tests/conftest.py` +
+  refactored (not rewrote) `test_mccabe_thiele.py`, per the guardrails.
+
+## Phase 6 — port the VLE/distillation example (done; merged to main)
 
 The paper's H2O-PrOH case study now lives at `examples/vle_distillation/`, on the
 public `bits_for_gaps` API, with the Julia/Clapeyron activity model injected as the
@@ -365,11 +468,12 @@ Key facts for the next session:
 - Markers registered in `pyproject.toml`: `vle` (Julia backend, deselected by default),
   `slow` (integration; still runs by default). Run gated tests with `pytest -m vle`.
 
-## What exists now (Phase 0 + Phase 3-lite + Phase 4 + Phase 5 + Phase 6 done)
+## What exists now (Phase 0 + Phase 3-lite + Phase 4 + Phase 5 + Phase 6 + Phase 7 done)
 
 A pip-installable package with the **algorithm decomposed into focused, tested modules**,
-**generalized to N input dimensions**, and a **ported VLE/distillation example** repo-side
-(see the "Phase 4"/"Phase 5"/"Phase 6" sections above):
+**generalized to N input dimensions**, a **ported VLE/distillation example** repo-side,
+and **all 11 paper figures reproduced** repo-side (see the "Phase 4"-"Phase 7" sections
+above):
 
 ```
 src/bits_for_gaps/
@@ -397,9 +501,13 @@ tests/integration/ end-to-end (2-D, in-memory run()) + BitsForGaps facade parity
                  nd_synthetic (1-D and 3-D, via BitsForGaps)
 tests/regression/  golden-file checks vs published paper values (Phase 2, 2-D only --
                  the published run and paper/golden/* are inherently 2-D); +
-                 test_mccabe_thiele.py's @pytest.mark.vle recompute (Phase 6)
+                 test_mccabe_thiele.py's (Phase 6) and test_paper_figures.py's
+                 (Phase 7) @pytest.mark.vle recomputes
 examples/vle_distillation/  the H2O-PrOH case study on the public API (Phase 6) --
                  repo-only, not in the pip wheel; see the "Phase 6" section above
+paper/figures/ + paper/reproduce.py  all 11 paper figures reproduced from the
+                 archived published run (Phase 7) -- repo-only, not in the pip
+                 wheel; see the "Phase 7" section above
 ```
 
 `BitsForGaps` (public-API facade, REFACTOR_PLAN §4 kwarg names) and `adaptiveEntropy`
@@ -439,20 +547,19 @@ Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_
 
 3. **Phase 5 — generalize to N-D. ✅ DONE.** Merged to `main`.
 
-4. **Phase 6 — port the VLE example. ✅ DONE.** See the "Phase 6" section above. On
-   branch `phase6-vle-example`; merge to `main` after review, then start Phase 7. The
-   green default + `-m vle` suites are the safety net.
+4. **Phase 6 — port the VLE example. ✅ DONE.** Merged to `main`.
 
-5. **Phase 7 — reproduce all paper figures** via `paper/reproduce.py`; diff vs golden
-   (all still 2-D -- the published run is 2-D, so this phase doesn't touch N-D at all).
-   This is where the paper's real 15-iteration adaptive run needs reproducing
-   bit-for-bit (or within tolerance) -- Phase 6's `run_case_study.py` demonstrates the
-   pipeline but deliberately runs far fewer iterations, and the gated regression
-   test's "surrogate" recompute deliberately skips the adaptive loop entirely (see the
-   "Phase 6" section above for why). Also worth finding/committing the *actual*
-   as-run manuscript script if it turns up -- Phase 6 had to reconstruct the config
-   from indirect evidence (see "Phase 6" section); the McCabe-Thiele stage-table
-   comparison is the one place this reconstruction is checked against golden.
+5. **Phase 7 — reproduce all paper figures. ✅ DONE.** See the "Phase 7" section above.
+   On branch `phase7-reproduce`; merge to `main` after review, then start Phase 8. Note
+   for anyone reading the pre-Phase-7 version of this note below: the earlier plan here
+   said Phase 7 would need to reproduce the paper's real 15-iteration adaptive run
+   bit-for-bit. That was superseded by an explicit approach decision before this phase
+   started: load the archived artifacts and render them through the new code (proving
+   the new code reproduces the published figures) rather than re-running the
+   stochastic, expensive adaptive loop. Fig 9's surrogate panel still uses a fresh
+   (non-adaptive) GP fit, same as Phase 6 -- reproducing the exact 15-iteration
+   surrogate bit-for-bit was explicitly out of scope for this phase too, not merely
+   deferred by accident.
 
 6. **Phase 8 — docs (Sphinx/RTD)**; **Phase 9 — publish (TestPyPI -> PyPI) + Zenodo**.
    Phase 8 should document the N-D kernel construction (`AnisotropicSE(variance_prior=...,
