@@ -4,10 +4,131 @@ State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before c
 
 - Bootstrap (Phase 0 + Phase 3-lite): Opus, 2026-07-03.
 - Phase 2 (regression/test harness): done 2026-07-03, merged to `main`.
-- **Phase 4 (decompose `sampler.py`; retire disk-as-state): done 2026-07-03 on branch
-  `phase4-decompose-sampler` — awaiting review/merge to `main` before Phase 5 begins.**
+- Phase 4 (decompose `sampler.py`; retire disk-as-state): done 2026-07-03, merged to `main`.
+- **Phase 5 (generalize to N-D): done 2026-07-04 on branch `phase5-nd` — awaiting
+  review/merge to `main` before Phase 6 begins.**
 
-## Phase 4 — decompose sampler.py; retire disk-as-state (done; review gate before Phase 5)
+## Phase 5 — generalize to N-D (done; review gate before Phase 6)
+
+The 2 inputs / 3 hyperparameters hardcoding flagged by the `TODO(Phase 5)` markers is
+gone. `pytest -q` = **88 passed, 1 deselected** (same `vle` marker). Full suite runs in
+~65 s (was ~35 s after Phase 4 — the new 1-D/3-D synthetic tests each run the tiny HMC
+pipeline, same as the existing 2-D one, just at two more dimensions).
+
+**The whole phase was executed as: pin the 2-D baseline as the regression oracle, then
+generalize one module at a time, running the full suite (incl. the atol=1e-10 baseline
+pin) after every change before moving to the next module.** Every commit in this phase
+kept `test_matches_pre_phase4_baseline` green — the 2-D path is bit-exact with the
+pre-Phase-5 code throughout, not just at the end.
+
+### Design decision: per-dimension scalar Parameters (not a vector Parameter)
+
+`kernels.AnisotropicSE` now takes `variance_prior` + `lengthscale_priors` (a list, one
+prior per input dimension) instead of hardcoding `lengthscale_1`/`lengthscale_2`. Each
+lengthscale — and the variance — is its **own `gpflow.Parameter`**, not a slice of one
+vector-valued Parameter. This was the one real design choice in this phase, and it's not
+arbitrary:
+
+- **The paper's method depends on per-dimension prior *families*, not just per-dimension
+  prior *parameters*.** `std_dev` ~ LogNormal, `lengthscale_1` ~ LogNormal, `lengthscale_2`
+  ~ Gamma — three different distribution families, one of which (`lengthscale_2`) is also
+  deliberately left **unconstrained** (`Identity` transform, no positivity bijector,
+  confirmed empirically: `gpflow.Parameter`'s default `transform` is `Identity`, not
+  `positive()` — this was already true of the pre-Phase-5 kernel and had to be preserved
+  bit-for-bit). A single vector Parameter carries exactly one prior distribution and one
+  bijector for the whole vector — it cannot express "component 2 is Gamma-unconstrained,
+  the rest are LogNormal-positive" without slicing hacks that would themselves need
+  per-component metadata, i.e. would reinvent per-dimension Parameters anyway.
+- **It matches gpflow's HMC machinery with no adapter.** `gpflow.optimizers.SamplingHelper`
+  takes a flat list of trainable `Parameter`s; each contributes its own prior term to the
+  log-posterior and its own bijector to the unconstrained HMC state. A list of scalar
+  Parameters already *is* that list — `GPmodel.kernel.hyperparameters` is passed straight
+  through to `SamplingHelper` (see below), no wrapping/unwrapping needed.
+
+The tradeoff (documented in `kernels.py`'s module docstring) is more Parameter objects to
+manage than one vector — acceptable, since gpflow's own tooling (`print_summary`,
+checkpointing, `trainable_parameters`) already expects a flat list of scalar Parameters.
+
+### Canonical hyperparameter order (the contract across gp/mixture/acquisition)
+
+```
+[std_dev, lengthscale_1, lengthscale_2, ..., lengthscale_d]
+```
+
+Exposed as `AnisotropicSE.hyperparameters` (a list of `gpflow.Parameter`, in this exact
+order) and by name as `.std_dev`, `.lengthscale_1`, ... `.lengthscale_d` (kept for
+backward compatibility with 2-D-era code addressing them by attribute name — the existing
+`test_kernels.py` tests referencing `.lengthscale_1`/`.lengthscale_2` still pass
+unmodified). This order is used in exactly three places, all now consistent by
+construction rather than by hardcoded agreement:
+
+- `gp.run_mcmc`: `SamplingHelper(GPmodel.log_posterior_density, GPmodel.kernel.hyperparameters)`
+  — was `[trainable_parameters[2], [0], [1]]`. **Verified identity-equal** (same Python
+  `Parameter` objects, same order) to the old hardcoded indexing for the paper's kernel
+  before making this change — so this is a pure refactor at d=2, not a behavior change.
+  `trace`/`chains_states`/`rhat`/`ess` columns are in this order.
+- `mixture.sample_gp_posterior_mixture` / `acquisition.entropy_objective`: replay a trace
+  row onto the kernel via the new `kernels.assign_hyperparameters(kernel, values)` —
+  `for param, value in zip(kernel.hyperparameters, values): param.assign(value)` — instead
+  of three hardcoded `.assign()` calls by name. Works for any kernel exposing
+  `.hyperparameters`, not just `AnisotropicSE`.
+- Anywhere reading a trace column back out (regression tests, `paper/golden/*`) already
+  used this same order by convention; nothing there changed.
+
+### What's still 2-D-only, and why that's the right call
+
+`acquisition.entropy_surface_2D` and `mixture.predict_grid_2D` (the dense-grid entropy
+field and the full-grid GP-prediction plotting diagnostic) are **not** generalized to N-D
+— a dense grid is exponential in the input dimension, and neither one feeds the
+acquisition (the actual next-point decision). Both now raise a clear `ValueError` if
+called with `len(x_bounds) != 2`. `adaptiveEntropy.run()` calls `entropy_surface_2D`
+*only* when the input space is 2-D, leaving `entropy_field=None` otherwise — an N-D run
+does not error, it just skips a diagnostic it was never going to use. If N-D
+visualization is ever needed, the right tool is a *sparse* diagnostic (e.g. entropy along
+1-D/2-D slices through the current best point), not a full grid — not built here since
+nothing calls for it yet.
+
+By contrast, **`acquisition.optimize` (was `optimize_2D`) — the function an N-D run
+actually depends on — is fully dimension-general**: Sobol dimension and the restart
+bound-scaling both derive from `len(x_bounds)`. For d=2 this reproduces the pre-Phase-5
+`optimize_2D` bit-for-bit (verified via the baseline pin): the vectorized bound-scaling
+`lo + x0 * (hi - lo)` is the same floating-point operation as the original
+`x0[j] * (hi[j] - lo[j]) + lo[j]` (IEEE 754 addition is commutative, so reordering the
+addends doesn't change the rounding).
+
+### `call_model`'s black-box calling convention changed (interface, not algorithm)
+
+Pre-Phase-5, `call_model` called the injected black box as `FwdModel(*FwdModelArgs, x2,
+x1)` — reversed, 2-D-specific argument order inherited from the VLE example's Julia
+activity-coefficient function (which took `(T, x)`). This doesn't generalize to N inputs.
+Phase 5 changes it to `FwdModel(*FwdModelArgs, *xStar)` — `xStar`'s components in natural
+dimension order. This is an **interface** change to how the sampler calls the user's
+injected function, not an algorithm change: `tests/integration/test_end_to_end.py`'s
+`_fwd_model` was updated from `_fwd_model(x2, x1)` to `_fwd_model(x1, x2)` to match, and
+produces the exact same `(x1, x2, y)` values as before (verified via the atol=1e-10
+baseline pin) — reordering which positional slot carries which value doesn't change the
+value itself. **Phase 6 will need to account for this** when porting the VLE example's
+Julia `fwd_model` wrapper (it can no longer rely on the reversed-argument convention; wrap
+the Julia call so its own signature accepts `(x1, x2, ...)` in natural order).
+
+### Other Phase 5 changes
+
+- `sampler.py`: `adaptiveEntropy.optimize_2D` renamed to `.optimize` (matches
+  `acquisition.optimize`); `predict_grid_2D`/`entropy_surface_2D` method names kept
+  as-is (explicitly 2-D-only). `BitsForGaps`'s constructor and `.run()` are unaffected —
+  it already accepted any `bounds`/`kernel`, so N-D "just worked" once the modules
+  underneath it did (proven by `tests/integration/test_nd_synthetic.py` running 1-D/3-D
+  problems through `BitsForGaps`, not `adaptiveEntropy` directly).
+- New tests: `tests/integration/test_nd_synthetic.py` (1-D and 3-D synthetic problems,
+  pure-Python, no Julia, via `BitsForGaps.run(...)`) and extensions to
+  `tests/unit/test_kernels.py` (canonical order, `paper_2d()` parity,
+  `assign_hyperparameters` round-trip, explicit 1-D/3-D construction with mixed prior
+  families, constructor validation).
+- `entropy.py` / `design.py` / `means.py` / `_util.py` are byte-for-byte untouched
+  (`git diff main...HEAD -- <those 4 files>` is empty). `paper/golden/*` untouched;
+  no `results/` committed.
+
+## Phase 4 — decompose sampler.py; retire disk-as-state (done; merged to main)
 
 `sampler.py`'s `adaptiveEntropy` god-class is now an orchestrator over decomposed,
 independently-testable modules. Order of operations (per the task): pinned an exact-
@@ -122,10 +243,10 @@ Key facts for the next session:
 - Markers registered in `pyproject.toml`: `vle` (Julia backend, deselected by default),
   `slow` (integration; still runs by default). Run gated tests with `pytest -m vle`.
 
-## What exists now (Phase 0 + Phase 3-lite + Phase 4 done)
+## What exists now (Phase 0 + Phase 3-lite + Phase 4 + Phase 5 done)
 
 A pip-installable package with the **algorithm decomposed into focused, tested modules**
-(see the "Phase 4" section above for the sampler-engine breakdown):
+and **generalized to N input dimensions** (see the "Phase 4"/"Phase 5" sections above):
 
 ```
 src/bits_for_gaps/
@@ -135,24 +256,29 @@ src/bits_for_gaps/
                  (from fxns/max_ent_design.py; dead commented variants removed). PURE.
   design.py      latin_hypercube_design / full_factorial_design, N-D, pure, no disk I/O
                  (extracted from proh_water_class). PURE.
-  kernels.py     AnisotropicSE (2-D, prior-bearing) from fxns/my_kermel_fxn.py
+  kernels.py     AnisotropicSE (N-D, per-dimension prior-bearing Parameters, Phase 5) +
+                 assign_hyperparameters(kernel, values)
   means.py       FixedInverseMean from fxns/my_mean_fxn.py
   _util.py       standardize / normalize / make_tensor
   transforms.py  InputTransform / OutputTransform (Phase 4). PURE.
   state.py       IterationRecord / RunHistory (Phase 4).
   diagnostics.py R-hat / ESS (Phase 4).
-  gp.py          GP construction + HMC (Phase 4).
-  mixture.py     GMM predictive posterior (Phase 4).
-  acquisition.py entropy-maximization acquisition function (Phase 4).
-  sampler.py     adaptiveEntropy (orchestrator, Phase 4) + BitsForGaps (public-API facade)
-tests/unit/      entropy/design/kernels/means/_util/transforms/state
-tests/integration/ end-to-end (in-memory run(), Phase 4) + BitsForGaps facade parity
-tests/regression/  golden-file checks vs published paper values (Phase 2)
+  gp.py          GP construction + HMC, N-D via kernel.hyperparameters (Phase 4/5).
+  mixture.py     GMM predictive posterior, N-D (Phase 4/5); predict_grid_2D stays 2-D-only.
+  acquisition.py entropy-maximization acquisition; optimize is N-D (Phase 5),
+                 entropy_surface_2D stays 2-D-only (raises for d != 2).
+  sampler.py     adaptiveEntropy (orchestrator) + BitsForGaps (public-API facade) -- N-D
+                 throughout except the 2-D-only diagnostics, which run() skips for d != 2.
+tests/unit/      entropy/design/kernels(+N-D)/means/_util/transforms/state
+tests/integration/ end-to-end (2-D, in-memory run()) + BitsForGaps facade parity +
+                 nd_synthetic (1-D and 3-D, via BitsForGaps)
+tests/regression/  golden-file checks vs published paper values (Phase 2, 2-D only --
+                 the published run and paper/golden/* are inherently 2-D)
 ```
 
 `BitsForGaps` (public-API facade, REFACTOR_PLAN §4 kwarg names) and `adaptiveEntropy`
 (original name, kept for backward compatibility) are both real, independently
-importable classes as of Phase 4 -- see the "Phase 4" section above.
+importable classes; both work at any input dimension as of Phase 5.
 
 ## Environment (verified working)
 
@@ -183,26 +309,27 @@ Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_
 1. **Phase 2 — regression harness FIRST (before refactoring sampler.py). ✅ DONE.**
    Merged to `main`.
 
-2. **Phase 4 — decompose `sampler.py`. ✅ DONE.** See the "Phase 4" section above. On
-   branch `phase4-decompose-sampler`; merge to `main` after review, then start Phase 5.
-   The green suite (regression + integration baseline pin) is the safety net.
+2. **Phase 4 — decompose `sampler.py`. ✅ DONE.** Merged to `main`.
 
-3. **Phase 5 — generalize to N-D.** Remove the 2-D / 3-hyperparameter hardcoding flagged
-   by `TODO(Phase 5)` markers, now spread across `kernels.py` (per-dim lengthscale
-   attrs), `gp.py` (`run_mcmc`'s positional `trainable_parameters[2],[0],[1]`),
-   `mixture.py`/`acquisition.py` (by-name kernel param assignment: `std_dev`,
-   `lengthscale_1`, `lengthscale_2`), and `acquisition.py`/`sampler.py`'s `*_2D` methods
-   (hardcoded `d=2` grids/meshes/Sobol dimension). Add 1-D and 3-D synthetic tests. The
-   Phase 4 module boundaries (gp/mixture/acquisition as pure functions over explicit
-   args) should make this a *local* change per module rather than a `sampler.py` rewrite.
+3. **Phase 5 — generalize to N-D. ✅ DONE.** See the "Phase 5" section above. On branch
+   `phase5-nd`; merge to `main` after review, then start Phase 6. The green suite
+   (regression + 2-D baseline pin + 1-D/3-D synthetic tests) is the safety net.
 
 4. **Phase 6 — port the VLE example** into `examples/vle_distillation/` (activity model,
    gibbs_duhem, phase_diagram, distillation, equilibrium) onto the public API, injecting
-   the Julia activity `fwd_model`. Pin Clapeyron via a `juliapkg.json`.
+   the Julia activity `fwd_model`. Pin Clapeyron via a `juliapkg.json`. **Note the
+   calling-convention change from Phase 5:** the injected `fwd_model` is now called as
+   `FwdModel(*FwdModelArgs, *xStar)` (natural dimension order), not the old reversed
+   `FwdModel(*args, x2, x1)` -- the Julia activity-coefficient wrapper's Python-side
+   signature needs to accept `(x1, x2, ...)` in that order, not the VLE-specific
+   `(T, x)` order the paper code used.
 
-5. **Phase 7 — reproduce all paper figures** via `paper/reproduce.py`; diff vs golden.
+5. **Phase 7 — reproduce all paper figures** via `paper/reproduce.py`; diff vs golden
+   (all still 2-D -- the published run is 2-D, so this phase doesn't touch N-D at all).
 
 6. **Phase 8 — docs (Sphinx/RTD)**; **Phase 9 — publish (TestPyPI -> PyPI) + Zenodo**.
+   Phase 8 should document the N-D kernel construction (`AnisotropicSE(variance_prior=...,
+   lengthscale_priors=[...])`) alongside the 2-D quickstart, plus the `paper_2d()` factory.
 
 ## Known issues / decisions already made (do not re-litigate)
 
