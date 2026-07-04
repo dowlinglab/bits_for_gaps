@@ -1,18 +1,24 @@
-"""Regenerate the paper's figures from the archived published run (iteration 15).
+"""Regenerate the paper's figures from the published run (iteration 15).
 
-Reads archived artifacts (GP pickles, HMC traces, phase-diagram data, activity data)
-from the PRIVATE old repo -- the archive of record (REFACTOR_PLAN.md §7 decision 4,
-``paper/DATA.md``) -- and renders them through the refactored ``bits_for_gaps``
-package + ``examples/vle_distillation``, proving the new code reproduces the
-published figures. This does NOT re-run the paper's 15-iteration adaptive HMC loop
-(stochastic, expensive, and not what "reproduce the figures" requires) -- it loads
-what that loop already produced.
+Reads plot-input artifacts (GP posterior draws, HMC traces, phase-diagram data,
+activity data) and renders them through the refactored ``bits_for_gaps`` package +
+``examples/vle_distillation``, proving the new code reproduces the published
+figures. This does NOT re-run the paper's 15-iteration adaptive HMC loop (stochastic,
+expensive, and not what "reproduce the figures" requires) -- it loads what that loop
+already produced.
+
+As of Phase 9, the default data source is the curated, committed ``paper/data/``
+subset (~16 MB -- exactly the files the figures read, copied from the private
+archive; see ``paper/data/README.md``), so this runs with **no private-archive
+access** out of the box. Pass ``--archive`` (or set ``BFG_ARCHIVE_DIR``) to point at
+the full private archive instead -- e.g. to regenerate Fig 3/4 with more than the 6
+committed early-iteration panels, or Fig 6/7 at iterations other than 1/15.
 
 Usage::
 
     export PYTHON_JULIACALL_HANDLE_SIGNALS=yes   # macOS, only needed for Fig 8/9
+    python paper/reproduce.py                     # uses the committed paper/data/
     python paper/reproduce.py --archive /path/to/less_x_new_manuscript_revisions
-    python paper/reproduce.py                     # uses BFG_ARCHIVE_DIR or the default below
     python paper/reproduce.py --figures 5 8 9 10  # only regenerate a subset
 
 Output goes to ``--out-dir`` (default: ``results_remaked/``, already gitignored) --
@@ -29,10 +35,9 @@ EXAMPLES_DIR = os.path.join(REPO_ROOT, "examples")
 if EXAMPLES_DIR not in sys.path:
     sys.path.insert(0, EXAMPLES_DIR)
 
-DEFAULT_ARCHIVE = os.path.expanduser(
-    "~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_hms/"
-    "results/less_x_new_manuscript_revisions"
-)
+# Phase 9: default to the curated, committed subset (no private-archive access
+# needed); override with --archive/$BFG_ARCHIVE_DIR to use the full private archive.
+DEFAULT_ARCHIVE = os.path.join(REPO_ROOT, "paper", "data")
 DEFAULT_OUT_DIR = os.path.join(REPO_ROOT, "results_remaked")
 
 # Figure number -> (module name, needs_julia). "needs_julia" figures call into
@@ -57,8 +62,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "--archive", default=os.environ.get("BFG_ARCHIVE_DIR", DEFAULT_ARCHIVE),
-        help="Path to the archived published run "
-             "(default: $BFG_ARCHIVE_DIR or the private old-repo path)",
+        help="Path to the plot-input data (default: $BFG_ARCHIVE_DIR or the "
+             f"committed paper/data/ subset, {DEFAULT_ARCHIVE}); point this at the "
+             "full private archive for iterations/figures beyond the curated subset",
     )
     parser.add_argument("--out-dir", default=DEFAULT_OUT_DIR,
                         help=f"Output directory (default: {DEFAULT_OUT_DIR})")
