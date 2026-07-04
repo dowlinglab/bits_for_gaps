@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bits_for_gaps"
+version = "0.0.1.dev0"
+description = "Bayesian Information-Theoretic Sampling for hierarchical GAussian Process Surrogates (BITS for GAPS)"
+readme = "README.md"
+requires-python = ">=3.9,<3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Alexander W. Dowling", email = "adowling@nd.edu" },
+    { name = "Kyla D. Jones" },
+]
+keywords = [
+    "gaussian-process", "bayesian-optimization", "hybrid-modeling",
+    "surrogate-modeling", "experimental-design", "information-theory",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Scientific/Engineering",
+]
+
+# Frozen reproduction baseline (see REFACTOR_PLAN.md decision 4).
+# tensorflow-macos on Apple Silicon; plain tensorflow elsewhere.
+dependencies = [
+    "numpy>=1.26,<2",
+    "scipy>=1.13,<1.14",
+    "gpflow==2.9.2",
+    "tensorflow-probability==0.24.0",
+    "tf-keras==2.16.0",
+    "tensorflow-macos==2.16.2; platform_system == 'Darwin' and platform_machine == 'arm64'",
+    "tensorflow==2.16.2; platform_system != 'Darwin' or platform_machine != 'arm64'",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+# VLE/distillation example backend (Julia + Clapeyron via juliacall).
+vle = ["juliacall==0.9.23", "juliapkg==0.1.13"]
+dev = ["pytest>=7", "pytest-cov"]
+docs = ["sphinx>=7", "myst-parser", "furo", "sphinx-autodoc-typehints"]
+
+[project.urls]
+Homepage = "https://github.com/dowlinglab/bits_for_gaps"
+Paper = "https://doi.org/10.1016/j.compchemeng.2026.109650"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bits_for_gaps"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

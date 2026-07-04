@@ -1,0 +1,36 @@
+# Development / reproduction environment for bits_for_gaps.
+# Frozen stack matching the BITS for GAPS paper (macOS arm64, verified 2026-07-03).
+#
+#   conda env create -f environment.yml
+#   conda activate bits_for_gaps
+#   pip install -e ".[dev,vle]"
+#
+# IMPORTANT (macOS): export PYTHON_JULIACALL_HANDLE_SIGNALS=yes before running
+# anything that imports juliacall, or Julia crashes with a bus error (SIGBUS).
+name: bits_for_gaps
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pip
+  - numpy=1.26.*
+  - scipy=1.13.*
+  - pandas=2.2.*
+  - matplotlib=3.9.*
+  - scikit-learn=1.5.*
+  - tqdm
+  - cython=0.29.*
+  - h5py
+  - jupyterlab
+  - pip:
+      - gpflow==2.9.2
+      - tensorflow-macos==2.16.2
+      - tensorflow-probability==0.24.0
+      - tf-keras==2.16.0
+      - juliacall==0.9.23
+      - juliapkg==0.1.13
+      - semver==3.0.2
+      - imageio==2.36.0
+      - pytest>=7
+      - pytest-cov
