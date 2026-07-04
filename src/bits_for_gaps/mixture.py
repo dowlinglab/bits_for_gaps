@@ -7,6 +7,14 @@ mutates the given GP model's kernel parameters in place, matching the paper code
 
 TODO(Phase 5): kernel hyperparameters are assigned by hardcoded attribute name (assumes
 exactly the 3-hyperparameter ``AnisotropicSE`` kernel) -- mirrors the TODO in kernels.py.
+
+NOTE: ``GPmodel.predict_f_samples`` draws from GPflow/TensorFlow's *ambient* default
+random generator, not ``numpy``'s -- the ``np.random.seed`` call below seeds which
+posterior-sample components are selected, but not the draws themselves. This means
+these two functions were never bitwise-reproducible in the original paper code either
+(confirmed: two successive calls to ``predict_f_samples`` on the same inputs, same
+process, differ). That is why the Phase 2 integration test deliberately excludes this
+plotting-only step from its determinism/baseline pins.
 """
 
 import numpy as np
