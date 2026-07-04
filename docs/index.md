@@ -36,6 +36,8 @@ tagged release.
   vapor-liquid-equilibrium example that motivated the method.
 - **Want to reproduce the published figures?** {doc}`reproduce_paper` points at the
   reproduction scripts and what they need.
+- **Curious what changed from the original paper code?** {doc}`improvements_over_paper`
+  -- bugs found and fixed, robustness hardening, and architecture wins, specifically.
 - **Looking for a specific class or function?** {doc}`api`.
 
 ```{toctree}
@@ -47,5 +49,6 @@ quickstart
 theory
 vle_example
 reproduce_paper
+improvements_over_paper
 api
 ```
