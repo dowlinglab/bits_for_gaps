@@ -186,6 +186,36 @@ def test_run_checkpoint_dir_is_opt_in(tmp_path):
 
 
 @pytest.mark.slow
+def test_run_predict_grid_true_writes_grid_predictions(tmp_path):
+    # predict_grid=True additionally computes the full-grid GP posterior-predictive
+    # samples (the paper's gp_predict_2D plotting diagnostic) -- off by default, so no
+    # other test in this file exercises it.
+    X_init, y_init = _initial_design(n=12)
+    s = _build_sampler()
+    checkpoint_dir = tmp_path / "checkpoints"
+    history = s.run(X_init, y_init, checkpoint_dir=str(checkpoint_dir), predict_grid=True)
+    assert (checkpoint_dir / "gp_predict_1").exists()
+    # 50x50 grid (mixture.predict_grid_2D's default n_grid), columns [x1, x2, *draws].
+    grid = np.loadtxt(checkpoint_dir / "gp_predict_1")
+    assert grid.shape[0] == 50 * 50
+    assert grid.shape[1] > 2
+    assert history.last.XData.shape[0] == 13
+
+
+@pytest.mark.slow
+def test_run_with_initial_lml_maximization():
+    # initalLML=True runs an MLE fit before HMC (adaptiveEntropy.maximize_lml) -- off
+    # by default, so no other test exercises this branch of run().
+    X_init, y_init = _initial_design(n=12)
+    s = _build_sampler()
+    s.initalLML = True
+    history = s.run(X_init, y_init)
+    record = history.last
+    assert record.lml_result is not None
+    assert np.all(np.isfinite(record.rhat))
+
+
+@pytest.mark.slow
 def test_iteration_record_gpmodel_survives_downstream_mixture_sampling():
     # Phase 9c regression guard for the exact real-world bug Phase 9b found (see
     # paper/PHASE9B_INVESTIGATION.md): a caller that reuses history.last.GPmodel for a
