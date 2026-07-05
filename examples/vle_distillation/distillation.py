@@ -7,6 +7,12 @@ port). Solves the column's nonlinear mass-balance + equilibrium-stage system via
 ``scipy.optimize.fsolve``, given an equilibrium function ``y = equil(x)`` (see
 ``equilibrium.py`` / ``phase_diagram.py``).
 
+Implements the SI-4 ("Binary Distillation Model and Solution Procedure") stage
+balances at constant molar overflow: total/component mass balances per stage, the
+equilibrium relation ``y_i = phi(x_i)``, and the condenser/reboiler closures ``L_0 =
+R*D``, ``V_1 = L_0 + D``, ``L_n = V_{n+1} + W``, ``x_D = x_0``, ``x_W = x_n`` -- see
+:func:`_distillation_residuals`'s inline comments for exactly where each appears.
+
 Variable vector layout (0-based), matching the original port exactly:
     v = [L_0..L_n, V_1..V_{n+1} (stored at V[0]..V[n]), x_0..x_n, y_1..y_{n+1}
          (stored at y[0]..y[n]), D, R, W, F, xF, q]
@@ -41,13 +47,13 @@ def _distillation_residuals(v, n, feed_stage_idx, equil, fixed_idx, fixed_vals):
 
     f = np.zeros_like(v)
 
-    # Overall mass balance (stages 1..n): L[i-1] + V[i] - L[i] - V[i-1] = 0.
+    # SI-4 total mass balance (stages 1..n): L[i-1] + V[i] - L[i] - V[i-1] = 0.
     offset_eq = 0
     for idx in range(1, n + 1):
         f[offset_eq + idx - 1] = L[idx - 1] + V[idx] - L[idx] - V[idx - 1]
     f[offset_eq + feed_stage_idx] += F  # feed enters above this (0-based) stage
 
-    # Component mass balance (stages 1..n).
+    # SI-4 component mass balance (stages 1..n).
     offset_eq = n
     for idx in range(1, n + 1):
         f[offset_eq + idx - 1] = (
@@ -55,13 +61,15 @@ def _distillation_residuals(v, n, feed_stage_idx, equil, fixed_idx, fixed_vals):
         )
     f[offset_eq + feed_stage_idx] += F * xF
 
-    # Constant molar overflow (stages 1..n), adjusted by feed quality q at the feed stage.
+    # SI-4 constant molar overflow (stages 1..n), adjusted by feed quality q at the
+    # feed stage: L[i] - L[i-1] = 0 (= -qF at the feed stage).
     offset_eq = 2 * n
     for idx in range(1, n + 1):
         f[offset_eq + idx - 1] = L[idx] - L[idx - 1]
     f[offset_eq + feed_stage_idx] -= F * q
 
-    # Equilibrium (stages 1..n): y_i = equil(x_i).
+    # SI-4 equilibrium relation (stages 1..n): y_i = phi(x_i) -- Eq (10)'s VLE curve,
+    # wrapped as ``equil`` (see equilibrium.make_equilibrium_function).
     offset_eq = 3 * n
     for idx in range(1, n + 1):
         f[offset_eq + idx - 1] = y[idx - 1] - equil(x[idx])
@@ -71,17 +79,17 @@ def _distillation_residuals(v, n, feed_stage_idx, equil, fixed_idx, fixed_vals):
     for i in range(len(fixed_idx)):
         f[offset_eq + i] = v[fixed_idx[i]] - fixed_vals[i]
 
-    # Condenser and reboiler equations.
+    # SI-4 condenser and reboiler closures.
     offset_eq = 4 * n + len(fixed_idx)
-    f[offset_eq + 0] = y[0] - x[0]  # total condenser: y_1 = x_0
+    f[offset_eq + 0] = y[0] - x[0]  # total condenser: y_1 = x_0 (x_D = x_0)
     # NOTE (kept from the original port): a partial reboiler is usually
     # y_{n+1} = equil(x_W). The source MATLAB instead sets x_n = y_{n+1} (liquid
     # leaving stage n equals the vapor leaving the reboiler); replicated as-is here
     # for physics parity with the paper's published column design.
     f[offset_eq + 1] = x[n] - y[n]
-    f[offset_eq + 2] = L[0] - R * D  # reflux: L_0 = R * D
-    f[offset_eq + 3] = V[0] - L[0] - D  # condenser balance: V_1 = L_0 + D
-    f[offset_eq + 4] = L[n] - V[n] - W  # reboiler balance: L_n = V_{n+1} + W
+    f[offset_eq + 2] = L[0] - R * D  # SI-4: L_0 = R * D
+    f[offset_eq + 3] = V[0] - L[0] - D  # SI-4: V_1 = L_0 + D
+    f[offset_eq + 4] = L[n] - V[n] - W  # SI-4: L_n = V_{n+1} + W
 
     return f
 

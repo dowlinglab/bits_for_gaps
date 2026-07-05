@@ -87,7 +87,7 @@ Targeting `v0.1.0` (Phase 10 -- publish; see `REFACTOR_PLAN.md`).
 ### Test / process
 
 - A pre-refactor numerical baseline pin (`tests/integration/data/synthetic_baseline.json`,
-  atol 1e-10) and golden scalars extracted from the published run (`paper/golden/*`)
+  atol 1e-10) and reference scalars extracted from the published run (`paper/reference/*`)
   that every subsequent phase must reproduce exactly -- the original code had no
   automated tests at all.
 - Coverage raised from 93% to 97% (Phase 9d), closing real gaps (`gp.py` had zero

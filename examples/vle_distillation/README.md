@@ -107,4 +107,4 @@ it) is pure Python/NumPy/SciPy -- importable and unit-testable without Julia. Se
 `tests/unit/test_gibbs_duhem.py`, `test_phase_diagram.py`, `test_equilibrium.py`, and
 `test_distillation.py` for the no-Julia tests, and
 `tests/regression/test_mccabe_thiele.py` (`@pytest.mark.vle`) for the Julia-backed
-end-to-end regression against `paper/golden/mccabe_thiele_stages.json`.
+end-to-end regression against `paper/reference/mccabe_thiele_stages.json`.

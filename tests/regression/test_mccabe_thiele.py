@@ -6,7 +6,7 @@ ground-truth activity model. Reproducing it requires the Julia/Clapeyron VLE dis
 backend, ported in Phase 6 (``examples/vle_distillation/``); the recompute test below is
 gated behind ``@pytest.mark.vle`` (needs Julia -- deselected by default).
 
-The consistency checks below read only the committed golden JSON and pin the paper's
+The consistency checks below read only the committed reference JSON and pin the paper's
 claim (surrogate == Wilson within tolerance), so they run in the default suite.
 
 The recompute itself (``wilson_column``/``surrogate_column``) lives in
@@ -20,8 +20,8 @@ STAGES = [1, 2, 3, 4]
 PHASES = ["liquid", "vapor"]
 
 
-def test_column_spec(golden):
-    g = golden("mccabe_thiele_stages.json")
+def test_column_spec(reference):
+    g = reference("mccabe_thiele_stages.json")
     spec = g["column_spec"]
     assert spec == {
         "xW": 0.01,
@@ -36,8 +36,8 @@ def test_column_spec(golden):
     assert [s["stage"] for s in g["stages"]] == STAGES
 
 
-def test_mole_fractions_physical(golden):
-    g = golden("mccabe_thiele_stages.json")
+def test_mole_fractions_physical(reference):
+    g = reference("mccabe_thiele_stages.json")
     for s in g["stages"]:
         for model in ("wilson", "surrogate"):
             for phase in PHASES:
@@ -45,17 +45,17 @@ def test_mole_fractions_physical(golden):
                 assert 0.0 <= x <= 1.0
 
 
-def test_vapor_richer_than_liquid_in_proh(golden):
+def test_vapor_richer_than_liquid_in_proh(reference):
     # PrOH is the more volatile key: vapor mole fraction >= liquid on every stage.
-    g = golden("mccabe_thiele_stages.json")
+    g = reference("mccabe_thiele_stages.json")
     for s in g["stages"]:
         for model in ("wilson", "surrogate"):
             assert s[model]["vapor"] >= s[model]["liquid"]
 
 
-def test_compositions_decrease_down_the_column(golden):
+def test_compositions_decrease_down_the_column(reference):
     # Stage 1 (top) is richest in the light key; compositions fall toward the reboiler.
-    g = golden("mccabe_thiele_stages.json")
+    g = reference("mccabe_thiele_stages.json")
     for model in ("wilson", "surrogate"):
         liquid = [s[model]["liquid"] for s in g["stages"]]
         vapor = [s[model]["vapor"] for s in g["stages"]]
@@ -63,10 +63,10 @@ def test_compositions_decrease_down_the_column(golden):
         assert vapor == sorted(vapor, reverse=True)
 
 
-def test_surrogate_matches_wilson(golden):
+def test_surrogate_matches_wilson(reference):
     # The physics claim of Fig 9c: the surrogate-designed column matches the
     # Wilson-designed column stage-by-stage within the reported tolerance.
-    g = golden("mccabe_thiele_stages.json")
+    g = reference("mccabe_thiele_stages.json")
     atol = g["tol"]["surrogate_vs_wilson_atol"]
     for s in g["stages"]:
         for phase in PHASES:
@@ -74,13 +74,13 @@ def test_surrogate_matches_wilson(golden):
 
 
 @pytest.mark.vle
-def test_reproduce_stage_table_with_distillation_backend(golden):
+def test_reproduce_stage_table_with_distillation_backend(reference):
     # Phase 6/7: recompute the stage table through the ported VLE distillation backend
-    # and diff against the golden (transcribed from paper Fig 9c, hence the looser-
-    # than-report atol below -- see paper/golden/README.md and HANDOFF.md).
+    # and diff against the reference (transcribed from paper Fig 9c, hence the looser-
+    # than-report atol below -- see paper/reference/README.md and HANDOFF.md).
     from paper.figures.fig09_mccabe_thiele import surrogate_column, wilson_column
 
-    g = golden("mccabe_thiele_stages.json")
+    g = reference("mccabe_thiele_stages.json")
 
     wilson = wilson_column()
     assert wilson["converged"], wilson["warnings"]

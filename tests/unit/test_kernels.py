@@ -224,7 +224,7 @@ def test_variance_prior_requires_lengthscale_priors():
 ## parameter's transform -- the exact error class hit mid-investigation in Phase 9b/9c
 ## (see paper/PHASE9B_INVESTIGATION.md and kernels.py's assign_hyperparameters
 ## docstring). Behavior-preserving for every assignable value (every value seen in
-## this codebase's tests/golden regressions/from-scratch reproduction runs).
+## this codebase's tests/reference regressions/from-scratch reproduction runs).
 ## ---------------------------------------------------------------------------
 
 

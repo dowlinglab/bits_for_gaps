@@ -42,10 +42,10 @@ python -c "import bits_for_gaps; print(bits_for_gaps.__version__)"
 
 ```bash
 pip install -e ".[dev]"     # adds pytest, pytest-cov
-pytest -q                   # 117 passed, 5 deselected
+pytest -q                   # 193 passed, 2 deselected
 ```
 
-The 5 deselected tests need the private archived published run and/or Julia -- see
+The 2 deselected tests need the private archived published run and/or Julia -- see
 {doc}`reproduce_paper` and `HANDOFF.md`.
 
 ## `examples/` and `paper/` are repo-only

@@ -16,16 +16,68 @@ State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before c
   discrepancy): done 2026-07-04, merged to `main`.
 - Phase 9c (robustness hardening -- first sanctioned `src/bits_for_gaps/` core change
   since Phase 4): done 2026-07-04, merged to `main`.
-- **Phase 9d (whole-codebase polish: hygiene [ruff, type hints, CI, coverage] +
+- Phase 9d (whole-codebase polish: hygiene [ruff, type hints, CI, coverage] +
   faithfulness [selectable acquisition, MC-validation, synthetic example, hardening,
-  CHANGELOG]): done 2026-07-04 on branch `phase9d-polish` — awaiting review/merge to
-  `main` before Phase 10 (publish).**
+  CHANGELOG]): done 2026-07-04, merged to `main`.
+- **Phase 9e (docs/tests/comments quality pass -- behavior-preserving: `golden` ->
+  `reference` rename, `theory.md` equation fidelity, test-coverage gap-filling,
+  NumPy-docstring + inline equation-citation pass): done 2026-07-05 on branch
+  `phase9e-quality` — awaiting review/merge to `main` before Phase 10 (publish).**
 
-## Phase 9d — whole-codebase polish: hygiene + faithfulness (done; review gate before Phase 10)
+## Phase 9e — docs/tests/comments quality pass (done; review gate before Phase 10)
+
+Three passes, each its own commit, suite green at every one. Behavior-preserving
+throughout (docstrings/comments/tests/docs + one mechanical rename -- no algorithm
+changes): baseline (atol 1e-10) + all reference regressions + `pytest -m vle` never
+moved; `paper/data/` and the dependency stack untouched.
+
+- **PASS 1 -- rename + docs.** `paper/golden/` -> `paper/reference/` everywhere
+  (`git mv`, the `golden` pytest fixture -> `reference`, `extract_golden.py` ->
+  `extract_reference.py`, every prose/docstring mention across ~30 files) --
+  confirmed the 4 JSON files are byte-identical (only the directory moved) and zero
+  "golden"/"Golden" text remains anywhere in the tracked repo. `docs/theory.md`
+  rewritten to present the paper's key equations in its own notation with equation
+  numbers -- Eq (1)/(2) entropy+acquisition, Eq (3) hyperparameter posterior, Eq (4)
+  GP prior, Eq (5a)/(5b) predictive mean/variance, Eq (6) SE kernel + Table 1's exact
+  priors, Eq (7) GMM predictive + Eq (8a)/(8b) moments, Eq (9) + the Huber et al.
+  (2008) Taylor expansion and its Proposition truncation bound (SI-1), the closed-form
+  entropy-lower-bound Theorem and its SI-2 cross-overlap term, Algorithm 1 (credible
+  intervals, Lalchand & Rasmussen 2020), and Eq (10)/(11) + SI-4 for the VLE example --
+  each linked to the implementing module. Every doc page's cross-links verified to
+  resolve in the rendered HTML (not just `sphinx-build -W`, which doesn't catch
+  unresolved `:func:`/`:class:` refs with `nitpicky=False`); fixed a stale test count
+  in `installation.md` (117/5 -> 193/2). Docs page organization was already sound --
+  no reordering needed.
+- **PASS 2 -- test-coverage audit.** Added `tests/unit/test_diagnostics.py` (new --
+  `potential_scale_reduction`/`effective_sample_size` had zero direct unit tests
+  before, only indirect coverage via full HMC integration runs). Added tests
+  exercising `entropy_surface_2D`/`predict_grid_2D`'s documented non-2-D `ValueError`
+  (defined since Phase 5, never exercised by any test); direct tests for
+  `entropy.gaussian_mixture_density` against `scipy.stats`; strengthened
+  `InputTransform`'s 1-D-input test and `sampler.call_model`'s success test to check
+  actual values, not just shapes; added a test confirming `call_model` extracts only
+  the first element of a multi-element black-box output. One finding, not a bug:
+  `design.full_factorial_design`'s "grid too small" `ValueError` is unreachable dead
+  code for every `(bounds, n_train, n_test)` -- `levels = ceil(n_total ** (1/d))`
+  mathematically guarantees `levels**d >= n_total` (verified by brute-force search);
+  documented in a comment rather than given a fake test. `pytest -q`: 193 -> 204
+  passed (2 deselected, unchanged).
+- **PASS 3 -- docstrings + inline equation citations.** Filled NumPy-docstring gaps
+  (missing Parameters/Returns/Notes: `entropy.py`'s `first_order_entropy_approx`/
+  `cholesky`/`gradient_gaussian_mixture_density`/`second_order_entropy`, `gp.py`'s
+  `build_gp`/`maximize_lml`/`run_mcmc`, `means.py`'s `FixedInverseMean`, `_util.py`'s
+  three array helpers) and added inline comments citing the paper's equation numbers
+  at the exact lines implementing them (verified against the paper + SI): Eq (6) in
+  `kernels.AnisotropicSE.K`, Eq (3)/(4)/(5a)/(5b) in `gp.py`, Eq (7)/(9)/Theorem-SI-2
+  in `entropy.py`, Eq (1)/(2)/(5a)/(5b)/(7) in `acquisition.py`/`mixture.py`, and
+  Eq (10)/(11)/SI-4 in the VLE example's `phase_diagram.py`/`gibbs_duhem.py`/
+  `distillation.py`.
+
+## Phase 9d — whole-codebase polish: hygiene + faithfulness (done; merged to main)
 
 Two batches, eight workstreams (A-D hygiene, E-H faithfulness/features), each its own
 commit, suite green at every one. Behavior-preserving throughout: baseline (atol
-1e-10) + all golden regressions + `pytest -m vle` never moved.
+1e-10) + all reference regressions + `pytest -m vle` never moved.
 
 **Hygiene (A-D):**
 
@@ -81,7 +133,7 @@ commit, suite green at every one. Behavior-preserving throughout: baseline (atol
   naming the parameter and value. Also added `CHANGELOG.md` (Keep a Changelog,
   Unreleased section summarizing every phase, targeting `v0.1.0`).
 
-`pytest -q`: 166 -> 193 passed (2 deselected throughout). `paper/data/`, `paper/golden/*`,
+`pytest -q`: 166 -> 193 passed (2 deselected throughout). `paper/data/`, `paper/reference/*`,
 and the pinned dependency stack untouched. `import bits_for_gaps` confirmed Julia-free
 and TensorFlow-lazy after every workstream. Docs updated:
 `docs/improvements_over_paper.md` (new sections for E/F/G/H), `docs/theory.md` and
@@ -91,7 +143,7 @@ fixed in passing), `docs/quickstart.md`, `docs/api.rst`.
 ## Phase 9c — robustness hardening (done; merged to main)
 
 Behavior-preserving only, by design: no numerical result, default, or seed changed.
-The pre-Phase-4 baseline (atol 1e-10) + all `paper/golden/*` regressions +
+The pre-Phase-4 baseline (atol 1e-10) + all `paper/reference/*` regressions +
 `pytest -m vle` stayed green at every commit. 46 new tests added (120 -> 166 passed, 2
 deselected).
 
@@ -146,7 +198,7 @@ bug), this phase's hardening, and the architecture wins from every prior phase.
 (still described the pre-archive-free, author-access-required flow).
 `sphinx-build -W docs docs/_build/html` succeeds with zero warnings.
 
-`paper/data/`, `paper/golden/*`, and the dependency stack were not touched.
+`paper/data/`, `paper/reference/*`, and the dependency stack were not touched.
 `import bits_for_gaps` confirmed still Julia-free.
 
 ## Phase 9b — root-cause the McCabe-Thiele discrepancy (done; merged to main)
@@ -228,7 +280,7 @@ entropy-driven acquisition optimizes for predictive accuracy at held-out points,
 for a globally smooth-enough equilibrium curve for the stage-stepping solver. See
 `paper/REPRODUCTION.md`'s Phase 9 section for full numbers and discussion.
 
-`src/bits_for_gaps/` core, `paper/golden/*`, and the dependency stack were not
+`src/bits_for_gaps/` core, `paper/reference/*`, and the dependency stack were not
 touched. `import bits_for_gaps` confirmed still Julia-free.
 
 ## Phase 8 — documentation (done; merged to main)
@@ -357,7 +409,7 @@ paper/
   reproduce.py                CLI entry: --archive / $BFG_ARCHIVE_DIR (default: the
                               private old-repo path), --figures (subset),
                               --out-dir (default results_remaked/, gitignored)
-  REPRODUCTION.md              figure -> script -> archived-inputs -> golden-diff table
+  REPRODUCTION.md              figure -> script -> archived-inputs -> reference-diff table
   figures/
     _archive.py               shared loaders (rhat/ess, HMC traces, param_posterior_
                               samples, activity_data, gp_predict, entropy, lhs_design,
@@ -369,7 +421,7 @@ paper/
     fig05_parity.py            Fig 5  -- PINNED (fig5_error_metrics.json)
     fig06_gp_posterior_surface.py  Fig 6  -- visual
     fig07_gp_posterior_isotherms.py  Fig 7  -- visual
-    fig08_phase_diagram.py     Fig 8  -- archive cross-check (no dedicated golden file)
+    fig08_phase_diagram.py     Fig 8  -- archive cross-check (no dedicated reference file)
     fig09_mccabe_thiele.py     Fig 9  -- PINNED (mccabe_thiele_stages.json, Phase 6);
                               wilson_column()/surrogate_column() moved here from
                               tests/regression/test_mccabe_thiele.py (Phase 6), which
@@ -377,7 +429,7 @@ paper/
     fig10_traces.py            Fig 10 -- PINNED (hmc_diagnostics.json)
     fig11_marginals.py         Fig 11 -- PINNED (hyperparameter_posterior.json)
     fig12_joint_marginals.py   Fig 12 -- visual
-tests/regression/test_paper_figures.py  gated (@pytest.mark.vle) recompute-vs-golden
+tests/regression/test_paper_figures.py  gated (@pytest.mark.vle) recompute-vs-reference
                               for Fig 5/8/10/11 (Fig 9 already gated in Phase 6)
 tests/conftest.py              + repo root on sys.path (alongside examples/, Phase 6)
                               so `import paper.figures.*` works without installing it
@@ -401,9 +453,9 @@ Key facts for the next session:
   allowlist -- nothing outside `src/` is ever included regardless of `__init__.py`
   presence), not separately re-verified this phase (Phase 6 already confirmed the
   mechanism with `python -m build --wheel`).
-- **Quantitative pins reuse `paper/golden/*` exactly as extracted in Phase 2** --
-  no new golden files were added or existing ones modified (guardrail). Fig 8 has no
-  dedicated golden *file* (the paper doesn't report its curve as a scalar target);
+- **Quantitative pins reuse `paper/reference/*` exactly as extracted in Phase 2** --
+  no new reference files were added or existing ones modified (guardrail). Fig 8 has no
+  dedicated reference *file* (the paper doesn't report its curve as a scalar target);
   its regression instead cross-checks the freshly-recomputed (live Clapeyron) Wilson
   curve against the archived `gt_Wilson_data` the paper's own Fig 8 was built from --
   confirmed matching (z exactly, since both use the same `linspace(0,1,75)` grid;
@@ -438,7 +490,7 @@ Key facts for the next session:
   iteration 15 vs. iteration 1; Fig 4 shows the expected monotonic-ish decreasing
   max-entropy trend across all 60 archived iterations.
 - **`src/bits_for_gaps/` CORE, `examples/vle_distillation/` (Phase 6 physics), and
-  `paper/golden/*` are all byte-for-byte untouched** (`git diff main...HEAD --
+  `paper/reference/*` are all byte-for-byte untouched** (`git diff main...HEAD --
   <path>` empty for each) -- Phase 7 only added `paper/figures/`, `paper/reproduce.py`,
   `paper/REPRODUCTION.md`, one new test file, and extended `tests/conftest.py` +
   refactored (not rewrote) `test_mccabe_thiele.py`, per the guardrails.
@@ -541,7 +593,7 @@ Key facts for the next session:
   `gp.maximize_lml` (a fast, deterministic MLE point estimate) -- reproducing the
   paper's real 15-iteration *adaptively*-designed surrogate bit-for-bit is Phase 7's
   job (full figure reproduction), not this phase's backend-correctness check. This
-  recompute matches golden's `"wilson"` column within `atol=0.015` and `"surrogate"`
+  recompute matches reference's `"wilson"` column within `atol=0.015` and `"surrogate"`
   within `atol=0.05` (looser -- a non-adaptive, far-smaller-sample surrogate doesn't
   track Wilson as tightly in the most dilute region near `xW=0.01` as the paper's
   refined surrogate did; the biggest observed gap, ~0.03-0.04, is in stage 4's vapor
@@ -550,15 +602,15 @@ Key facts for the next session:
   (too little HMC/data to beat a well-covering static design) -- consistent with the
   paper's own thesis that adaptive design needs enough iterations to pay off, not
   evidence against the adaptive loop itself.
-- **Golden's own `"wilson"` column has ~0.01-level transcription slop.** It was
-  hand-transcribed from reading paper Fig 9c (Phase 2, `paper/golden/README.md`), not
+- **Reference's own `"wilson"` column has ~0.01-level transcription slop.** It was
+  hand-transcribed from reading paper Fig 9c (Phase 2, `paper/reference/README.md`), not
   computed from archived data. My direct Clapeyron recompute reproduces real physical
   landmarks exactly (`stage 1 vapor == xD == 0.43` exactly, by construction; pure-PrOH
   bubble point `370.35 K` matches 1-propanol's real normal boiling point to 4
-  significant figures) yet differs from golden's `"wilson"` entries by up to `0.01`
-  (e.g. stage 4 liquid: recompute is exactly `xW = 0.01`, golden's transcription says
+  significant figures) yet differs from reference's `"wilson"` entries by up to `0.01`
+  (e.g. stage 4 liquid: recompute is exactly `xW = 0.01`, reference's transcription says
   `0.02`) -- this is the eyeballed-figure-reading precision limit of that column, not
-  a bug in the port. `paper/golden/*` is unmodified (guardrail); the test's
+  a bug in the port. `paper/reference/*` is unmodified (guardrail); the test's
   `atol=0.015` for Wilson already accounts for this.
 - **`src/bits_for_gaps/` CORE is byte-for-byte untouched** (`git diff main...HEAD --
   src/bits_for_gaps/` is empty) -- Phase 6 only added `examples/` + tests +
@@ -628,7 +680,7 @@ construction rather than by hardcoded agreement:
   `for param, value in zip(kernel.hyperparameters, values): param.assign(value)` — instead
   of three hardcoded `.assign()` calls by name. Works for any kernel exposing
   `.hyperparameters`, not just `AnisotropicSE`.
-- Anywhere reading a trace column back out (regression tests, `paper/golden/*`) already
+- Anywhere reading a trace column back out (regression tests, `paper/reference/*`) already
   used this same order by convention; nothing there changed.
 
 ### What's still 2-D-only, and why that's the right call
@@ -681,7 +733,7 @@ the Julia call so its own signature accepts `(x1, x2, ...)` in natural order).
   `assign_hyperparameters` round-trip, explicit 1-D/3-D construction with mixed prior
   families, constructor validation).
 - `entropy.py` / `design.py` / `means.py` / `_util.py` are byte-for-byte untouched
-  (`git diff main...HEAD -- <those 4 files>` is empty). `paper/golden/*` untouched;
+  (`git diff main...HEAD -- <those 4 files>` is empty). `paper/reference/*` untouched;
   no `results/` committed.
 
 ## Phase 4 — decompose sampler.py; retire disk-as-state (done; merged to main)
@@ -770,19 +822,19 @@ Behavior is now pinned BEFORE any refactor. `pytest -q` = **56 passed, 1 deselec
 Julia). Full suite runs in ~16 s.
 
 ```
-paper/golden/            golden scalars from the archived iter-15 published run (+ README)
+paper/reference/            reference scalars from the archived iter-15 published run (+ README)
   hmc_diagnostics.json         R-hat / ESS            (Fig 10)
   fig5_error_metrics.json      train/test RMSE & MAE, iters 1 & 15, over 500 draws (Fig 5)
   hyperparameter_posterior.json  kernel-hyperparam posterior summary (Fig 10 marginals)
   mccabe_thiele_stages.json    distillation stage table, Wilson vs surrogate (Fig 9c)
-tests/conftest.py        `golden` loader fixture (resolves paper/golden/)
+tests/conftest.py        `reference` loader fixture (resolves paper/reference/)
 tests/unit/              + test_kernels.py, test_means.py, test_util.py  (was entropy/design)
-tests/regression/        reads golden, pins vs published paper values; vle recompute gated
+tests/regression/        reads reference, pins vs published paper values; vle recompute gated
 tests/integration/       test_end_to_end.py — seeded synthetic (no-Julia) adaptiveEntropy run
 ```
 
 Key facts for the next session:
-- **Golden extraction** was done offline by `scratchpad/extract_golden.py` (pure NumPy,
+- **Reference extraction** was done offline by `scratchpad/extract_reference.py` (pure NumPy,
   reads the read-only old-repo archive). All but the McCabe-Thiele table came from
   archived data; the stage table is transcribed from paper Fig 9c (its recompute needs
   the Phase-6 VLE backend → `@pytest.mark.vle`, deselected by default via `addopts`).
@@ -794,7 +846,7 @@ Key facts for the next session:
   (~20 s; 100 full-cov draws over a 50×50 grid). It does not feed the acquisition
   (`entropy_objective` re-seeds NumPy and re-assigns every kernel param before each
   deterministic `predict_f`), so entropy/next-point are unchanged by skipping it.
-- Fig 5 golden captures the paper's headline: median **test** RMSE falls 4.34 → 0.67
+- Fig 5 reference captures the paper's headline: median **test** RMSE falls 4.34 → 0.67
   (iter 1 → 15); train RMSE 0.77 → 0.49. The regression test pins the ≥3× test-error drop.
 - Markers registered in `pyproject.toml`: `vle` (Julia backend, deselected by default),
   `slow` (integration; still runs by default). Run gated tests with `pytest -m vle`.
@@ -834,8 +886,8 @@ tests/unit/      entropy/design/kernels(+N-D)/means/_util/transforms/state +
                  sampler_legacy_and_transforms/entropy_mc_validation (Phase 9d)
 tests/integration/ end-to-end (2-D, in-memory run()) + BitsForGaps facade parity +
                  nd_synthetic (1-D and 3-D, via BitsForGaps)
-tests/regression/  golden-file checks vs published paper values (Phase 2, 2-D only --
-                 the published run and paper/golden/* are inherently 2-D); +
+tests/regression/  reference-file checks vs published paper values (Phase 2, 2-D only --
+                 the published run and paper/reference/* are inherently 2-D); +
                  test_mccabe_thiele.py's (Phase 6) and test_paper_figures.py's
                  (Phase 7) @pytest.mark.vle recomputes
 examples/vle_distillation/  the H2O-PrOH case study on the public API (Phase 6) --
@@ -920,11 +972,14 @@ Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_
 9. **Phase 9c — robustness hardening. ✅ DONE.** Merged to `main`. See the "Phase 9c"
    section above.
 
-10. **Phase 9d — whole-codebase polish (hygiene + faithfulness). ✅ DONE.** On branch
-   `phase9d-polish`; merge to `main` after review, then start Phase 10. See the
-   "Phase 9d" section above.
+10. **Phase 9d — whole-codebase polish (hygiene + faithfulness). ✅ DONE.** Merged to
+   `main`. See the "Phase 9d" section above.
 
-11. **Phase 10 — publish (TestPyPI -> PyPI).** No Zenodo deposit (REFACTOR_PLAN.md §7
+11. **Phase 9e — docs/tests/comments quality pass. ✅ DONE.** On branch
+   `phase9e-quality`; merge to `main` after review, then start Phase 10. See the
+   "Phase 9e" section above.
+
+12. **Phase 10 — publish (TestPyPI -> PyPI).** No Zenodo deposit (REFACTOR_PLAN.md §7
    decision 4 -- the private old repo is the archive of record). Needs: bump
    `version` in `pyproject.toml` off `0.0.1.dev0`, a GitHub Actions trusted-publishing
    workflow (or manual `twine upload`), a TestPyPI dry run before the real PyPI

@@ -47,7 +47,7 @@ a one-off script mistake:
   leftover state, not just the one script Phase 9b happened to hit. Both functions now
   save the kernel's hyperparameters before mutating and restore them in a `finally` --
   behavior-preserving for every value either function computes and returns, verified
-  against the pre-Phase-4 baseline (atol 1e-10) and all golden regressions.
+  against the pre-Phase-4 baseline (atol 1e-10) and all reference regressions.
 - **Public-API input validation.** Constructing `BitsForGaps`/`adaptiveEntropy` with
   mismatched bounds/kernel dimensionality, `lo >= hi` bounds, or calling `run()` with
   non-positive HMC/acquisition config, mismatched `X_init`/`y_init` shapes, or an
@@ -87,7 +87,7 @@ a one-off script mistake:
   an unrelated script mistake, not a genuine posterior outlier -- but the underlying
   gpflow failure mode is real). Re-raised as a `ValueError` naming the parameter and
   value; behavior-preserving for every value that was already assignable (every value
-  seen across this codebase's tests, golden regressions, and the from-scratch
+  seen across this codebase's tests, reference regressions, and the from-scratch
   stochastic reproduction runs).
 
 46 new tests were added alongside this hardening (unit tests asserting kernel state is
@@ -109,7 +109,7 @@ to, not replacing, the existing regression suite, which stayed green throughout.
   `objective="taylor"|"lower_bound"`, threaded through
   {func}`~bits_for_gaps.acquisition.optimize`/{func}`~bits_for_gaps.acquisition.entropy_surface_2D`
   and exposed as `BitsForGaps.acquisitionObjective` (default `"taylor"` -- every
-  existing baseline/golden value is unaffected unless a caller explicitly opts into
+  existing baseline/reference value is unaffected unless a caller explicitly opts into
   `"lower_bound"`).
 - **The entropy estimators are now validated against the quantity they approximate,
   not just a captured historical value.** The existing regression test pins
@@ -162,9 +162,9 @@ to, not replacing, the existing regression suite, which stayed green throughout.
   subset of exactly the files the figures read is committed to `paper/data/`
   (provenance in `paper/data/README.md`), so `python paper/reproduce.py` reproduces
   every figure from a fresh clone with no private-archive access.
-- **A real regression/golden-file test suite** (Phase 2 onward). The original code had
+- **A real regression/reference-file test suite** (Phase 2 onward). The original code had
   no automated tests. This package pins a pre-refactor numerical baseline
-  (`tests/integration/data/synthetic_baseline.json`, atol 1e-10) plus golden scalars
-  extracted from the published run (`paper/golden/*`) that every subsequent phase --
+  (`tests/integration/data/synthetic_baseline.json`, atol 1e-10) plus reference scalars
+  extracted from the published run (`paper/reference/*`) that every subsequent phase --
   including this hardening pass -- must reproduce exactly, with tests gated behind
   `@pytest.mark.vle` only where they genuinely need Julia or private data.

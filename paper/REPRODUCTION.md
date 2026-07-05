@@ -29,7 +29,7 @@ below.
 
 ## Figure map
 
-| Fig | Content | Script (`paper/figures/`) | Data inputs (all from committed `paper/data/`) | Golden diff |
+| Fig | Content | Script (`paper/figures/`) | Data inputs (all from committed `paper/data/`) | Reference diff |
 |---|---|---|---|---|
 | 2 | Initial LHS design (train/test) | `fig02_lhs_design.py` | `lhs_design`, `lhs_test_points` | none -- visual |
 | 3 | Entropy field, early iterations | `fig03_entropy_field.py` | `entropy_{1..6}`, `activity_data_{1..7}` | none -- visual |
@@ -43,20 +43,20 @@ below.
 | 11 | Hyperparameter marginals | `fig11_marginals.py` | `param_posterior_samples_15` | **`hyperparameter_posterior.json`** (`test_paper_figures.py`, default suite) |
 | 12 | Hyperparameter joint marginals | `fig12_joint_marginals.py` | `param_posterior_samples_15` | none -- visual (same posterior samples Fig 11's numbers are pinned from) |
 
-**Quantitatively pinned** (5, 8, 9, 10, 11): a committed golden JSON or a
+**Quantitatively pinned** (5, 8, 9, 10, 11): a committed reference JSON or a
 `paper/data/`-vs-recompute cross-check is diffed within a stated tolerance.
 **As of Phase 9, only the tests that *recompute* something via Clapeyron stay
 gated** (`@pytest.mark.vle`, deselected by default -- run with `pytest -m vle`,
 needs Julia): Fig 8's Wilson-curve cross-check and Fig 9's full stage-table
 recompute. Fig 5/10/11's tests only *read* the committed `paper/data/` text files
 (no Julia, no private archive) and now run in the **default** `pytest -q` suite.
-Fig 8 has no dedicated golden *file* (it's a visual reproduction, not a
+Fig 8 has no dedicated reference *file* (it's a visual reproduction, not a
 paper-reported scalar) -- its pin is a direct cross-check against the committed
 `gt_Wilson_data` instead. `BFG_ARCHIVE_DIR` can still point any of these at the full
 private archive instead of `paper/data/` (e.g. to check other iterations), but
 that's no longer required for the default-suite tests to run.
 
-**Visually reproduced** (2, 3, 4, 6, 7, 12): no golden file exists for these (the
+**Visually reproduced** (2, 3, 4, 6, 7, 12): no reference file exists for these (the
 paper doesn't report them as scalars), so they're spot-checked by eye against the
 archived PNGs' structure during development -- correct qualitative behavior (LHS
 space-filling, entropy concentrating away from sampled points, CI narrowing with more
@@ -87,13 +87,13 @@ purely visual and don't change the figure's content or claim:
 
 ## Known discrepancies (not bugs -- documented, not "fixed")
 
-- **`paper/golden/mccabe_thiele_stages.json`'s `"wilson"` column has ~0.01-level
+- **`paper/reference/mccabe_thiele_stages.json`'s `"wilson"` column has ~0.01-level
   transcription slop** (it was hand-read off paper Fig 9c, not computed from
-  archived data -- see `paper/golden/README.md`). The fresh Clapeyron recompute in
+  archived data -- see `paper/reference/README.md`). The fresh Clapeyron recompute in
   `fig09_mccabe_thiele.wilson_column()` hits real physical landmarks exactly (e.g.
   stage 1 vapor = `xD` = 0.43 by construction; pure-PrOH bubble point 370.35 K
   matches 1-propanol's real normal boiling point to 4 significant figures) yet
-  differs from golden's `"wilson"` entries by up to 0.01 -- this is the golden
+  differs from reference's `"wilson"` entries by up to 0.01 -- this is the reference
   file's own transcription precision limit, not a port error (see `HANDOFF.md`
   Phase 6 for the full analysis).
 
@@ -136,7 +136,7 @@ posterior, entropy field) lines up almost exactly.
 
 | | R-hat | ESS |
 |---|---|---|
-| Paper (`paper/golden/hmc_diagnostics.json`) | 1.0052, 1.0073, 1.0088 | 1468.3, 2428.1, 653.1 |
+| Paper (`paper/reference/hmc_diagnostics.json`) | 1.0052, 1.0073, 1.0088 | 1468.3, 2428.1, 653.1 |
 | Fresh run (`full_run_summary.json`) | 1.00523, 1.00730, 1.00879 | 1468.29, 2428.09, 653.15 |
 
 All well under the R-hat < 1.1 convergence threshold, and ESS is healthy relative to
@@ -149,7 +149,7 @@ fit that happens to land on the same posterior.
 
 | | mean | median |
 |---|---|---|
-| Paper (`paper/golden/hyperparameter_posterior.json`) | 1.35645, 0.86239, 3.19502 | 1.28619, 0.81949, 3.04407 |
+| Paper (`paper/reference/hyperparameter_posterior.json`) | 1.35645, 0.86239, 3.19502 | 1.28619, 0.81949, 3.04407 |
 | Fresh run | 1.35645, 0.86239, 3.19502 | 1.28619, 0.81949, 3.04407 |
 
 Same ordering the paper reports in Fig 11: `lengthscale_2` (temperature) >

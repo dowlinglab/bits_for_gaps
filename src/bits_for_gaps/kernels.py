@@ -66,6 +66,13 @@ class AnisotropicSE(gpflow.kernels.Kernel):
         *not* constrained to be positive). Defaults to ``positive()`` for every
         dimension. The paper's kernel deliberately leaves ``lengthscale_2`` (the
         temperature lengthscale) unconstrained (Gamma prior only, no bijector).
+
+    Notes
+    -----
+    Implements Eq (6), the anisotropic squared-exponential kernel (see :meth:`K`). The
+    no-argument default reproduces the paper's Table 1 priors exactly: ``std_dev`` ~
+    LogNormal(0, 2.0), ``lengthscale_1`` (mole fraction) ~ LogNormal(log(0.3), 0.5),
+    ``lengthscale_2`` (temperature) ~ Gamma(4.0, 2.0).
     """
 
     def __init__(
@@ -152,14 +159,31 @@ class AnisotropicSE(gpflow.kernels.Kernel):
         return tf.stack(self._lengthscale_params)
 
     def K(self, X: tf.Tensor, X2: Optional[tf.Tensor] = None) -> tf.Tensor:
+        """Covariance matrix between rows of ``X`` and ``X2`` (or ``X`` with itself).
+
+        Parameters
+        ----------
+        X : tf.Tensor, shape (n, ndim)
+        X2 : tf.Tensor, shape (m, ndim), optional
+            Defaults to ``X`` (the self-covariance case).
+
+        Returns
+        -------
+        tf.Tensor, shape (n, m)
+        """
         if X2 is None:
             X2 = X
+        # Eq (6): k_SE(x, x') = std_dev^2 * exp(-0.5 * d^T L^-1 d), d = x - x', with
+        # L = diag(lengthscale_1, ..., lengthscale_d) the ARD lengthscale matrix --
+        # applied here by rescaling each input dimension by its own lengthscale before
+        # taking the (now isotropic) squared Euclidean distance.
         X_scaled = X / self.lengthscales
         X2_scaled = X2 / self.lengthscales
         dist_sq = tf.reduce_sum((X_scaled[:, None, :] - X2_scaled[None, :, :]) ** 2, axis=-1)
         return self.std_dev**2 * tf.exp(-0.5 * dist_sq)
 
     def K_diag(self, X: tf.Tensor) -> tf.Tensor:
+        """Diagonal of ``K(X, X)`` -- ``std_dev**2`` at every row (Eq 6 at ``d = 0``)."""
         return tf.fill(tf.shape(X)[:-1], tf.squeeze(self.std_dev**2))
 
 
@@ -184,7 +208,7 @@ def assign_hyperparameters(kernel: gpflow.kernels.Kernel, values: Sequence[float
     genuinely out-of-range value, in that case an unrelated script bug, not a posterior
     sample) -- see ``paper/PHASE9B_INVESTIGATION.md``. Re-raised here with the
     parameter name and value attached; behavior-preserving for every value that was
-    already assignable (which is every value seen in this codebase's tests, golden
+    already assignable (which is every value seen in this codebase's tests, reference
     regressions, and the from-scratch stochastic reproduction runs).
     """
     for param, value in zip(kernel.hyperparameters, values):

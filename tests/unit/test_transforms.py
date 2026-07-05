@@ -38,9 +38,18 @@ def test_input_transform_mismatched_lengths_raise():
 
 
 def test_input_transform_1d_input_is_atleast_2d():
-    t = InputTransform(ndim=2)
+    # A bare length-d sequence (one point, not a batch) must be promoted to a single
+    # (1, d) row and transformed correctly, not just reshaped.
+    t = InputTransform(
+        forward_fns=[lambda x: x * 2, lambda x: x - 1],
+        backward_fns=[lambda x: x / 2, lambda x: x + 1],
+    )
     out = t.forward([0.5, 1.5])
     assert out.shape == (1, 2)
+    np.testing.assert_allclose(out, [[1.0, 0.5]])
+    back = t.backward(out[0])
+    assert back.shape == (1, 2)
+    np.testing.assert_allclose(back, [[0.5, 1.5]])
 
 
 def test_output_transform_identity_default():

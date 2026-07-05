@@ -1,7 +1,9 @@
 # Theory
 
-This page summarizes the method well enough to read the API reference with context.
-For derivations, proofs, and the H2O-PrOH case study's full results, see the paper:
+This page summarizes the method in the paper's own notation, with equation numbers,
+each linked to the module/function that implements it. For derivations and proofs
+(the Proposition's truncation bound, the Theorem's lower bound, SI-1/SI-2/SI-4), see
+the paper and its supplementary information (SI):
 
 > K. D. Jones and A. W. Dowling, "BITS for GAPS: Bayesian Information-Theoretic
 > Sampling for hierarchical GAussian Process Surrogates," *Computers & Chemical
@@ -14,16 +16,17 @@ BITS for GAPS is a sequential experimental-design loop over a **hierarchical**
 Gaussian-process surrogate ({func}`bits_for_gaps.sampler.adaptiveEntropy.run`):
 
 1. **Initialize** -- a space-filling design ({mod}`bits_for_gaps.design`) over the
-   input space; a GP prior on the black-box output ({mod}`bits_for_gaps.kernels`,
-   {mod}`bits_for_gaps.means`); *priors on the GP's own hyperparameters* (the
-   "hierarchical" part).
+   input space; a GP prior on the black-box output, Eq (4) below
+   ({mod}`bits_for_gaps.kernels`, {mod}`bits_for_gaps.means`); *priors on the GP's own
+   hyperparameters* $\theta$ (the "hierarchical" part).
 2. **Calibrate** -- evaluate the black box at the design points; run Hamiltonian
-   Monte Carlo ({mod}`bits_for_gaps.gp`) to sample the hyperparameter posterior
-   $p(\theta \mid \mathbf{y})$; propagate a subset of posterior draws through the GP
-   to form a **Gaussian-mixture predictive posterior** ({mod}`bits_for_gaps.mixture`).
+   Monte Carlo ({func}`bits_for_gaps.gp.run_mcmc`) to sample the hyperparameter
+   posterior $p(\theta \mid \mathbf{y})$, Eq (3); propagate the posterior draws
+   through the GP predictive equations, Eq (5a)/(5b), to form a **Gaussian-mixture
+   predictive posterior**, Eq (7) ({func}`bits_for_gaps.mixture.sample_gp_posterior_mixture`).
 3. **Evaluate** -- score candidate points by the mixture's predictive differential
-   entropy ({mod}`bits_for_gaps.entropy`, {mod}`bits_for_gaps.acquisition`); pick the
-   maximizer as the next point. Repeat.
+   entropy, Eq (1) ({mod}`bits_for_gaps.entropy`); pick the maximizer as the next
+   point, Eq (2) ({func}`bits_for_gaps.acquisition.optimize`). Repeat.
 
 ## Why hierarchical
 
@@ -32,13 +35,166 @@ hyperparameters (e.g. the MLE) and reports predictive variance around that one
 setting. That variance says nothing about how much the data actually constrains the
 hyperparameters themselves -- with few observations, very different hyperparameter
 settings can fit the data almost equally well, and a plain GP's predictive variance
-is blind to that. BITS for GAPS instead puts priors on the hyperparameters and
-samples their posterior via HMC ({func}`bits_for_gaps.gp.run_mcmc`); the predictive
-distribution becomes a mixture over posterior draws
-({func}`bits_for_gaps.mixture.sample_gp_posterior_mixture`), so its spread reflects
-*both* observation noise and hyperparameter uncertainty. Early in a design, when
-hyperparameters are poorly constrained, this mixture is visibly wider than any single
-draw -- which is exactly the situation where more targeted data collection helps most.
+is blind to that. BITS for GAPS instead puts priors $p(\theta)$ on the hyperparameters
+and samples their posterior via HMC; the predictive distribution becomes a mixture
+over posterior draws, so its spread reflects *both* observation noise and
+hyperparameter uncertainty. Early in a design, when hyperparameters are poorly
+constrained, this mixture is visibly wider than any single draw -- which is exactly
+the situation where more targeted data collection helps most.
+
+## The hierarchical GP
+
+Given hyperparameters $\theta$ (kernel output scale, lengthscales, mean function),
+the latent function values $\mathbf{f} = [f(\mathbf{x}_1), \ldots, f(\mathbf{x}_n)]^\top$
+at the design points have the usual GP prior ({func}`bits_for_gaps.gp.build_gp`):
+
+$$\mathbf{f} \sim \mathcal{N}(\mathbf{m}, \mathbf{K}), \qquad
+\mathbf{m} = [m(\mathbf{x}_1), \ldots, m(\mathbf{x}_n)]^\top, \qquad
+K_{i,j} = k(\mathbf{x}_i, \mathbf{x}_j) \tag{4}$$
+
+with mean function $m$ ({mod}`bits_for_gaps.means`) and the anisotropic
+squared-exponential covariance ({class}`bits_for_gaps.kernels.AnisotropicSE`):
+
+$$k_{SE}(\mathbf{x}, \mathbf{x}') = \tau^{-1} \exp\!\left(-\tfrac12 \mathbf{d}^\top
+\mathbf{L}^{-1} \mathbf{d}\right), \qquad \mathbf{d} = \mathbf{x} - \mathbf{x}' \tag{6}$$
+
+where $\tau^{-1}$ is the process variance (`std_dev**2`) and $\mathbf{L} =
+\mathrm{diag}(\ell_1, \ldots, \ell_d)$ is the diagonal ARD lengthscale matrix
+(`lengthscale_1`, `lengthscale_2`, ...). At fixed $\theta$, conditioning on observed
+data $\mathbf{y}$ (with i.i.d. Gaussian noise $\sigma_\varepsilon^2$) gives the
+standard GP predictive mean and variance at a candidate point $\mathbf{x}_*$
+(computed by {mod}`bits_for_gaps.gp`'s `gpflow.models.GPR.predict_f`, built via
+{func}`~bits_for_gaps.gp.build_gp`):
+
+$$\mu(\mathbf{x}_*) = m(\mathbf{x}_*) + \mathbf{k}_*^\top
+(\mathbf{K} + \sigma_\varepsilon^2 \mathbf{I})^{-1} (\mathbf{y} - \mathbf{m}) \tag{5a}$$
+
+$$\sigma^2(\mathbf{x}_*) = k(\mathbf{x}_*, \mathbf{x}_*) - \mathbf{k}_*^\top
+(\mathbf{K} + \sigma_\varepsilon^2 \mathbf{I})^{-1} \mathbf{k}_* \tag{5b}$$
+
+The hierarchical part puts priors $p(\theta)$ on the kernel hyperparameters and
+samples the resulting posterior via HMC ({func}`bits_for_gaps.gp.run_mcmc`):
+
+$$p(\theta \mid \mathbf{y}) = \frac{p(\mathbf{y} \mid \theta)\, p(\theta)}{p(\mathbf{y})} \tag{3}$$
+
+**Table 1** (the paper's 2-D VLE case study) gives each hyperparameter's prior
+family and parameters -- exactly `AnisotropicSE`'s default
+({meth}`~bits_for_gaps.kernels.AnisotropicSE.paper_2d`):
+
+| Hyperparameter | Symbol | Prior | Parameters |
+|---|---|---|---|
+| Kernel std. dev. ($\sqrt{\tau^{-1}}$) | $\theta_1$ | LogNormal | loc $=0$, scale $=2.0$ |
+| Mole-fraction lengthscale ($\ell_1$) | $\theta_2$ | LogNormal | loc $=\log(0.3)$, scale $=0.5$ |
+| Temperature lengthscale ($\ell_2$) | $\theta_3$ | Gamma | concentration $=4.0$, rate $=2.0$ |
+
+$\theta_3$ (the temperature lengthscale) is deliberately left *unconstrained* (no
+positivity bijector) in both the paper and this implementation -- see [Canonical
+hyperparameter ordering](#canonical-hyperparameter-ordering) below.
+
+## The Gaussian-mixture predictive posterior
+
+Each of the $S$ HMC draws $\theta^{(s)}$ gives its own GP predictive distribution at
+$\mathbf{x}_*$ via Eq (5a)/(5b) above. Averaging over draws gives a Monte Carlo
+mixture approximation to the true hierarchical predictive posterior
+({func}`bits_for_gaps.mixture.sample_gp_posterior_mixture`):
+
+$$p\{f(\mathbf{x}_*) \mid \mathbf{y}\} \simeq \frac{1}{S} \sum_{s=1}^S
+p\{f(\mathbf{x}_*) \mid \mathbf{y}, \theta^{(s)}\} \tag{7}$$
+
+({func}`bits_for_gaps.entropy.gaussian_mixture_density` evaluates this density given
+each component's $(\mu_s, \sigma_s^2)$ and equal weights $1/S$.) The mixture's total
+mean and variance decompose into within- and between-component contributions:
+
+$$\mathbb{E}[f(\mathbf{x}_*)] = \mu_*(\mathbf{x}_*) = \frac{1}{S} \sum_{s=1}^S \mu_s(\mathbf{x}_*) \tag{8a}$$
+
+$$\mathbb{E}\{f(\mathbf{x}_*) - \mu_*(\mathbf{x}_*)\}^2 = \frac{1}{S} \sum_{s=1}^S \sigma_s^2(\mathbf{x}_*)
++ \frac{1}{S} \sum_{s=1}^S \{\mu_s(\mathbf{x}_*) - \mu_*(\mathbf{x}_*)\}^2 \tag{8b}$$
+
+-- observation-noise-plus-fixed-hyperparameter variance ($\sigma_s^2$, averaged) plus
+extra spread from disagreement *between* draws' means ($\mu_s$). This second term is
+exactly the hyperparameter-uncertainty contribution a plain (non-hierarchical) GP
+lacks.
+
+## The acquisition function
+
+Data acquisition maximizes the predictive differential entropy of the mixture at a
+candidate point ({func}`bits_for_gaps.acquisition.entropy_objective`):
+
+$$\mathcal{H}\{f(\mathbf{x}_*)\} := \mathbb{E}\big[-\log p\{f(\mathbf{x}_*)\}\big] \tag{1}$$
+
+$$\max_{\mathbf{x}_* \in \mathcal{X}} \mathcal{H}\{f(\mathbf{x}_*)\}
+= \min_{\mathbf{x}_* \in \mathcal{X}} \mathcal{I}\{\mathbf{x}_*\} \tag{2}$$
+
+i.e. maximizing entropy is equivalent to minimizing the information $\mathcal{I}$
+already available about $f$ at $\mathbf{x}_*$ -- the acquisition therefore favors
+points where the hierarchical posterior is least certain. The maximization runs
+L-BFGS-B from Sobol-sequence restarts over the search space $\mathcal{X}$
+({func}`bits_for_gaps.acquisition.optimize`).
+
+## Entropy estimators
+
+The exact differential entropy of a Gaussian mixture,
+
+$$\mathcal{H}(f_*) = -\int p(f_*) \log p(f_*)\, \mathrm{d}f_*, \qquad
+p(f_*) \simeq \frac{1}{S} \sum_{s=1}^S p_s(f_*) \tag{9}$$
+
+has no closed form, so `bits_for_gaps.entropy` provides two estimators:
+
+- {func}`~bits_for_gaps.entropy.second_order_entropy` -- following Huber et al.
+  (2008), expand $g(f_*) := \log p(f_*)$ in a Taylor series about each component
+  mean $\mu_s$ and integrate term-by-term against $p_s(f_*) \sim
+  \mathcal{N}(\mu_s, \sigma_s^2)$:
+
+  $$\mathcal{H}(f_*) \simeq -\frac{1}{S} \sum_{s=1}^S \int p_s(f_*) \log p(f_*)\, \mathrm{d}f_*,
+  \qquad g(f_*) = P_J(f_*) + R_J(f_*)$$
+
+  where $P_J$ is the degree-$J$ Taylor polynomial of $g$ about $\mu_s$ and $R_J$ is
+  the remainder. The truncation error is bounded (paper's Proposition; the absolute
+  moments of $\mathcal{N}(0,1)$ used in the bound are derived in **SI-1**):
+
+  $$\mathbb{E}[|R_J(f_*)|] \le C_{J+1}\, \sigma_s^{J+1}, \qquad
+  C_{J+1} = \frac{M_{J+1}}{(J+1)!} \cdot \frac{2^{J/2+1}}{\sqrt{2\pi}}
+  \Gamma\!\left(\frac{J+2}{2}\right)$$
+
+  for $\sup_\zeta |g^{(J+1)}(\zeta)| \le M_{J+1}$ near $\mu_s$.
+  {func}`~bits_for_gaps.entropy.first_order_entropy_approx` and
+  {func}`~bits_for_gaps.entropy.second_order_entropy` are $J=1$ and $J=2$;
+  `second_order_entropy` is the **default** estimator
+  {func}`bits_for_gaps.acquisition.entropy_objective` maximizes
+  (`objective="taylor"`) -- the one that drove acquisition in the paper.
+- {func}`~bits_for_gaps.entropy.entropy_lower_bound` -- the paper's closed-form lower
+  bound (unlabeled Theorem, proved via Jensen's inequality on $-\log$), cheaper but
+  less tight:
+
+  $$\mathcal{H}_{LB}(f_*) = -\frac{1}{S} \sum_{s=1}^S \log\!\left(\frac{1}{S}
+  \sum_{s'=1}^S \xi_{s,s'}\right)$$
+
+  where $\xi_{s,s'}$ is the pairwise cross-overlap between components $s$ and $s'$,
+  a closed-form Gaussian integral derived in **SI-2**:
+
+  $$\xi_{s,s'} = \int p_s(f_*)\, p_{s'}(f_*)\, \mathrm{d}f_* =
+  \frac{1}{\sqrt{2\pi(\sigma_s^2 + \sigma_{s'}^2)}}
+  \exp\!\left(-\frac12 \frac{(\mu_s - \mu_{s'})^2}{\sigma_s^2 + \sigma_{s'}^2}\right)$$
+
+  Selectable as the acquisition objective via `objective="lower_bound"` (or, on
+  `BitsForGaps`/`adaptiveEntropy`, `.acquisitionObjective = "lower_bound"`) --
+  implemented since Phase 2 but only wired up as a usable acquisition choice in
+  Phase 9d.
+
+Both reduce to the exact differential entropy of a single Gaussian in the
+degenerate one-component case (see `tests/unit/test_entropy.py`, which checks this
+directly against the analytic $\tfrac{1}{2}\log\big((2\pi e)^d |\Sigma|\big)$ formula).
+
+## Credible intervals
+
+Because the GMM predictive posterior has no closed-form quantiles, the paper's
+Algorithm 1 ("Pointwise Credible Region for Hierarchical Gaussian Process
+Predictive Posterior," §4.7, following the empirical-quantile approach of Lalchand
+and Rasmussen, 2020) draws samples from the mixture at each plotted point, sorts
+them, and reports the empirical percentiles as the credible band -- exactly what
+`paper/figures/fig06_gp_posterior_surface.py` and `fig07_gp_posterior_isotherms.py`
+do with `np.percentile` on draws from
+{func}`bits_for_gaps.mixture.sample_gp_posterior_mixture`.
 
 ## Canonical hyperparameter ordering
 
@@ -46,7 +202,7 @@ Each kernel hyperparameter (the output scale and one lengthscale per input
 dimension) is its own `gpflow.Parameter`, each carrying its own prior -- deliberately
 not a single vector-valued parameter, because different dimensions can need
 different prior *families* (see {class}`bits_for_gaps.kernels.AnisotropicSE`'s
-paper-matching default: lognormal, lognormal, and gamma priors across its three
+paper-matching default: LogNormal, LogNormal, and Gamma priors across its three
 hyperparameters, one of them left deliberately unconstrained). The kernel exposes
 these in a single canonical order via
 {attr}`~bits_for_gaps.kernels.AnisotropicSE.hyperparameters`:
@@ -60,26 +216,6 @@ posterior draw back onto the kernel via
 This one contract is what makes the hierarchical machinery dimension-general instead
 of hardcoded to the paper's 2-D, 3-hyperparameter case.
 
-## Entropy estimators
-
-The acquisition function maximizes the differential entropy of the Gaussian-mixture
-predictive posterior at a candidate point. The exact entropy of a Gaussian mixture
-has no closed form, so `bits_for_gaps.entropy` provides two estimators:
-
-- {func}`~bits_for_gaps.entropy.second_order_entropy` -- a second-order Taylor
-  approximation (Huber et al., 2008) around each mixture component. This is the
-  **default** estimator {func}`bits_for_gaps.acquisition.entropy_objective`
-  maximizes (`objective="taylor"`) -- the one that drove acquisition in the paper.
-- {func}`~bits_for_gaps.entropy.entropy_lower_bound` -- a closed-form lower bound
-  on the true mixture entropy (cheaper, less tight). Selectable as the acquisition
-  objective via `objective="lower_bound"` (or, on `BitsForGaps`/`adaptiveEntropy`,
-  `.acquisitionObjective = "lower_bound"`) -- implemented since Phase 2 but only
-  wired up as a usable acquisition choice in Phase 9d.
-
-Both reduce to the exact differential entropy of a single Gaussian in the
-degenerate one-component case (see `tests/unit/test_entropy.py`, which checks this
-directly against the analytic $\tfrac{1}{2}\log\big((2\pi e)^d |\Sigma|\big)$ formula).
-
 ## What's dimension-general, and what's deliberately not
 
 The core sequential-design loop, the entropy math, and the N-D acquisition optimizer
@@ -91,3 +227,37 @@ exponential in $d$ and neither feeds the acquisition:
 grid) and {func}`bits_for_gaps.mixture.predict_grid_2D` (full-grid GP posterior
 samples for plotting). Both raise a clear error outside $d=2$ rather than silently
 producing something wrong.
+
+## The example: extended Raoult's law and Gibbs-Duhem
+
+{doc}`vle_example` walks through the paper's H2O-PrOH case study end to end; two
+equations from the paper's phase-equilibrium model are worth stating explicitly
+since they're implemented directly (not through `bits_for_gaps` itself, which never
+sees the underlying VLE physics -- only the black-box PrOH activity coefficient it
+designs experiments for).
+
+Extended Raoult's law relates each vapor-phase partial pressure to the liquid
+composition, activity coefficient, and pure-component vapor pressure
+(`phase_diagram.eqm_residual`, `phase_diagram.dew_point_vapor_fraction`):
+
+$$z_b^{(v)} P = z_b^{(\ell)}\, \gamma_b\, P_b^* \tag{10}$$
+
+The GP surrogate models only $\gamma_{\mathrm{PrOH}}(z, T)$; the water coefficient is
+*derived* from it via the binary Gibbs-Duhem relation
+($z_1\, \mathrm{d}\ln\gamma_1 + z_2\, \mathrm{d}\ln\gamma_2 = 0$), integrated from a
+dilute reference state (`gibbs_duhem.gamma_water_from_gamma_proh`):
+
+$$\ln \gamma_2(z_1) = -\int_{\ln\gamma_1(0)}^{\ln\gamma_1(z_1)}
+\frac{z_1}{1 - z_1}\, \mathrm{d}\ln\gamma_1 \tag{11}$$
+
+The McCabe-Thiele column solver's stage balances and condenser/reboiler closures
+(`distillation.solve_column`) are given in full in **SI-4** ("Binary Distillation
+Model and Solution Procedure"); at constant molar overflow, the top/bottom closures
+are:
+
+$$L_0 = R D, \qquad V_1 = L_0 + D, \qquad L_n = V_{n+1} + W, \qquad
+x_D = x_0, \qquad x_W = x_n$$
+
+with the vapor-liquid equilibrium relation $y_i = \phi(x_i)$ on each stage $i$
+supplied by `equilibrium.make_equilibrium_function` (a cubic interpolant of the
+Eq (10) equilibrium curve).

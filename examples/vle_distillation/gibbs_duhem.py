@@ -3,12 +3,18 @@
 Ported from the paper code's ``new_phase_diagram.py`` (``PhaseDiagram.gibbs_duhem_fast``).
 The GP surrogate used in this case study models only ``gamma_PrOH(z, T)`` -- the water
 coefficient is derived from it via the binary Gibbs-Duhem relation, not learned by a
-second GP output. For an isothermal, isobaric binary mixture:
+second GP output. For an isothermal, isobaric binary mixture (differential form,
+``z1 dln(gamma1) + z2 dln(gamma2) = 0``):
 
     d ln(gamma_water) = -z / (1 - z) * d ln(gamma_proh)
 
-integrated from a dilute reference ``z = zmin`` (where ``gamma_water ~= 1``, i.e. the
-integration constant ``ln(gamma_water) = 0``) up to ``z = z_star``.
+Eq (11) is this relation's integral form, with reference state ``z1_ref = 0``:
+
+    ln(gamma_water(z)) = -integral_{ln(gamma_proh(0))}^{ln(gamma_proh(z))}
+                              z / (1 - z) dln(gamma_proh)
+
+evaluated numerically below from a dilute reference ``z = zmin`` (where ``gamma_water
+~= 1``, i.e. the integration constant ``ln(gamma_water) = 0``) up to ``z = z_star``.
 """
 
 import numpy as np

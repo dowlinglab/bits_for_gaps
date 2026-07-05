@@ -153,3 +153,19 @@ def test_optimize_accepts_lower_bound_objective(gp_model, trace):
 
 def test_entropy_estimators_registry_has_both_paper_estimators():
     assert set(ENTROPY_ESTIMATORS) == {"taylor", "lower_bound"}
+
+
+def test_entropy_surface_2d_rejects_non_2d_bounds(gp_model, trace):
+    # entropy_surface_2D is a 2-D-only visualization diagnostic (Phase 5) -- it must
+    # raise a clear error for other dimensions rather than silently misbehaving.
+    with pytest.raises(ValueError, match="2-D-only"):
+        entropy_surface_2D(
+            trace,
+            gp_model,
+            x_bounds=[(0.0, 1.0), (350.0, 367.0), (0.0, 1.0)],
+            mesh=[3, 3, 3],
+            x_trsf_fwd=[lambda x: x, lambda x: x, lambda x: x],
+            x_trsf_bkwd=[lambda x: x, lambda x: x, lambda x: x],
+            seed=42,
+            no_gaussians=5,
+        )

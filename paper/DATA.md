@@ -11,8 +11,8 @@ decision 4).
 
 Two small, curated subsets of that bulk archive **are** committed here:
 
-- `paper/golden/` — small scalar targets for regression (R̂/ESS, error metrics, posterior
-  summary, stage table), regenerable via `paper/extract_golden.py`.
+- `paper/reference/` — small scalar targets for regression (R̂/ESS, error metrics, posterior
+  summary, stage table), regenerable via `paper/extract_reference.py`.
 - `paper/data/` — the exact plot-input files `paper/figures/*.py` read (~16 MB; see
   `paper/data/README.md` for the file manifest and how it was determined). Added in
   Phase 9 so `python paper/reproduce.py` regenerates every figure from a fresh clone

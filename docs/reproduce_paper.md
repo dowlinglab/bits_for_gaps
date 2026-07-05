@@ -7,7 +7,7 @@ pip package.
 ```{note}
 This page is a pointer, not a copy -- the authoritative, up-to-date reference is
 [`paper/REPRODUCTION.md`](https://github.com/dowlinglab/bits_for_gaps/blob/main/paper/REPRODUCTION.md)
-in the repository, which has the full figure -> script -> data -> golden-diff table,
+in the repository, which has the full figure -> script -> data -> reference-diff table,
 known discrepancies, and the simplifications taken from the original plotting code.
 Nothing here is executed as part of the docs build.
 ```
@@ -27,7 +27,7 @@ python paper/reproduce.py
 Output goes to `results_remaked/` by default (gitignored -- nothing this produces is
 committed). See `paper/REPRODUCTION.md` for regenerating a subset
 (`--figures 5 8 9 10`) and for which figures are quantitatively pinned against
-`paper/golden/*` (Figs 5, 8, 9, 10, 11) versus visually reproduced only (2, 3, 4, 6,
+`paper/reference/*` (Figs 5, 8, 9, 10, 11) versus visually reproduced only (2, 3, 4, 6,
 7, 12).
 
 Point `--archive`/`$BFG_ARCHIVE_DIR` at the full private archive (see
@@ -48,7 +48,7 @@ and `paper/PHASE9B_INVESTIGATION.md` for a bug found and fixed while validating 
 
 ## The regression tests
 
-Regression tests that check figure/column reproduction against `paper/golden/*`
+Regression tests that check figure/column reproduction against `paper/reference/*`
 (`tests/regression/test_paper_figures.py`, `tests/regression/test_mccabe_thiele.py`)
 mostly run in the **default** `pytest -q` suite now -- only the tests that recompute
 something via live Clapeyron calls (needing Julia) stay behind

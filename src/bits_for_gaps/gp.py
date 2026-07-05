@@ -38,7 +38,30 @@ def build_gp(
     likelihood_var: float,
     summarize: bool = False,
 ) -> gpflow.models.GPR:
-    """Construct a GPR model with a fixed (non-trainable) likelihood variance."""
+    """Construct a GPR model with a fixed (non-trainable) likelihood variance.
+
+    Builds the Eq (4) GP prior ``f ~ N(m, K)`` (mean function ``mean_fxn``, covariance
+    kernel ``kernel_fxn``) and conditions gpflow's ``GPR`` on it; ``GPmodel.predict_f``
+    then implements the Eq (5a)/(5b) predictive mean/variance at fixed hyperparameters.
+
+    Parameters
+    ----------
+    XGP, yGP : np.ndarray
+        Training inputs/outputs (already in GP-transformed space).
+    mean_fxn : gpflow.mean_functions.MeanFunction
+        The prior mean function ``m`` in Eq (4).
+    kernel_fxn : gpflow.kernels.Kernel
+        The covariance kernel ``k`` in Eq (4) (e.g. :class:`~bits_for_gaps.kernels.AnisotropicSE`).
+    likelihood_var : float
+        Fixed (non-trainable) observation noise variance ``sigma_epsilon^2``.
+    summarize : bool
+        If True, print a gpflow parameter summary of the constructed model.
+
+    Returns
+    -------
+    gpflow.models.GPR
+        The constructed model, with its likelihood variance fixed at ``likelihood_var``.
+    """
     GPmodel = gpflow.models.GPR(data=(XGP, yGP), mean_function=mean_fxn, kernel=kernel_fxn)
     gpflow.set_trainable(GPmodel.likelihood.variance, False)
     GPmodel.likelihood.variance.assign(likelihood_var)
@@ -50,7 +73,28 @@ def build_gp(
 def maximize_lml(
     GPmodel: gpflow.models.GPR, debug_cov: bool = False
 ) -> Tuple[object, gpflow.models.GPR]:
-    """Maximize the GP log-marginal-likelihood over its trainable (kernel) parameters."""
+    """Maximize the GP log-marginal-likelihood over its trainable (kernel) parameters.
+
+    An MLE point-estimate fit of the hyperparameters ``theta`` -- used only for the
+    optional ``initalLML`` warm-start (see ``sampler.py``), not part of the
+    hierarchical (HMC posterior) pipeline itself.
+
+    Parameters
+    ----------
+    GPmodel : gpflow.models.GPR
+        Mutated in place by ``gpflow.optimizers.Scipy().minimize``.
+    debug_cov : bool
+        If True, print the training covariance matrix's condition number before
+        optimizing (diagnostic for near-singular kernels).
+
+    Returns
+    -------
+    result : scipy.optimize.OptimizeResult
+        The optimizer's result object.
+    GPmodel : gpflow.models.GPR
+        The same instance passed in, with its kernel/mean-function parameters updated
+        in place.
+    """
     if debug_cov:
         XGP, _ = GPmodel.data
         K = GPmodel.kernel(XGP) + GPmodel.likelihood.variance * np.eye(len(XGP[:, 0]))
@@ -75,10 +119,37 @@ def run_mcmc(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, gpflow.models.GPR]:
     """Run HMC over the GP kernel's hyperparameters and compute convergence diagnostics.
 
+    Samples the hyperparameter posterior, Eq (3): ``p(theta | y) = p(y | theta) p(theta)
+    / p(y)`` -- ``GPmodel.log_posterior_density`` is exactly ``log p(y | theta) +
+    log p(theta)`` (gpflow sums the GP likelihood and each hyperparameter's prior
+    log-density), so HMC's target log-density is the (unnormalized) log-posterior.
+
     Uses ``GPmodel.kernel.hyperparameters`` as the HMC state, in that kernel's own
     canonical order -- this is the trace-column-order contract ``mixture.py`` /
     ``acquisition.py`` rely on (via ``kernels.assign_hyperparameters``) when replaying a
     trace row back onto the kernel.
+
+    Parameters
+    ----------
+    GPmodel : gpflow.models.GPR
+        Its kernel's hyperparameters are the HMC state; left at HMC's last sampled
+        state on return (not restored -- this is the orchestrator-level analogue of
+        the mutation-footgun fix in ``mixture.py``/``acquisition.py``, which does not
+        apply here since ``run_mcmc`` is expected to advance the model's state).
+    seed : int
+    no_samples, no_burn_in, no_chains : int
+        HMC chain configuration: post-burn-in samples per chain, burn-in steps, and
+        number of independent chains (for the R-hat/ESS diagnostics below).
+    no_leapfrog_steps : int
+        Leapfrog integration steps per HMC transition.
+    step_size : float
+        Initial HMC leapfrog step size (subsequently adapted).
+    no_adapt_steps : int
+        Number of ``SimpleStepSizeAdaptation`` steps.
+    target_accept : float
+        Target Metropolis acceptance probability for step-size adaptation.
+    adapt_rate : float
+        Step-size adaptation rate.
 
     Returns
     -------

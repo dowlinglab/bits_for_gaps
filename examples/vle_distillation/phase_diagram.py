@@ -140,6 +140,10 @@ def surrogate_gamma_averaged(
 def eqm_residual(T, z, gamma_fn, antoine=ANTOINE_CONSTANTS, P_tot=P_TOT_BAR):
     """Bubble-point residual: ``z*gamma_proh*Pvap_proh + (1-z)*gamma_water*Pvap_water - P_tot``.
 
+    Eq (10), extended Raoult's law (``z_b^(v) P = z_b^(l) gamma_b P_b*``), summed over
+    both components at the bubble point (where the two vapor partial pressures sum to
+    ``P_tot``): this residual is zero exactly at the bubble-point temperature.
+
     ``gamma_fn(z, T) -> (gamma_proh, gamma_water)`` is not called at the pure-component
     compositions z=0/z=1 (activity-coefficient models are singular there) -- both
     coefficients are taken as 1.0, matching the paper code.
@@ -167,7 +171,11 @@ def bubble_point_temperature(
 
 
 def dew_point_vapor_fraction(z, T_bub, gamma_fn, antoine=ANTOINE_CONSTANTS, P_tot=P_TOT_BAR):
-    """Vapor PrOH mole fraction at the bubble point, via extended Raoult's law."""
+    """Vapor PrOH mole fraction at the bubble point, via extended Raoult's law.
+
+    Eq (10), solved for the vapor-phase mole fraction: ``z_proh^(v) = z_proh^(l) *
+    gamma_proh * Pvap_proh / P_tot``.
+    """
     if z == 1.0:
         return pvap_antoine(T_bub, antoine["PrOH"]) / P_tot
     if z == 0.0:

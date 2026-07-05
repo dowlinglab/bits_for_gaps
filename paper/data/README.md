@@ -16,7 +16,7 @@ Copied verbatim (unmodified) from the private old repo's archive of record:
 ```
 
 **Iteration 15** = the published run (its `rhat_value_15.txt`/`ess_value_15.txt`
-match paper Fig 10 exactly -- see `paper/golden/hmc_diagnostics.json`). See
+match paper Fig 10 exactly -- see `paper/reference/hmc_diagnostics.json`). See
 `paper/DATA.md` for how this relates to the bulk (~2.5 GB, not committed anywhere)
 archive.
 
