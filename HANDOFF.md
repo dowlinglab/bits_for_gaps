@@ -16,12 +16,64 @@ State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before c
   discrepancy): done 2026-07-04, merged to `main`.
 - Phase 9c (robustness hardening -- first sanctioned `src/bits_for_gaps/` core change
   since Phase 4): done 2026-07-04, merged to `main`.
-- **Phase 9d (whole-codebase polish: hygiene [ruff, type hints, CI, coverage] +
+- Phase 9d (whole-codebase polish: hygiene [ruff, type hints, CI, coverage] +
   faithfulness [selectable acquisition, MC-validation, synthetic example, hardening,
-  CHANGELOG]): done 2026-07-04 on branch `phase9d-polish` — awaiting review/merge to
-  `main` before Phase 10 (publish).**
+  CHANGELOG]): done 2026-07-04, merged to `main`.
+- **Phase 9e (docs/tests/comments quality pass -- behavior-preserving: `golden` ->
+  `reference` rename, `theory.md` equation fidelity, test-coverage gap-filling,
+  NumPy-docstring + inline equation-citation pass): done 2026-07-05 on branch
+  `phase9e-quality` — awaiting review/merge to `main` before Phase 10 (publish).**
 
-## Phase 9d — whole-codebase polish: hygiene + faithfulness (done; review gate before Phase 10)
+## Phase 9e — docs/tests/comments quality pass (done; review gate before Phase 10)
+
+Three passes, each its own commit, suite green at every one. Behavior-preserving
+throughout (docstrings/comments/tests/docs + one mechanical rename -- no algorithm
+changes): baseline (atol 1e-10) + all reference regressions + `pytest -m vle` never
+moved; `paper/data/` and the dependency stack untouched.
+
+- **PASS 1 -- rename + docs.** `paper/golden/` -> `paper/reference/` everywhere
+  (`git mv`, the `golden` pytest fixture -> `reference`, `extract_golden.py` ->
+  `extract_reference.py`, every prose/docstring mention across ~30 files) --
+  confirmed the 4 JSON files are byte-identical (only the directory moved) and zero
+  "golden"/"Golden" text remains anywhere in the tracked repo. `docs/theory.md`
+  rewritten to present the paper's key equations in its own notation with equation
+  numbers -- Eq (1)/(2) entropy+acquisition, Eq (3) hyperparameter posterior, Eq (4)
+  GP prior, Eq (5a)/(5b) predictive mean/variance, Eq (6) SE kernel + Table 1's exact
+  priors, Eq (7) GMM predictive + Eq (8a)/(8b) moments, Eq (9) + the Huber et al.
+  (2008) Taylor expansion and its Proposition truncation bound (SI-1), the closed-form
+  entropy-lower-bound Theorem and its SI-2 cross-overlap term, Algorithm 1 (credible
+  intervals, Lalchand & Rasmussen 2020), and Eq (10)/(11) + SI-4 for the VLE example --
+  each linked to the implementing module. Every doc page's cross-links verified to
+  resolve in the rendered HTML (not just `sphinx-build -W`, which doesn't catch
+  unresolved `:func:`/`:class:` refs with `nitpicky=False`); fixed a stale test count
+  in `installation.md` (117/5 -> 193/2). Docs page organization was already sound --
+  no reordering needed.
+- **PASS 2 -- test-coverage audit.** Added `tests/unit/test_diagnostics.py` (new --
+  `potential_scale_reduction`/`effective_sample_size` had zero direct unit tests
+  before, only indirect coverage via full HMC integration runs). Added tests
+  exercising `entropy_surface_2D`/`predict_grid_2D`'s documented non-2-D `ValueError`
+  (defined since Phase 5, never exercised by any test); direct tests for
+  `entropy.gaussian_mixture_density` against `scipy.stats`; strengthened
+  `InputTransform`'s 1-D-input test and `sampler.call_model`'s success test to check
+  actual values, not just shapes; added a test confirming `call_model` extracts only
+  the first element of a multi-element black-box output. One finding, not a bug:
+  `design.full_factorial_design`'s "grid too small" `ValueError` is unreachable dead
+  code for every `(bounds, n_train, n_test)` -- `levels = ceil(n_total ** (1/d))`
+  mathematically guarantees `levels**d >= n_total` (verified by brute-force search);
+  documented in a comment rather than given a fake test. `pytest -q`: 193 -> 204
+  passed (2 deselected, unchanged).
+- **PASS 3 -- docstrings + inline equation citations.** Filled NumPy-docstring gaps
+  (missing Parameters/Returns/Notes: `entropy.py`'s `first_order_entropy_approx`/
+  `cholesky`/`gradient_gaussian_mixture_density`/`second_order_entropy`, `gp.py`'s
+  `build_gp`/`maximize_lml`/`run_mcmc`, `means.py`'s `FixedInverseMean`, `_util.py`'s
+  three array helpers) and added inline comments citing the paper's equation numbers
+  at the exact lines implementing them (verified against the paper + SI): Eq (6) in
+  `kernels.AnisotropicSE.K`, Eq (3)/(4)/(5a)/(5b) in `gp.py`, Eq (7)/(9)/Theorem-SI-2
+  in `entropy.py`, Eq (1)/(2)/(5a)/(5b)/(7) in `acquisition.py`/`mixture.py`, and
+  Eq (10)/(11)/SI-4 in the VLE example's `phase_diagram.py`/`gibbs_duhem.py`/
+  `distillation.py`.
+
+## Phase 9d — whole-codebase polish: hygiene + faithfulness (done; merged to main)
 
 Two batches, eight workstreams (A-D hygiene, E-H faithfulness/features), each its own
 commit, suite green at every one. Behavior-preserving throughout: baseline (atol
@@ -920,11 +972,14 @@ Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_
 9. **Phase 9c — robustness hardening. ✅ DONE.** Merged to `main`. See the "Phase 9c"
    section above.
 
-10. **Phase 9d — whole-codebase polish (hygiene + faithfulness). ✅ DONE.** On branch
-   `phase9d-polish`; merge to `main` after review, then start Phase 10. See the
-   "Phase 9d" section above.
+10. **Phase 9d — whole-codebase polish (hygiene + faithfulness). ✅ DONE.** Merged to
+   `main`. See the "Phase 9d" section above.
 
-11. **Phase 10 — publish (TestPyPI -> PyPI).** No Zenodo deposit (REFACTOR_PLAN.md §7
+11. **Phase 9e — docs/tests/comments quality pass. ✅ DONE.** On branch
+   `phase9e-quality`; merge to `main` after review, then start Phase 10. See the
+   "Phase 9e" section above.
+
+12. **Phase 10 — publish (TestPyPI -> PyPI).** No Zenodo deposit (REFACTOR_PLAN.md §7
    decision 4 -- the private old repo is the archive of record). Needs: bump
    `version` in `pyproject.toml` off `0.0.1.dev0`, a GitHub Actions trusted-publishing
    workflow (or manual `twine upload`), a TestPyPI dry run before the real PyPI

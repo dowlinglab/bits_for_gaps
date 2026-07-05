@@ -190,7 +190,7 @@ Core has **zero Julia dependency**; `pip install bits_for_gaps` pulls GPflow/TF/
 
 ### Phase 9e — Docs / tests / comments quality pass  *(Sonnet + Opus check)*
 - Behavior-preserving (baseline 1e-10 + reference regressions green each commit). Three passes:
-  1. **RTD docs**: sensible organization, working cross-links, math faithful to the paper (key equations in the paper's notation — Eq 1/2 entropy+acquisition, Eq 6 SE kernel, Eq 7 GMM predictive, Eq 9 entropy, the Huber 2nd-order Taylor approx, the Theorem lower bound + SI-2 cross-overlap, Eq 10 extended Raoult, Eq 11 Gibbs–Duhem, SI-4 distillation), clearly explain the 3-phase loop. **Rename "reference" → "reference" everywhere** (git mv `paper/reference/`→`paper/reference/`, `reference` fixture→`reference`, all usages + docs).
+  1. **RTD docs**: sensible organization, working cross-links, math faithful to the paper (key equations in the paper's notation — Eq 1/2 entropy+acquisition, Eq 6 SE kernel, Eq 7 GMM predictive, Eq 9 entropy, the Huber 2nd-order Taylor approx, the Theorem lower bound + SI-2 cross-overlap, Eq 10 extended Raoult, Eq 11 Gibbs–Duhem, SI-4 distillation), clearly explain the 3-phase loop. **Rename "golden" → "reference" everywhere** (git mv `paper/golden/`→`paper/reference/`, `golden` fixture→`reference`, all usages + docs).
   2. **Tests**: unit tests on most functions; assert errors are raised; find + upgrade low-value/superficial tests.
   3. **Comments**: NumPy-style docstrings on all functions; inline comments on non-trivial code citing paper/SI equation numbers (map in the Phase-9e prompt / HANDOFF).
 
