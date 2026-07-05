@@ -184,6 +184,10 @@ Core has **zero Julia dependency**; `pip install bits_for_gaps` pulls GPflow/TF/
 - Rerun `paper/full_reproduction.py` to confirm the paper still reproduces (column converges, HMC to 7–8 sig figs, stage table tracks Wilson).
 - Document all improvements/fixes over the original paper code in `docs/improvements_over_paper.md`.
 
+### Phase 9d — Polish pass (hygiene + faithfulness), whole-codebase  *(Sonnet + Opus check)*
+- Behavior-preserving (baseline 1e-10 + golden green at every commit). Hygiene: ruff lint+format whole repo (preserve load-bearing import order — lazy `__init__`, `HANDLE_SIGNALS`-before-juliacall), type hints across the codebase via `from __future__ import annotations` (keep `import bits_for_gaps` Julia-free + TF-lazy), `py.typed`, broaden CI to the full default suite + README badge, coverage pass.
+- Faithfulness/features: wire `entropy_lower_bound` (the paper's SI closed-form bound) as a SELECTABLE acquisition objective (Taylor stays default); MC-validation test for the entropy approximation; a pure-Python synthetic example/tutorial (no Julia); GP Cholesky-conditioning guard; `CHANGELOG.md`.
+
 ### Phase 10 — Publish  *(Opus + user)*
 - Artifacts are already finalized (Phase 9 committed `paper/data/`; §7 decision 4). Release engineering: polish `pyproject.toml` → `0.1.0`, `CHANGELOG.md` + `RELEASE.md`, `python -m build` + `twine check`, clean-env install audit, GitHub Actions **trusted-publishing** workflow.
 - User actions: create PyPI/TestPyPI projects + configure trusted publishing (OIDC); TestPyPI dry-run; `git tag v0.1.0`; activate RTD (steps in `HANDOFF.md`).
