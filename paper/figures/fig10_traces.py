@@ -7,6 +7,7 @@ chain, annotated with that parameter's R-hat and ESS.
 Quantitatively pinned: ``diagnostics()`` returns the exact (rhat, ess) arrays checked
 against ``paper/golden/hmc_diagnostics.json`` by the gated regression test.
 """
+
 import os
 
 import numpy as np
@@ -29,23 +30,42 @@ def make(archive_dir, out_dir, iters=_archive.PUBLISHED_ITERS, img_fmt="png"):
 
     n_samples, n_chains, n_params = trace.shape
     fig_letters = ["(a)", "(b)", "(c)", "(d)", "(e)"]
-    fig, axes = plt.subplots(n_params, 1, figsize=(10, 2 * n_params), sharex=True,
-                             constrained_layout=True)
+    fig, axes = plt.subplots(
+        n_params, 1, figsize=(10, 2 * n_params), sharex=True, constrained_layout=True
+    )
     axes = np.atleast_1d(axes)
     colors = plt.cm.get_cmap("viridis", n_chains)
     linestyles = ["-", "--", "dashdot", "dotted"]
 
     for p in range(n_params):
         for c in range(n_chains):
-            axes[p].plot(range(n_samples), trace[:, c, p], color=colors(c),
-                        linestyle=linestyles[c % len(linestyles)], linewidth=1.0,
-                        alpha=0.7, label=f"Chain {c + 1}")
-        axes[p].text(0.98, 0.05, rf"$\hat{{R}} = {rhat[p]:.3f}$" + "\n"
-                    rf"$\hat{{ESS}} = {ess[p]:.1f}$", transform=axes[p].transAxes,
-                    ha="right", va="bottom", backgroundcolor="w",
-                    bbox=dict(boxstyle="square", ec="k", fc="w"))
-        axes[p].text(0.01, 0.85, fig_letters[p % len(fig_letters)],
-                    transform=axes[p].transAxes, fontweight="bold")
+            axes[p].plot(
+                range(n_samples),
+                trace[:, c, p],
+                color=colors(c),
+                linestyle=linestyles[c % len(linestyles)],
+                linewidth=1.0,
+                alpha=0.7,
+                label=f"Chain {c + 1}",
+            )
+        axes[p].text(
+            0.98,
+            0.05,
+            rf"$\hat{{R}} = {rhat[p]:.3f}$" + "\n"
+            rf"$\hat{{ESS}} = {ess[p]:.1f}$",
+            transform=axes[p].transAxes,
+            ha="right",
+            va="bottom",
+            backgroundcolor="w",
+            bbox=dict(boxstyle="square", ec="k", fc="w"),
+        )
+        axes[p].text(
+            0.01,
+            0.85,
+            fig_letters[p % len(fig_letters)],
+            transform=axes[p].transAxes,
+            fontweight="bold",
+        )
         axes[p].set_ylabel(rf"$\theta_{{{p + 1}}}$")
 
     axes[0].legend(loc="upper center", ncol=n_chains, bbox_to_anchor=(0.5, 1.30))

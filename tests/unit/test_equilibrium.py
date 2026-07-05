@@ -1,7 +1,6 @@
 """Unit tests for ``vle_distillation.equilibrium`` (pure NumPy/SciPy -- no Julia)."""
-import numpy as np
-import pytest
 
+import numpy as np
 from vle_distillation.equilibrium import make_equilibrium_function
 
 

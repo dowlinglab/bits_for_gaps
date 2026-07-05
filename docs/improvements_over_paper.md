@@ -73,11 +73,60 @@ a one-off script mistake:
   within the same process, in the original paper code too. Both functions now accept
   an optional `tf_seed`; passing one makes that call's draws reproducible. Default
   (`None`) leaves the original, documented behavior unchanged.
+- **A clear error instead of a cryptic gpflow/TensorFlow traceback for an
+  unassignable hyperparameter value** (Phase 9d). `kernels.assign_hyperparameters` is
+  called deep inside `mixture.py`/`acquisition.py`'s hot loops to replay one
+  posterior/mixture-component sample at a time. An extreme outlier sample -- most
+  plausibly from `lengthscale_2`, deliberately left unconstrained (no positivity
+  bijector, a real feature of the paper's kernel) so nothing bounds how far an HMC
+  leapfrog step can push it -- can round-trip through a bijector's inverse to a
+  non-finite unconstrained value, which gpflow's own `Parameter.assign` rejects with
+  a low-level `InvalidArgumentError` (`Tensor had NaN/Inf values [Op:CheckNumerics]`)
+  that doesn't say *which* value or parameter caused it. This is the exact error
+  class hit mid-investigation while tracing the Phase 9b bug (in that instance from
+  an unrelated script mistake, not a genuine posterior outlier -- but the underlying
+  gpflow failure mode is real). Re-raised as a `ValueError` naming the parameter and
+  value; behavior-preserving for every value that was already assignable (every value
+  seen across this codebase's tests, golden regressions, and the from-scratch
+  stochastic reproduction runs).
 
 46 new tests were added alongside this hardening (unit tests asserting kernel state is
 identical before/after, including on the error path; validation-error-path tests; an
 integration test reproducing the exact Phase 9b scenario end-to-end) -- all in addition
 to, not replacing, the existing regression suite, which stayed green throughout.
+
+## Faithfulness (Phase 9d) -- using more of what the paper actually derived
+
+- **The paper's closed-form entropy lower bound is now a usable acquisition
+  objective.** The paper derives *two* entropy estimators for the hierarchical GP
+  predictive posterior: the 2nd-order Taylor approximation
+  ({func}`bits_for_gaps.entropy.second_order_entropy`, Huber et al. 2008) that
+  actually drove acquisition in the paper, and a closed-form cross-overlap lower
+  bound ({func}`bits_for_gaps.entropy.entropy_lower_bound`, paper Theorem/SI-2). The
+  lower bound was implemented and unit-tested since Phase 2, but nothing in the
+  sequential-design loop could ever call it -- {func}`~bits_for_gaps.acquisition.entropy_objective`
+  had the Taylor estimator hardcoded. It's now selectable via
+  `objective="taylor"|"lower_bound"`, threaded through
+  {func}`~bits_for_gaps.acquisition.optimize`/{func}`~bits_for_gaps.acquisition.entropy_surface_2D`
+  and exposed as `BitsForGaps.acquisitionObjective` (default `"taylor"` -- every
+  existing baseline/golden value is unaffected unless a caller explicitly opts into
+  `"lower_bound"`).
+- **The entropy estimators are now validated against the quantity they approximate,
+  not just a captured historical value.** The existing regression test pins
+  `second_order_entropy`'s output on one specific mixture (a useful "did this
+  number move" check, but not an "is this number *right*" check). New
+  Monte-Carlo-validation tests estimate the true differential entropy directly (sample
+  the mixture, average the log of its own density at those samples) on several 1-D
+  and 2-D mixtures with different overlap, and confirm the Taylor approximation
+  stays within 15% of that MC estimate (calibrated empirically -- it was within 6% on
+  every mixture tried) and the closed-form lower bound stays at or below it.
+- **A Julia-free onboarding path.** The original code's only worked example is the
+  paper's own Julia/Clapeyron-backed VLE case study -- a heavy first thing to set up
+  just to see the method run. `examples/synthetic/run_example.py` is a new, small,
+  actually-runnable script (`python examples/synthetic/run_example.py`, no Julia,
+  well under a minute) demonstrating the same sequential-design loop on a smooth
+  closed-form 2-D function; `docs/quickstart.md` now points to it instead of test
+  files.
 
 ## Architecture
 

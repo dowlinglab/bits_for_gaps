@@ -41,7 +41,7 @@ dependencies = [
 [project.optional-dependencies]
 # VLE/distillation example backend (Julia + Clapeyron via juliacall).
 vle = ["juliacall==0.9.23", "juliapkg==0.1.13"]
-dev = ["pytest>=7", "pytest-cov"]
+dev = ["pytest>=7", "pytest-cov", "ruff"]
 docs = ["sphinx>=7", "myst-parser", "furo", "sphinx-autodoc-typehints"]
 
 [project.urls]
@@ -50,6 +50,39 @@ Paper = "https://doi.org/10.1016/j.compchemeng.2026.109650"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bits_for_gaps"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+extend-exclude = ["docs/_build"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+# B023: loop-variable-in-closure -- several acquisition/mixture functions deliberately
+# close over a loop variable in a callback that's called within the same iteration
+# (not stored for later), matching the paper code's structure; not a real bug here.
+ignore = ["B023"]
+
+[tool.ruff.lint.per-file-ignores]
+# Load-bearing import order -- do NOT let isort (I001) reorder these:
+# - __init__.py's eager (pure NumPy/SciPy) vs lazy (TF/GPflow-backed, PEP 562
+#   __getattr__) split is the whole point of the module; keep the import groups as
+#   written even though ruff wouldn't currently reorder across the blank-line-
+#   separated comments below.
+"src/bits_for_gaps/__init__.py" = ["I001"]
+# - activity_model.py sets PYTHON_JULIACALL_HANDLE_SIGNALS before the local
+#   `from juliacall import Main as jl` import inside _require_activity_fn -- required
+#   on macOS or juliacall SIGBUSes. This is a function-local import ruff's isort
+#   wouldn't touch, but ignore E402 here defensively in case rule selection changes.
+"examples/vle_distillation/activity_model.py" = ["I001", "E402"]
+# - full_reproduction.py sets TF's single-threaded config (a >10x wall-clock fix
+#   found during Phase 9b's investigation) before importing bits_for_gaps/
+#   vle_distillation, so those imports don't trigger TF's default multi-threaded
+#   init first.
+"paper/full_reproduction.py" = ["I001", "E402"]
+
+[tool.ruff.format]
+quote-style = "double"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

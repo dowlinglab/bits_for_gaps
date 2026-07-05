@@ -16,6 +16,7 @@ each deterministic ``predict_f`` call, so the entropy field and the selected poi
 identical whether or not it ran. (It is also not bitwise-reproducible in isolation --
 see ``mixture.py``'s note on ``predict_f_samples``' ambient TF randomness.)
 """
+
 import json
 from pathlib import Path
 
@@ -51,9 +52,14 @@ def _initial_design(n=12, seed=0):
 
 def _build_sampler(seed=SEED):
     s = adaptiveEntropy(
-        exp_name="synthetic", iters=1, x_bounds=BOUNDS, likelihood_var=0.05,
-        mean_fxn=gpflow.mean_functions.Zero(), kernel_fxn=AnisotropicSE(),
-        fwd_model=_fwd_model, fwd_model_args=(),
+        exp_name="synthetic",
+        iters=1,
+        x_bounds=BOUNDS,
+        likelihood_var=0.05,
+        mean_fxn=gpflow.mean_functions.Zero(),
+        kernel_fxn=AnisotropicSE(),
+        fwd_model=_fwd_model,
+        fwd_model_args=(),
     )
     s.seed = seed
     # Tiny, fast configuration (the point is stability, not statistical quality).
@@ -176,8 +182,64 @@ def test_run_checkpoint_dir_is_opt_in(tmp_path):
     checkpoint_dir = tmp_path / "checkpoints"
     s.run(X_init, y_init, checkpoint_dir=str(checkpoint_dir))
     written = {p.name for p in checkpoint_dir.iterdir()}
-    assert {"rhat_value_1.txt", "ess_value_1.txt", "activity_data_2",
-            "gp_model_1.pkl"} <= written
+    assert {"rhat_value_1.txt", "ess_value_1.txt", "activity_data_2", "gp_model_1.pkl"} <= written
+
+
+@pytest.mark.slow
+def test_run_predict_grid_true_writes_grid_predictions(tmp_path):
+    # predict_grid=True additionally computes the full-grid GP posterior-predictive
+    # samples (the paper's gp_predict_2D plotting diagnostic) -- off by default, so no
+    # other test in this file exercises it.
+    X_init, y_init = _initial_design(n=12)
+    s = _build_sampler()
+    checkpoint_dir = tmp_path / "checkpoints"
+    history = s.run(X_init, y_init, checkpoint_dir=str(checkpoint_dir), predict_grid=True)
+    assert (checkpoint_dir / "gp_predict_1").exists()
+    # 50x50 grid (mixture.predict_grid_2D's default n_grid), columns [x1, x2, *draws].
+    grid = np.loadtxt(checkpoint_dir / "gp_predict_1")
+    assert grid.shape[0] == 50 * 50
+    assert grid.shape[1] > 2
+    assert history.last.XData.shape[0] == 13
+
+
+@pytest.mark.slow
+def test_run_with_initial_lml_maximization():
+    # initalLML=True runs an MLE fit before HMC (adaptiveEntropy.maximize_lml) -- off
+    # by default, so no other test exercises this branch of run().
+    X_init, y_init = _initial_design(n=12)
+    s = _build_sampler()
+    s.initalLML = True
+    history = s.run(X_init, y_init)
+    record = history.last
+    assert record.lml_result is not None
+    assert np.all(np.isfinite(record.rhat))
+
+
+@pytest.mark.slow
+def test_run_with_lower_bound_acquisition_objective_completes():
+    # Phase 9d: acquisitionObjective="lower_bound" selects the paper's closed-form
+    # entropy lower bound (Theorem/SI-2) instead of the default 2nd-order Taylor
+    # estimator -- implemented and unit-tested since Phase 2 but never wired up as a
+    # usable acquisition objective before now. Default ("taylor") behavior/baselines
+    # are covered by every other test in this file; this just confirms the
+    # alternative objective runs a full iteration end-to-end without error.
+    X_init, y_init = _initial_design(n=12)
+    s = _build_sampler()
+    s.acquisitionObjective = "lower_bound"
+    record = s.run(X_init, y_init).last
+    assert np.all(np.isfinite(record.xStar))
+    for j, (lo, hi) in enumerate(BOUNDS):
+        assert lo <= record.xStar[j] <= hi
+    assert np.isfinite(record.max_entropy)
+
+
+@pytest.mark.slow
+def test_run_rejects_unknown_acquisition_objective():
+    X_init, y_init = _initial_design(n=12)
+    s = _build_sampler()
+    s.acquisitionObjective = "bogus"
+    with pytest.raises(ValueError, match="acquisitionObjective"):
+        s.run(X_init, y_init)
 
 
 @pytest.mark.slow

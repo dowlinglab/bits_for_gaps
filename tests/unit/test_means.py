@@ -3,6 +3,7 @@
 Pins the physics-informed mean function's closed form, output shape, its dependence on
 the mole-fraction column only, and its monotonic decrease in that column.
 """
+
 import numpy as np
 import pytest
 

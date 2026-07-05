@@ -19,6 +19,7 @@ Fig 8/9's phase diagram and McCabe-Thiele column design.
 Pure NumPy/SciPy (no Julia, no TensorFlow) except :func:`wilson_gamma`, which lazily
 delegates to ``activity_model.py``.
 """
+
 import numpy as np
 from scipy.optimize import bisect
 
@@ -29,8 +30,8 @@ ANTOINE_CONSTANTS = {
     "PrOH": {"A": 5.31384, "B": 1690.864, "C": -51.804},
     "H2O": {"A": 4.6543, "B": 1435.264, "C": -64.848},
 }
-P_TOT_BAR = 1.01325   # 1 atm, in bar
-Z_MESH = 50           # points across the z_PrOH grid, matching the paper code default
+P_TOT_BAR = 1.01325  # 1 atm, in bar
+Z_MESH = 50  # points across the z_PrOH grid, matching the paper code default
 
 
 def pvap_antoine(T, constants):
@@ -43,8 +44,9 @@ def wilson_gamma(z, T):
     return activity_model.activity_coefficients(z, T)
 
 
-def surrogate_gamma(z, T, GPmodel, input_transform, output_transform,
-                    zmin=1e-5, zmax=0.92, n_steps=10):
+def surrogate_gamma(
+    z, T, GPmodel, input_transform, output_transform, zmin=1e-5, zmax=0.92, n_steps=10
+):
     """Surrogate activity coefficients: GP mean for PrOH, Gibbs-Duhem for water.
 
     Parameters
@@ -70,6 +72,7 @@ def surrogate_gamma(z, T, GPmodel, input_transform, output_transform,
     stable hyperparameter state must not call such mutating functions on the same
     ``GPmodel`` object beforehand without restoring the kernel afterward.
     """
+
     def gamma_proh_curve(z_vals):
         z_vals = np.atleast_1d(np.asarray(z_vals, dtype=float))
         X_phys = np.column_stack([z_vals, np.full_like(z_vals, float(T))])
@@ -77,12 +80,24 @@ def surrogate_gamma(z, T, GPmodel, input_transform, output_transform,
         mean, _variance = GPmodel.predict_f(X_gp)
         return output_transform.backward(mean.numpy().ravel())
 
-    return gibbs_duhem.gamma_water_from_gamma_proh(gamma_proh_curve, z, zmin=zmin,
-                                                    zmax=zmax, n_steps=n_steps)
+    return gibbs_duhem.gamma_water_from_gamma_proh(
+        gamma_proh_curve, z, zmin=zmin, zmax=zmax, n_steps=n_steps
+    )
 
 
-def surrogate_gamma_averaged(z, T, GPmodel, input_transform, output_transform, trace,
-                             n_draws=50, seed=42, zmin=1e-5, zmax=0.92, n_steps=10):
+def surrogate_gamma_averaged(
+    z,
+    T,
+    GPmodel,
+    input_transform,
+    output_transform,
+    trace,
+    n_draws=50,
+    seed=42,
+    zmin=1e-5,
+    zmax=0.92,
+    n_steps=10,
+):
     """Hyperparameter-posterior-averaged surrogate activity coefficients.
 
     Matches the paper's own construction (the old repo's ``new_phase_diagram.py``'s
@@ -117,8 +132,8 @@ def surrogate_gamma_averaged(z, T, GPmodel, input_transform, output_transform, t
     for d in range(n_draws):
         assign_hyperparameters(GPmodel.kernel, trace[rng.integers(0, len(trace))])
         gamma_proh_draws[d], gamma_water_draws[d] = surrogate_gamma(
-            z, T, GPmodel, input_transform, output_transform, zmin=zmin, zmax=zmax,
-            n_steps=n_steps)
+            z, T, GPmodel, input_transform, output_transform, zmin=zmin, zmax=zmax, n_steps=n_steps
+        )
     return float(gamma_proh_draws.mean()), float(gamma_water_draws.mean())
 
 
@@ -138,15 +153,20 @@ def eqm_residual(T, z, gamma_fn, antoine=ANTOINE_CONSTANTS, P_tot=P_TOT_BAR):
     return z * gamma_proh * Pvap_proh + (1.0 - z) * gamma_water * Pvap_water - P_tot
 
 
-def bubble_point_temperature(z, gamma_fn, antoine=ANTOINE_CONSTANTS, P_tot=P_TOT_BAR,
-                             Tbub_min=300.0, Tbub_max=400.0, tol=1e-6):
+def bubble_point_temperature(
+    z,
+    gamma_fn,
+    antoine=ANTOINE_CONSTANTS,
+    P_tot=P_TOT_BAR,
+    Tbub_min=300.0,
+    Tbub_max=400.0,
+    tol=1e-6,
+):
     """Solve the bubble-point temperature at liquid composition ``z`` via bisection."""
-    return bisect(eqm_residual, Tbub_min, Tbub_max, args=(z, gamma_fn, antoine, P_tot),
-                  xtol=tol)
+    return bisect(eqm_residual, Tbub_min, Tbub_max, args=(z, gamma_fn, antoine, P_tot), xtol=tol)
 
 
-def dew_point_vapor_fraction(z, T_bub, gamma_fn, antoine=ANTOINE_CONSTANTS,
-                             P_tot=P_TOT_BAR):
+def dew_point_vapor_fraction(z, T_bub, gamma_fn, antoine=ANTOINE_CONSTANTS, P_tot=P_TOT_BAR):
     """Vapor PrOH mole fraction at the bubble point, via extended Raoult's law."""
     if z == 1.0:
         return pvap_antoine(T_bub, antoine["PrOH"]) / P_tot
@@ -157,8 +177,16 @@ def dew_point_vapor_fraction(z, T_bub, gamma_fn, antoine=ANTOINE_CONSTANTS,
     return (z * Pvap_proh * gamma_proh) / P_tot
 
 
-def vle_curve(gamma_fn, z_grid=None, n_grid=Z_MESH, antoine=ANTOINE_CONSTANTS,
-             P_tot=P_TOT_BAR, Tbub_min=300.0, Tbub_max=400.0, tol=1e-6):
+def vle_curve(
+    gamma_fn,
+    z_grid=None,
+    n_grid=Z_MESH,
+    antoine=ANTOINE_CONSTANTS,
+    P_tot=P_TOT_BAR,
+    Tbub_min=300.0,
+    Tbub_max=400.0,
+    tol=1e-6,
+):
     """Bubble-point temperature and dew-point PrOH vapor fraction across a z_PrOH grid.
 
     Parameters
@@ -177,12 +205,13 @@ def vle_curve(gamma_fn, z_grid=None, n_grid=Z_MESH, antoine=ANTOINE_CONSTANTS,
     """
     if z_grid is None:
         z_grid = np.linspace(0.0, 1.0, n_grid)
-    T_bub = np.array([
-        bubble_point_temperature(z, gamma_fn, antoine, P_tot, Tbub_min, Tbub_max, tol)
-        for z in z_grid
-    ])
-    y_proh = np.array([
-        dew_point_vapor_fraction(z, T, gamma_fn, antoine, P_tot)
-        for z, T in zip(z_grid, T_bub)
-    ])
+    T_bub = np.array(
+        [
+            bubble_point_temperature(z, gamma_fn, antoine, P_tot, Tbub_min, Tbub_max, tol)
+            for z in z_grid
+        ]
+    )
+    y_proh = np.array(
+        [dew_point_vapor_fraction(z, T, gamma_fn, antoine, P_tot) for z, T in zip(z_grid, T_bub)]
+    )
     return z_grid, T_bub, y_proh

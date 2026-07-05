@@ -5,6 +5,7 @@ Phase 9c: the headline behavior under test is that ``sample_gp_posterior_mixture
 Phase 9b traced a real bug to this function leaving the kernel at an arbitrary leftover
 hyperparameter state (see ``paper/PHASE9B_INVESTIGATION.md``).
 """
+
 import gpflow
 import numpy as np
 import pytest
@@ -49,8 +50,10 @@ def test_sample_gp_posterior_mixture_restores_kernel_state_on_error(gp_model, tr
     # Even if something downstream raises, the kernel must not be left mutated --
     # exercises the try/finally, not just the happy path.
     before = [_val(p) for p in gp_model.kernel.hyperparameters]
-    bad_XGP = "not an array"   # forces predict_f_samples to raise
-    with pytest.raises(Exception):
+    bad_XGP = "not an array"  # forces predict_f_samples to raise
+    # Exact exception type is TF/gpflow-internal and not the point of this test --
+    # only that *some* failure happens, and that it doesn't leave the kernel mutated.
+    with pytest.raises(Exception):  # noqa: B017
         sample_gp_posterior_mixture(trace, gp_model, bad_XGP, seed=42, size=5)
     after = [_val(p) for p in gp_model.kernel.hyperparameters]
     assert after == before
@@ -59,9 +62,15 @@ def test_sample_gp_posterior_mixture_restores_kernel_state_on_error(gp_model, tr
 def test_predict_grid_2d_restores_kernel_state(gp_model, trace):
     before = [_val(p) for p in gp_model.kernel.hyperparameters]
     predict_grid_2D(
-        trace, gp_model, x_bounds=[(0.0, 1.0), (350.0, 367.0)],
-        x_trsf_fwd=[lambda x: x, lambda x: x], x_trsf_bkwd=[lambda x: x, lambda x: x],
-        y_trsf_bkwd=lambda y: y, seed=42, size=5, n_grid=4,
+        trace,
+        gp_model,
+        x_bounds=[(0.0, 1.0), (350.0, 367.0)],
+        x_trsf_fwd=[lambda x: x, lambda x: x],
+        x_trsf_bkwd=[lambda x: x, lambda x: x],
+        y_trsf_bkwd=lambda y: y,
+        seed=42,
+        size=5,
+        n_grid=4,
     )
     after = [_val(p) for p in gp_model.kernel.hyperparameters]
     assert after == before
@@ -69,10 +78,8 @@ def test_predict_grid_2d_restores_kernel_state(gp_model, trace):
 
 def test_sample_gp_posterior_mixture_tf_seed_is_reproducible(gp_model, trace):
     XGP = np.array([[0.3, 0.4], [0.6, 0.5]])
-    draws_a = sample_gp_posterior_mixture(trace, gp_model, XGP, seed=42, size=5,
-                                          tf_seed=7)
-    draws_b = sample_gp_posterior_mixture(trace, gp_model, XGP, seed=42, size=5,
-                                          tf_seed=7)
+    draws_a = sample_gp_posterior_mixture(trace, gp_model, XGP, seed=42, size=5, tf_seed=7)
+    draws_b = sample_gp_posterior_mixture(trace, gp_model, XGP, seed=42, size=5, tf_seed=7)
     np.testing.assert_array_equal(draws_a, draws_b)
 
 

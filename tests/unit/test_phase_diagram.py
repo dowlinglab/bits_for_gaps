@@ -4,12 +4,14 @@ Uses a synthetic ideal-mixture activity function (``gamma_proh = gamma_water = 1
 rather than Clapeyron, so these run in the default (no ``vle`` marker) suite and check
 the bubble-point/dew-point/Antoine physics independent of the thermodynamic model.
 """
+
 import numpy as np
 import pytest
-
 from vle_distillation import phase_diagram as pd
 
-IDEAL_GAMMA = lambda z, T: (1.0, 1.0)
+
+def IDEAL_GAMMA(z, T):
+    return (1.0, 1.0)
 
 
 def test_pvap_antoine_proh_near_one_atm_at_normal_boiling_point():
@@ -32,13 +34,15 @@ def test_ideal_bubble_point_at_pure_proh_matches_antoine_boiling_point():
     T_bub = pd.bubble_point_temperature(1.0, IDEAL_GAMMA)
     # At z=1 (ideal), the bubble point is exactly where Pvap_PrOH(T) == P_tot.
     assert pd.pvap_antoine(T_bub, pd.ANTOINE_CONSTANTS["PrOH"]) == pytest.approx(
-        pd.P_TOT_BAR, rel=1e-6)
+        pd.P_TOT_BAR, rel=1e-6
+    )
 
 
 def test_ideal_bubble_point_at_pure_water_matches_antoine_boiling_point():
     T_bub = pd.bubble_point_temperature(0.0, IDEAL_GAMMA)
     assert pd.pvap_antoine(T_bub, pd.ANTOINE_CONSTANTS["H2O"]) == pytest.approx(
-        pd.P_TOT_BAR, rel=1e-6)
+        pd.P_TOT_BAR, rel=1e-6
+    )
 
 
 def test_dew_point_pure_component_edge_cases():

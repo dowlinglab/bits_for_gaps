@@ -4,6 +4,7 @@ Ported from ``fxns/mcmc_plotter.py``'s ``plot_entropy_v_iters`` (``fxns/plot_res
 ``-m ent_v_iters`` mode). Visual reproduction only (no golden pin) -- spot-check
 against the archived ``entropy_v_iters.png``.
 """
+
 import os
 
 from . import _archive
@@ -23,11 +24,10 @@ def make(archive_dir, out_dir, img_fmt="png"):
     ax1.set_xlabel("Iteration")
     ax1.set_ylabel("Maximum Entropy")
     ax1.margins(x=0.01)
-    ax1.set_xticks(iters[::max(1, len(iters) // 15)])
+    ax1.set_xticks(iters[:: max(1, len(iters) // 15)])
 
     ax2 = ax1.twinx()
-    ax2.plot(iters, [-h for h in max_entropy], "b--", linewidth=2,
-             label="Minimum Information")
+    ax2.plot(iters, [-h for h in max_entropy], "b--", linewidth=2, label="Minimum Information")
     ax2.set_ylabel("Minimum Information", color="b")
     ax2.tick_params(axis="y", labelcolor="b")
 

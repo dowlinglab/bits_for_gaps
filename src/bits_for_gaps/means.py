@@ -9,6 +9,8 @@ TODO(Phase 5): ``FixedInverseMean`` assumes the mole fraction is input column 0;
 generalize the input-column convention when the kernel goes N-D.
 """
 
+from __future__ import annotations
+
 import gpflow
 import tensorflow as tf
 
@@ -20,13 +22,13 @@ class FixedInverseMean(gpflow.mean_functions.MeanFunction):
     with x = X[:, 0] the mole fraction.
     """
 
-    def __init__(self, epsilon=0.6, lambda_bc=0.1, eps=1e-8):
+    def __init__(self, epsilon: float = 0.6, lambda_bc: float = 0.1, eps: float = 1e-8) -> None:
         super().__init__()
         self.epsilon = epsilon
         self.lambda_bc = lambda_bc
         self.eps = eps
 
-    def __call__(self, X):
+    def __call__(self, X: tf.Tensor) -> tf.Tensor:
         x = X[:, 0:1]
         base = (2.0 - x) / (x + self.epsilon)
         safe_base = tf.maximum(base, self.eps)

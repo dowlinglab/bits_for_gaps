@@ -6,6 +6,7 @@ predates the Phase 5 N-D generalization, plus new tests for the generalized API:
 canonical ``hyperparameters`` order, ``assign_hyperparameters`` round-tripping, and
 explicit N-D (1-D and 3-D) construction with per-dimension prior families.
 """
+
 import gpflow
 import numpy as np
 import pytest
@@ -95,6 +96,7 @@ def test_anisotropic_lengthscale_scaling(kernel):
 ## Phase 5: N-D generalization -- canonical ordering, generic assignment, N-D construction
 ## ---------------------------------------------------------------------------
 
+
 def test_hyperparameters_canonical_order(kernel):
     # [std_dev, lengthscale_1, lengthscale_2, ...] -- the contract gp.run_mcmc /
     # mixture.py / acquisition.py rely on for generic introspection.
@@ -136,6 +138,7 @@ def test_assign_hyperparameters_round_trips(kernel):
 ## (mixture.py/acquisition.py use these together; see their tests for the full loop).
 ## ---------------------------------------------------------------------------
 
+
 def test_save_hyperparameters_captures_current_values(kernel):
     assign_hyperparameters(kernel, [9.0, 8.0, 7.0])
     saved = save_hyperparameters(kernel)
@@ -143,7 +146,7 @@ def test_save_hyperparameters_captures_current_values(kernel):
 
 
 def test_save_then_assign_then_restore_round_trips(kernel):
-    saved = save_hyperparameters(kernel)   # the defaults: [1.25, 2.0, 0.5]
+    saved = save_hyperparameters(kernel)  # the defaults: [1.25, 2.0, 0.5]
     assign_hyperparameters(kernel, [9.0, 8.0, 7.0])
     assert [_val(p) for p in kernel.hyperparameters] != saved
     assign_hyperparameters(kernel, saved)
@@ -213,3 +216,37 @@ def test_variance_prior_requires_lengthscale_priors():
         AnisotropicSE(
             variance_prior=tfp.distributions.LogNormal(loc=tf.math.log(f64(1.0)), scale=f64(2.0)),
         )
+
+
+## ---------------------------------------------------------------------------
+## Phase 9d: assign_hyperparameters raises a clear, specific error instead of a
+## low-level gpflow/TF traceback for a value that can't round-trip through a
+## parameter's transform -- the exact error class hit mid-investigation in Phase 9b/9c
+## (see paper/PHASE9B_INVESTIGATION.md and kernels.py's assign_hyperparameters
+## docstring). Behavior-preserving for every assignable value (every value seen in
+## this codebase's tests/golden regressions/from-scratch reproduction runs).
+## ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("bad_std_dev", [0.0, -1.0])
+def test_assign_hyperparameters_raises_clear_error_for_non_finite_unconstrained(
+    kernel, bad_std_dev
+):
+    # std_dev is positivity-constrained (Softplus); 0.0/-1.0 have no finite
+    # unconstrained (softplus-inverse) representation.
+    with pytest.raises(ValueError, match="std_dev"):
+        assign_hyperparameters(kernel, [bad_std_dev, 1.0, 1.0])
+
+
+def test_assign_hyperparameters_error_names_the_offending_value(kernel):
+    with pytest.raises(ValueError, match="-1.0"):
+        assign_hyperparameters(kernel, [-1.0, 1.0, 1.0])
+
+
+def test_assign_hyperparameters_still_works_for_valid_values_after_a_failed_call(kernel):
+    # The guard must not leave the kernel (or assign_hyperparameters itself) broken
+    # for subsequent valid calls.
+    with pytest.raises(ValueError):
+        assign_hyperparameters(kernel, [-1.0, 1.0, 1.0])
+    assign_hyperparameters(kernel, [2.0, 3.0, 4.0])
+    assert [_val(p) for p in kernel.hyperparameters] == [2.0, 3.0, 4.0]

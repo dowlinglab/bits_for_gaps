@@ -18,15 +18,16 @@ environment BEFORE ``juliacall`` is imported for the first time in a process, or
 juliacall SIGBUSes. Set defensively here, before the lazy import, in case the caller
 forgot to set it in the shell.
 """
+
 import os
 
-COMPOUNDS = ("propanol", "water")   # Clapeyron component order: index 0 = PrOH, 1 = H2O
-PRESSURE_PA = 101325.0              # 1 atm; Wilson's gamma doesn't depend on P anyway
+COMPOUNDS = ("propanol", "water")  # Clapeyron component order: index 0 = PrOH, 1 = H2O
+PRESSURE_PA = 101325.0  # 1 atm; Wilson's gamma doesn't depend on P anyway
 THERMO_MODEL = "Wilson"
 
 _JL_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calculate_activities.jl")
 
-_activity_fn = None   # lazily-populated Julia closure (juliacall wraps it as callable)
+_activity_fn = None  # lazily-populated Julia closure (juliacall wraps it as callable)
 
 
 def _require_activity_fn():
@@ -41,7 +42,7 @@ def _require_activity_fn():
     except ImportError as exc:
         raise ImportError(
             "The VLE example's activity model needs Julia + Clapeyron.jl. Install "
-            "with `pip install \"bits_for_gaps[vle]\"` and a working Julia "
+            'with `pip install "bits_for_gaps[vle]"` and a working Julia '
             "installation -- see examples/vle_distillation/README.md."
         ) from exc
 
@@ -49,8 +50,9 @@ def _require_activity_fn():
     return _activity_fn
 
 
-def activity_coefficients(z_proh, temperature, pressure=PRESSURE_PA,
-                          compounds=COMPOUNDS, thermo_model=THERMO_MODEL):
+def activity_coefficients(
+    z_proh, temperature, pressure=PRESSURE_PA, compounds=COMPOUNDS, thermo_model=THERMO_MODEL
+):
     """Activity coefficients ``(gamma_proh, gamma_water)`` from Clapeyron.jl.
 
     Parameters
@@ -69,11 +71,16 @@ def activity_coefficients(z_proh, temperature, pressure=PRESSURE_PA,
     -------
     (gamma_proh, gamma_water) : tuple of float
     """
-    from juliacall import Main as jl   # cheap: already imported by _require_activity_fn
+    from juliacall import Main as jl  # cheap: already imported by _require_activity_fn
 
     activity_fn = _require_activity_fn()
-    out = activity_fn(thermo_model, jl.seval("Vector{String}")(list(compounds)),
-                      float(pressure), float(temperature), float(z_proh))
+    out = activity_fn(
+        thermo_model,
+        jl.seval("Vector{String}")(list(compounds)),
+        float(pressure),
+        float(temperature),
+        float(z_proh),
+    )
     return float(out[0]), float(out[1])
 
 

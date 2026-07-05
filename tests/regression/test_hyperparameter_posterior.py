@@ -7,6 +7,7 @@ mixture-posterior code must reproduce after the Phase 4/5 refactor.
 
 Pure (JSON only) -- no TensorFlow, no Julia.
 """
+
 PARAMS = ["std_dev", "lengthscale_1", "lengthscale_2"]
 
 

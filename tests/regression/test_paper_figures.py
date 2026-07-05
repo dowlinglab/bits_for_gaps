@@ -18,6 +18,7 @@ visual reproduction, not a pinned scalar target -- see ``paper/REPRODUCTION.md``
 instead its test cross-checks the freshly-recomputed Wilson curve against the
 committed ``gt_Wilson_data`` the paper's own Fig 8 was built from.
 """
+
 import os
 from pathlib import Path
 

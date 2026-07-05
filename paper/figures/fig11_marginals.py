@@ -6,6 +6,7 @@ posterior summary IS pinned quantitatively, in
 ``paper/golden/hyperparameter_posterior.json``) -- spot-check against the archived
 ``marginals_15.png``.
 """
+
 import os
 
 import numpy as np
@@ -28,15 +29,20 @@ def make(archive_dir, out_dir, iters=_archive.PUBLISHED_ITERS, img_fmt="png"):
     axes = np.atleast_1d(axes)
     for p in range(n_params):
         ax = axes[p]
-        counts, bins, _ = ax.hist(params[:, p], bins=40, color="tab:blue", alpha=0.4,
-                                  edgecolor="k")
+        counts, bins, _ = ax.hist(params[:, p], bins=40, color="tab:blue", alpha=0.4, edgecolor="k")
         map_estimate = bins[np.argmax(counts)]
         lo, hi = np.quantile(params[:, p], [0.025, 0.975])
         ax.axvline(map_estimate, color="k", linestyle="-", label="MAP")
         ax.axvline(lo, color="k", linestyle="--", label="95% CI")
         ax.axvline(hi, color="k", linestyle="--")
-        ax.text(0.04, 0.91, letters[p % len(letters)], transform=ax.transAxes,
-               fontweight="bold", backgroundcolor="w")
+        ax.text(
+            0.04,
+            0.91,
+            letters[p % len(letters)],
+            transform=ax.transAxes,
+            fontweight="bold",
+            backgroundcolor="w",
+        )
         label = PARAM_LABELS[p] if p < len(PARAM_LABELS) else rf"$\theta_{{{p + 1}}}$"
         ax.set_xlabel(label)
         if p == 0:

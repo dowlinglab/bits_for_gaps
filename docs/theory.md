@@ -68,11 +68,13 @@ has no closed form, so `bits_for_gaps.entropy` provides two estimators:
 
 - {func}`~bits_for_gaps.entropy.second_order_entropy` -- a second-order Taylor
   approximation (Huber et al., 2008) around each mixture component. This is the
-  estimator the acquisition function actually maximizes
-  ({func}`bits_for_gaps.acquisition.entropy_objective`).
+  **default** estimator {func}`bits_for_gaps.acquisition.entropy_objective`
+  maximizes (`objective="taylor"`) -- the one that drove acquisition in the paper.
 - {func}`~bits_for_gaps.entropy.entropy_lower_bound` -- a closed-form lower bound
-  on the true mixture entropy (cheaper, less tight; a real feature of the method,
-  present but not wired into the default acquisition path).
+  on the true mixture entropy (cheaper, less tight). Selectable as the acquisition
+  objective via `objective="lower_bound"` (or, on `BitsForGaps`/`adaptiveEntropy`,
+  `.acquisitionObjective = "lower_bound"`) -- implemented since Phase 2 but only
+  wired up as a usable acquisition choice in Phase 9d.
 
 Both reduce to the exact differential entropy of a single Gaussian in the
 degenerate one-component case (see `tests/unit/test_entropy.py`, which checks this

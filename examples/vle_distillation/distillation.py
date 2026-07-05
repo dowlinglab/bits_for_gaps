@@ -16,6 +16,7 @@ Pure NumPy/SciPy -- no Julia, no TensorFlow. Plotting (McCabe-Thiele diagram) is
 separate, lazily-imported-matplotlib function, :func:`plot_mccabe_thiele`, so this
 module is importable without matplotlib.
 """
+
 import numpy as np
 from scipy.optimize import fsolve
 
@@ -32,11 +33,11 @@ def _distillation_residuals(v, n, feed_stage_idx, equil, fixed_idx, fixed_vals):
     offset_x, offset_y = 2 * num_stages, 3 * num_stages
     offset_params = 4 * num_stages  # D, R, W, F, xF, q
 
-    L = v[offset_L: offset_L + num_stages]
-    V = v[offset_V: offset_V + num_stages]
-    x = v[offset_x: offset_x + num_stages]
-    y = v[offset_y: offset_y + num_stages]
-    D, R, W, F, xF, q = v[offset_params: offset_params + 6]
+    L = v[offset_L : offset_L + num_stages]
+    V = v[offset_V : offset_V + num_stages]
+    x = v[offset_x : offset_x + num_stages]
+    y = v[offset_y : offset_y + num_stages]
+    D, R, W, F, xF, q = v[offset_params : offset_params + 6]
 
     f = np.zeros_like(v)
 
@@ -49,8 +50,9 @@ def _distillation_residuals(v, n, feed_stage_idx, equil, fixed_idx, fixed_vals):
     # Component mass balance (stages 1..n).
     offset_eq = n
     for idx in range(1, n + 1):
-        f[offset_eq + idx - 1] = (L[idx - 1] * x[idx - 1] + V[idx] * y[idx]
-                                  - L[idx] * x[idx] - V[idx - 1] * y[idx - 1])
+        f[offset_eq + idx - 1] = (
+            L[idx - 1] * x[idx - 1] + V[idx] * y[idx] - L[idx] * x[idx] - V[idx - 1] * y[idx - 1]
+        )
     f[offset_eq + feed_stage_idx] += F * xF
 
     # Constant molar overflow (stages 1..n), adjusted by feed quality q at the feed stage.
@@ -71,15 +73,15 @@ def _distillation_residuals(v, n, feed_stage_idx, equil, fixed_idx, fixed_vals):
 
     # Condenser and reboiler equations.
     offset_eq = 4 * n + len(fixed_idx)
-    f[offset_eq + 0] = y[0] - x[0]        # total condenser: y_1 = x_0
+    f[offset_eq + 0] = y[0] - x[0]  # total condenser: y_1 = x_0
     # NOTE (kept from the original port): a partial reboiler is usually
     # y_{n+1} = equil(x_W). The source MATLAB instead sets x_n = y_{n+1} (liquid
     # leaving stage n equals the vapor leaving the reboiler); replicated as-is here
     # for physics parity with the paper's published column design.
     f[offset_eq + 1] = x[n] - y[n]
-    f[offset_eq + 2] = L[0] - R * D       # reflux: L_0 = R * D
-    f[offset_eq + 3] = V[0] - L[0] - D    # condenser balance: V_1 = L_0 + D
-    f[offset_eq + 4] = L[n] - V[n] - W    # reboiler balance: L_n = V_{n+1} + W
+    f[offset_eq + 2] = L[0] - R * D  # reflux: L_0 = R * D
+    f[offset_eq + 3] = V[0] - L[0] - D  # condenser balance: V_1 = L_0 + D
+    f[offset_eq + 4] = L[n] - V[n] - W  # reboiler balance: L_n = V_{n+1} + W
 
     return f
 
@@ -137,24 +139,25 @@ def _try_solve_column(v0, n, feed_stage_idx, equil, fixed_idx, fixed_vals, num_s
     does. Factored out (Phase 9c) so :func:`solve_column` can retry from alternate
     initial guesses without duplicating the residual/extraction/diagnostic logic.
     """
+
     def residual_func(v_solve):
-        return _distillation_residuals(v_solve, n, feed_stage_idx, equil, fixed_idx,
-                                       fixed_vals)
+        return _distillation_residuals(v_solve, n, feed_stage_idx, equil, fixed_idx, fixed_vals)
 
     v_solution, _infodict, ier, _mesg = fsolve(residual_func, v0, full_output=True)
 
     offset_L, offset_V = 0, num_stages
     offset_x, offset_y = 2 * num_stages, 3 * num_stages
     offset_params = 4 * num_stages
-    L = v_solution[offset_L: offset_L + num_stages]
-    V = v_solution[offset_V: offset_V + num_stages]
-    x = v_solution[offset_x: offset_x + num_stages]
-    y = v_solution[offset_y: offset_y + num_stages]
-    D, R, W, F, xF, q = v_solution[offset_params: offset_params + 6]
+    L = v_solution[offset_L : offset_L + num_stages]
+    V = v_solution[offset_V : offset_V + num_stages]
+    x = v_solution[offset_x : offset_x + num_stages]
+    y = v_solution[offset_y : offset_y + num_stages]
+    D, R, W, F, xF, q = v_solution[offset_params : offset_params + 6]
 
     # Stage i's liquid/vapor (both leaving stage i): x[i] / y[i-1] in the 0-based arrays.
-    stages = [{"stage": i, "liquid": float(x[i]), "vapor": float(y[i - 1])}
-             for i in range(1, num_stages)]
+    stages = [
+        {"stage": i, "liquid": float(x[i]), "vapor": float(y[i - 1])} for i in range(1, num_stages)
+    ]
 
     # fsolve has no bounds: given a poorly-resolved equil() (e.g. too coarse a z-grid
     # in phase_diagram.vle_curve), it can converge (residual ~ 0) to a spurious root
@@ -172,10 +175,19 @@ def _try_solve_column(v0, n, feed_stage_idx, equil, fixed_idx, fixed_vals, num_s
         warnings.append("non-positive liquid/vapor flow rates")
 
     return {
-        "converged": ier == 1 and not warnings, "warnings": warnings, "stages": stages,
-        "L": L, "V": V, "x": x, "y": y,
-        "D": float(D), "R": float(R), "W": float(W), "F": float(F),
-        "xF": float(xF), "q": float(q),
+        "converged": ier == 1 and not warnings,
+        "warnings": warnings,
+        "stages": stages,
+        "L": L,
+        "V": V,
+        "x": x,
+        "y": y,
+        "D": float(D),
+        "R": float(R),
+        "W": float(W),
+        "F": float(F),
+        "xF": float(xF),
+        "q": float(q),
     }
 
 
@@ -230,25 +242,29 @@ def solve_column(n_stages, feed_stage, equil, var_names, var_values):
     fixed_vals = np.array(var_values, dtype=float)
 
     def make_v0(x_level=0.5, y_level=0.5):
-        v0 = np.concatenate([
-            F_initial * np.ones(num_stages),   # L
-            F_initial * np.ones(num_stages),   # V
-            x_level * np.ones(num_stages),      # x
-            y_level * np.ones(num_stages),      # y
-            np.array([0.5 * F_initial, 2.0, 0.5 * F_initial, F_initial, 0.5, 1.0]),
-        ])
+        v0 = np.concatenate(
+            [
+                F_initial * np.ones(num_stages),  # L
+                F_initial * np.ones(num_stages),  # V
+                x_level * np.ones(num_stages),  # x
+                y_level * np.ones(num_stages),  # y
+                np.array([0.5 * F_initial, 2.0, 0.5 * F_initial, F_initial, 0.5, 1.0]),
+            ]
+        )
         for i, idx in enumerate(fixed_idx):
             v0[idx] = fixed_vals[i]
         return v0
 
-    result = _try_solve_column(make_v0(), n, feed_stage_idx, equil, fixed_idx,
-                               fixed_vals, num_stages)
+    result = _try_solve_column(
+        make_v0(), n, feed_stage_idx, equil, fixed_idx, fixed_vals, num_stages
+    )
     if result["converged"]:
         return result
 
     for x_level, y_level in _RETRY_INITIAL_GUESS_LEVELS:
-        retry = _try_solve_column(make_v0(x_level, y_level), n, feed_stage_idx, equil,
-                                  fixed_idx, fixed_vals, num_stages)
+        retry = _try_solve_column(
+            make_v0(x_level, y_level), n, feed_stage_idx, equil, fixed_idx, fixed_vals, num_stages
+        )
         if retry["converged"]:
             retry["warnings"] = retry["warnings"] + [
                 f"converged only after retrying with an alternate initial guess "
@@ -281,8 +297,8 @@ def plot_mccabe_thiele(result, equil, feed_stage, ax=None):
     for i in range(n):
         ax.plot([x[i], x[i + 1]], [y[i], y[i]], "k--", linewidth=2.0)
         ax.plot([x[i + 1], x[i + 1]], [y[i], y[i + 1]], "k--", linewidth=2.0)
-    ax.plot(x[:feed_stage_idx + 1], y[:feed_stage_idx + 1], "r.-", label="Enriching OL")
-    ax.plot(x[feed_stage_idx + 1:], y[feed_stage_idx + 1:], "g.-", label="Stripping OL")
+    ax.plot(x[: feed_stage_idx + 1], y[: feed_stage_idx + 1], "r.-", label="Enriching OL")
+    ax.plot(x[feed_stage_idx + 1 :], y[feed_stage_idx + 1 :], "g.-", label="Stripping OL")
     ax.plot(x[1:], y[:-1], "wo", markeredgecolor="b", label="Stages")
     ax.plot([result["xF"]], [result["xF"]], "ko", label="Feed")
     ax.set_xlabel(r"Mole Fraction PrOH ($\ell$), $z_{\mathrm{PrOH}}^{(\ell)}$")

@@ -5,20 +5,21 @@ new computation, so a run through it must reproduce the exact same pinned baseli
 ``adaptiveEntropy`` (see ``tests/integration/test_end_to_end.py`` and
 ``tests/integration/data/synthetic_baseline.json``).
 """
+
 import json
 
 import numpy as np
 import pytest
+from test_end_to_end import BASELINE_PATH, BOUNDS, SEED, _fwd_model, _initial_design
 
 from bits_for_gaps.kernels import AnisotropicSE
 from bits_for_gaps.sampler import BitsForGaps
 
-from test_end_to_end import BASELINE_PATH, SEED, _fwd_model, _initial_design, BOUNDS
-
 
 def _build_facade(seed=SEED):
-    bfg = BitsForGaps(black_box=_fwd_model, bounds=BOUNDS, kernel=AnisotropicSE(),
-                      likelihood_variance=0.05)
+    bfg = BitsForGaps(
+        black_box=_fwd_model, bounds=BOUNDS, kernel=AnisotropicSE(), likelihood_variance=0.05
+    )
     bfg.seed = seed
     bfg.noSamples = 100
     bfg.noBurnIn = 50

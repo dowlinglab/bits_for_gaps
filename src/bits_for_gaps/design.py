@@ -5,13 +5,18 @@ design generation with Julia activity-coefficient calls and disk I/O). These are
 N-dimensional, and return arrays -- no files, no thermodynamics.
 """
 
+from __future__ import annotations
+
 from itertools import product
+from typing import Optional, Sequence, Tuple
 
 import numpy as np
 from scipy.stats import qmc
 
+Bounds = Sequence[Tuple[float, float]]
 
-def _scale_to_bounds(unit_sample, bounds):
+
+def _scale_to_bounds(unit_sample: np.ndarray, bounds: Bounds) -> np.ndarray:
     """Map samples on the unit cube to the physical box ``bounds``."""
     out = np.array(unit_sample, dtype=float)
     for i, (low, high) in enumerate(bounds):
@@ -19,7 +24,7 @@ def _scale_to_bounds(unit_sample, bounds):
     return out
 
 
-def _split(points, n_test, seed):
+def _split(points: np.ndarray, n_test: int, seed: Optional[int]) -> Tuple[np.ndarray, np.ndarray]:
     """Shuffle and split into (train, test)."""
     rng = np.random.default_rng(seed)
     idx = rng.permutation(len(points))
@@ -27,7 +32,9 @@ def _split(points, n_test, seed):
     return points[train_idx], points[test_idx]
 
 
-def latin_hypercube_design(bounds, n_train, n_test=0, seed=None):
+def latin_hypercube_design(
+    bounds: Bounds, n_train: int, n_test: int = 0, seed: Optional[int] = None
+) -> Tuple[np.ndarray, np.ndarray]:
     """Latin-hypercube design over ``bounds``, split into train/test.
 
     Parameters
@@ -51,7 +58,9 @@ def latin_hypercube_design(bounds, n_train, n_test=0, seed=None):
     return _split(points, n_test, seed)
 
 
-def full_factorial_design(bounds, n_train, n_test=0, seed=None):
+def full_factorial_design(
+    bounds: Bounds, n_train: int, n_test: int = 0, seed: Optional[int] = None
+) -> Tuple[np.ndarray, np.ndarray]:
     """Full-factorial grid over ``bounds``, trimmed to ``n_train + n_test`` and split.
 
     The number of levels per dimension is ceil((n_train + n_test) ** (1/d)); if the grid
@@ -63,9 +72,7 @@ def full_factorial_design(bounds, n_train, n_test=0, seed=None):
     grid_unit = np.array(list(product(*[np.linspace(0, 1, levels) for _ in range(d)])))
 
     if len(grid_unit) < n_total:
-        raise ValueError(
-            f"Factorial grid has {len(grid_unit)} points, need {n_total}."
-        )
+        raise ValueError(f"Factorial grid has {len(grid_unit)} points, need {n_total}.")
     if len(grid_unit) > n_total:
         rng = np.random.default_rng(seed)
         grid_unit = rng.choice(grid_unit, size=n_total, replace=False)

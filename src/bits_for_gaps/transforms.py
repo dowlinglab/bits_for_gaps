@@ -12,10 +12,16 @@ mixture code applies them element-wise to scalars (e.g. a single bound) as well 
 whole columns -- exactly the calling convention the paper code used.
 """
 
+from __future__ import annotations
+
+from typing import Callable, Optional, Sequence
+
 import numpy as np
 
+ElementwiseFn = Callable[[np.ndarray], np.ndarray]
 
-def _identity(x):
+
+def _identity(x: np.ndarray) -> np.ndarray:
     return x
 
 
@@ -32,7 +38,12 @@ class InputTransform:
         transforms) when ``forward_fns``/``backward_fns`` are omitted.
     """
 
-    def __init__(self, forward_fns=None, backward_fns=None, ndim=None):
+    def __init__(
+        self,
+        forward_fns: Optional[Sequence[ElementwiseFn]] = None,
+        backward_fns: Optional[Sequence[ElementwiseFn]] = None,
+        ndim: Optional[int] = None,
+    ) -> None:
         if forward_fns is None and backward_fns is None:
             if ndim is None:
                 raise ValueError("ndim is required when forward_fns/backward_fns are omitted")
@@ -46,15 +57,15 @@ class InputTransform:
         self.backward_fns = list(backward_fns)
 
     @property
-    def ndim(self):
+    def ndim(self) -> int:
         return len(self.forward_fns)
 
-    def forward(self, X):
+    def forward(self, X: np.ndarray) -> np.ndarray:
         """Apply the per-dimension forward transforms; ``X``: (n, d) -> (n, d)."""
         X = np.atleast_2d(np.asarray(X, dtype=float))
         return np.column_stack([f(X[:, j]) for j, f in enumerate(self.forward_fns)])
 
-    def backward(self, X):
+    def backward(self, X: np.ndarray) -> np.ndarray:
         """Apply the per-dimension backward transforms; ``X``: (n, d) -> (n, d)."""
         X = np.atleast_2d(np.asarray(X, dtype=float))
         return np.column_stack([f(X[:, j]) for j, f in enumerate(self.backward_fns)])
@@ -63,12 +74,16 @@ class InputTransform:
 class OutputTransform:
     """Forward/backward transform for the (scalar) GP output column."""
 
-    def __init__(self, forward_fn=None, backward_fn=None):
+    def __init__(
+        self,
+        forward_fn: Optional[ElementwiseFn] = None,
+        backward_fn: Optional[ElementwiseFn] = None,
+    ) -> None:
         self.forward_fn = forward_fn or _identity
         self.backward_fn = backward_fn or _identity
 
-    def forward(self, y):
+    def forward(self, y: np.ndarray) -> np.ndarray:
         return self.forward_fn(y)
 
-    def backward(self, y):
+    def backward(self, y: np.ndarray) -> np.ndarray:
         return self.backward_fn(y)

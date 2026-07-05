@@ -4,6 +4,7 @@ Ported from ``fxns/mcmc_plotter.py``'s ``plot_gp_posterior_2D`` (``fxns/plot_res
 ``-m gp_post_2D`` mode). Visual reproduction only (no golden pin) -- spot-check
 against the archived ``gp_posterior_2D_{1,15}.png``.
 """
+
 import os
 
 import numpy as np
@@ -31,10 +32,8 @@ def _panel(ax, archive_dir, it, letter):
     hi_grid = hi.reshape(shape)
 
     ax.plot_surface(x1_grid, x2_grid, mean_grid, cmap="Oranges", alpha=0.8)
-    ax.plot_wireframe(x1_grid, x2_grid, lo_grid, rstride=5, cstride=2, alpha=0.15,
-                      color="k")
-    ax.plot_wireframe(x1_grid, x2_grid, hi_grid, rstride=5, cstride=2, alpha=0.15,
-                      color="k")
+    ax.plot_wireframe(x1_grid, x2_grid, lo_grid, rstride=5, cstride=2, alpha=0.15, color="k")
+    ax.plot_wireframe(x1_grid, x2_grid, hi_grid, rstride=5, cstride=2, alpha=0.15, color="k")
     ax.scatter(XData[:, 0], XData[:, 1], yData, c="k", alpha=1.0, s=40)
     ax.set_xlabel(r"$z_{\mathrm{PrOH}}$ [ ]", labelpad=10)
     ax.set_ylabel(r"$T$ [K]", labelpad=10)

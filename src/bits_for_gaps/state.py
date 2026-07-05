@@ -8,8 +8,10 @@ available, but as an *opt-in* checkpoint (``sampler.adaptiveEntropy.run``'s
 iterations.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any, Iterator, List, Optional
 
 import numpy as np
 
@@ -26,15 +28,15 @@ class IterationRecord:
     iteration: int
     XData: np.ndarray
     yData: np.ndarray
-    GPmodel: Any                          # fitted gpflow.models.GPR
-    trace: np.ndarray                     # HMC posterior samples, chain 0, constrained
-    chains_states: np.ndarray             # all chains, unconstrained
+    GPmodel: Any  # fitted gpflow.models.GPR
+    trace: np.ndarray  # HMC posterior samples, chain 0, constrained
+    chains_states: np.ndarray  # all chains, unconstrained
     rhat: np.ndarray
     ess: np.ndarray
-    entropy_field: Optional[np.ndarray] = None    # 2-D only (Phase 5 generalizes)
+    entropy_field: Optional[np.ndarray] = None  # 2-D only (Phase 5 generalizes)
     xStar: Optional[np.ndarray] = None
     max_entropy: Optional[float] = None
-    lml_result: Optional[Any] = None      # scipy OptimizeResult, if maximize_lml ran
+    lml_result: Optional[Any] = None  # scipy OptimizeResult, if maximize_lml ran
 
 
 @dataclass
@@ -43,18 +45,18 @@ class RunHistory:
 
     records: List[IterationRecord] = field(default_factory=list)
 
-    def append(self, record):
+    def append(self, record: IterationRecord) -> None:
         self.records.append(record)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.records)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> IterationRecord:
         return self.records[idx]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[IterationRecord]:
         return iter(self.records)
 
     @property
-    def last(self):
+    def last(self) -> IterationRecord:
         return self.records[-1]

@@ -6,6 +6,7 @@ sequential-design iterations (matching the paper's lettered-panel (a)-(f) scheme
 rather than one file per iteration. Visual reproduction only (no golden pin) --
 spot-check against the archived ``entropy_surface_{iters}.png`` files.
 """
+
 import os
 
 import numpy as np
@@ -34,8 +35,7 @@ def _panel(ax, archive_dir, it, letter):
     x_max_row = _archive.load_activity_data(archive_dir, it + 1)[-1, 0:2]
     ax.plot(x_max_row[0], x_max_row[1], "s", color="r", markeredgecolor="k", markersize=8)
 
-    ax.text(0.05, 0.9, letter, transform=ax.transAxes, fontweight="bold",
-           backgroundcolor="w")
+    ax.text(0.05, 0.9, letter, transform=ax.transAxes, fontweight="bold", backgroundcolor="w")
     ax.set_title(f"Iteration {it}", fontsize=10)
     return cs
 
@@ -52,8 +52,9 @@ def make(archive_dir, out_dir, n_panels=N_PANELS, img_fmt="png"):
 
     n_cols = 3
     n_rows = -(-len(iters) // n_cols)
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 3.5 * n_rows),
-                             constrained_layout=True)
+    fig, axes = plt.subplots(
+        n_rows, n_cols, figsize=(4 * n_cols, 3.5 * n_rows), constrained_layout=True
+    )
     axes = np.atleast_1d(axes).ravel()
 
     cs = None
@@ -61,12 +62,15 @@ def make(archive_dir, out_dir, n_panels=N_PANELS, img_fmt="png"):
         cs = _panel(ax, archive_dir, it, letter)
         ax.set_xlabel(r"$z_{\mathrm{PrOH}}$ [ ]")
         ax.set_ylabel(r"$T$ [K]")
-    for ax in axes[len(iters):]:
+    for ax in axes[len(iters) :]:
         ax.axis("off")
 
     if cs is not None:
-        fig.colorbar(cs, ax=axes[:len(iters)].tolist(),
-                    label=r"Entropy, $\mathcal{H}\{f(\mathbf{x}_*) \mid \mathbf{y}\}$")
+        fig.colorbar(
+            cs,
+            ax=axes[: len(iters)].tolist(),
+            label=r"Entropy, $\mathcal{H}\{f(\mathbf{x}_*) \mid \mathbf{y}\}$",
+        )
 
     out_path = os.path.join(out_dir, f"entropy_surface_panels.{img_fmt}")
     fig.savefig(out_path, dpi=300, bbox_inches="tight")

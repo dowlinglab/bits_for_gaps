@@ -15,6 +15,7 @@ Usage::
     export PYTHON_JULIACALL_HANDLE_SIGNALS=yes   # macOS: mandatory before any Julia use
     python examples/vle_distillation/run_case_study.py
 """
+
 import os
 import sys
 
@@ -27,13 +28,12 @@ from bits_for_gaps.design import latin_hypercube_design
 from bits_for_gaps.kernels import AnisotropicSE
 from bits_for_gaps.sampler import BitsForGaps
 from bits_for_gaps.transforms import InputTransform, OutputTransform
-
 from vle_distillation import activity_model, distillation, equilibrium
 from vle_distillation import phase_diagram as pd
 
 # Paper's exact 2-D VLE search space: liquid PrOH mole fraction, temperature [K].
 BOUNDS = [(1e-6, 0.999), (350.0, 367.0)]
-SEED = 10   # matches train_test_split_proh.py's `my_system.seed = 10`
+SEED = 10  # matches train_test_split_proh.py's `my_system.seed = 10`
 
 # Paper's exact GP input/output transforms (new_phase_diagram.py's __main__ block):
 # log(x + 0.1) keeps the mole-fraction lengthscale well-scaled near the dilute limit;
@@ -45,11 +45,11 @@ INPUT_TRANSFORM = InputTransform(
 )
 OUTPUT_TRANSFORM = OutputTransform(forward_fn=np.log, backward_fn=np.exp)
 
-N_INIT = 10          # matches PrOHwater(nObs=10, ...) for the manuscript run
-N_ITERS = 5          # adaptive design iterations (paper ran 15; kept small here --
-                     # full reproduction is Phase 7)
+N_INIT = 10  # matches PrOHwater(nObs=10, ...) for the manuscript run
+N_ITERS = 5  # adaptive design iterations (paper ran 15; kept small here --
+# full reproduction is Phase 7)
 COLUMN_VAR_NAMES = ["xW", "F", "xF", "R", "xD"]
-COLUMN_VAR_VALUES = [0.01, 100.0, 0.10, 1.0, 0.43]   # Geankoplis Ex. 11.4-1
+COLUMN_VAR_VALUES = [0.01, 100.0, 0.10, 1.0, 0.43]  # Geankoplis Ex. 11.4-1
 COLUMN_N_STAGES = 4
 COLUMN_FEED_STAGE = 3
 
@@ -60,9 +60,13 @@ def run(n_init=N_INIT, n_iters=N_ITERS, seed=SEED, z_grid_size=50):
     y_init = np.array([activity_model.black_box(z, T)[0] for z, T in X_init])
 
     bfg = BitsForGaps(
-        black_box=activity_model.black_box, bounds=BOUNDS, kernel=AnisotropicSE.paper_2d(),
-        mean_fxn=gpflow.mean_functions.Zero(), likelihood_variance=0.1,
-        input_transform=INPUT_TRANSFORM, output_transform=OUTPUT_TRANSFORM,
+        black_box=activity_model.black_box,
+        bounds=BOUNDS,
+        kernel=AnisotropicSE.paper_2d(),
+        mean_fxn=gpflow.mean_functions.Zero(),
+        likelihood_variance=0.1,
+        input_transform=INPUT_TRANSFORM,
+        output_transform=OUTPUT_TRANSFORM,
         iters=n_iters,
     )
     bfg.seed = seed
@@ -85,30 +89,42 @@ def run(n_init=N_INIT, n_iters=N_ITERS, seed=SEED, z_grid_size=50):
     equil_wilson = equilibrium.make_equilibrium_function(z_w, y_w)
     equil_surrogate = equilibrium.make_equilibrium_function(z_s, y_s)
     column_wilson = distillation.solve_column(
-        COLUMN_N_STAGES, COLUMN_FEED_STAGE, equil_wilson, COLUMN_VAR_NAMES,
+        COLUMN_N_STAGES,
+        COLUMN_FEED_STAGE,
+        equil_wilson,
+        COLUMN_VAR_NAMES,
         COLUMN_VAR_VALUES,
     )
     column_surrogate = distillation.solve_column(
-        COLUMN_N_STAGES, COLUMN_FEED_STAGE, equil_surrogate, COLUMN_VAR_NAMES,
+        COLUMN_N_STAGES,
+        COLUMN_FEED_STAGE,
+        equil_surrogate,
+        COLUMN_VAR_NAMES,
         COLUMN_VAR_VALUES,
     )
 
     if not column_wilson["converged"]:
         print(f"WARNING: Wilson column: {column_wilson['warnings']}")
     if not column_surrogate["converged"]:
-        print(f"WARNING: surrogate column: {column_surrogate['warnings']} -- likely too "
-             f"few design points for a well-behaved surrogate; try more n_init/n_iters.")
+        print(
+            f"WARNING: surrogate column: {column_surrogate['warnings']} -- likely too "
+            f"few design points for a well-behaved surrogate; try more n_init/n_iters."
+        )
 
     print("\nStage table (liquid / vapor PrOH mole fraction):")
-    print(f"{'stage':>5}  {'wilson liq':>10}  {'wilson vap':>10}  "
-         f"{'surrogate liq':>13}  {'surrogate vap':>13}")
+    print(
+        f"{'stage':>5}  {'wilson liq':>10}  {'wilson vap':>10}  "
+        f"{'surrogate liq':>13}  {'surrogate vap':>13}"
+    )
     for sw, ss in zip(column_wilson["stages"], column_surrogate["stages"]):
-        print(f"{sw['stage']:>5}  {sw['liquid']:>10.4f}  {sw['vapor']:>10.4f}  "
-             f"{ss['liquid']:>13.4f}  {ss['vapor']:>13.4f}")
+        print(
+            f"{sw['stage']:>5}  {sw['liquid']:>10.4f}  {sw['vapor']:>10.4f}  "
+            f"{ss['liquid']:>13.4f}  {ss['vapor']:>13.4f}"
+        )
 
     return {
-        "history": history, "phase_diagram": {"wilson": (z_w, T_w, y_w),
-                                              "surrogate": (z_s, T_s, y_s)},
+        "history": history,
+        "phase_diagram": {"wilson": (z_w, T_w, y_w), "surrogate": (z_s, T_s, y_s)},
         "column": {"wilson": column_wilson, "surrogate": column_surrogate},
     }
 
