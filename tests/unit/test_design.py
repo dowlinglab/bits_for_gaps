@@ -37,3 +37,22 @@ def test_full_factorial_shapes_and_bounds():
     assert train.shape[0] == 12 and test.shape[0] == 4
     allpts = np.vstack([train, test])
     assert allpts.min() >= 0.0 and allpts.max() <= 1.0
+
+
+def test_full_factorial_exact_grid_size_needs_no_trimming():
+    # levels = ceil(9 ** (1/2)) = 3 -> a 3x3 grid has exactly 9 points, no trimming
+    # (and therefore no `seed`-dependent `rng.choice` call) needed.
+    bounds = [(0.0, 1.0), (0.0, 1.0)]
+    train, test = full_factorial_design(bounds, n_train=9, n_test=0, seed=None)
+    assert train.shape == (9, 2)
+    assert test.shape == (0, 2)
+
+
+## NOTE: `full_factorial_design`'s "grid too small" `ValueError` (design.py:74-75) is
+## unreachable via any (bounds, n_train, n_test) combination: `levels =
+## ceil(n_total ** (1/d))` guarantees `levels ** d >= n_total` for every positive
+## integer `n_total` and `d` (verified by brute-force search over n_total <= 2000,
+## d <= 4 -- no counterexample). It is defensive dead code, not a bug (every reachable
+## call returns a correctly-shaped grid); left as-is since this pass is
+## behavior-preserving and the guard is harmless. Not given a test here since there is
+## no real input that exercises it.

@@ -90,3 +90,20 @@ def test_sample_gp_posterior_mixture_default_tf_seed_is_unset(gp_model, trace):
     draws_a = sample_gp_posterior_mixture(trace, gp_model, XGP, seed=42, size=5)
     draws_b = sample_gp_posterior_mixture(trace, gp_model, XGP, seed=42, size=5)
     assert not np.array_equal(draws_a, draws_b)
+
+
+def test_predict_grid_2d_rejects_non_2d_bounds(gp_model, trace):
+    # predict_grid_2D is a 2-D-only visualization diagnostic (Phase 5) -- it must
+    # raise a clear error for other dimensions rather than silently misbehaving.
+    with pytest.raises(ValueError, match="2-D-only"):
+        predict_grid_2D(
+            trace,
+            gp_model,
+            x_bounds=[(0.0, 1.0)],
+            x_trsf_fwd=[lambda x: x],
+            x_trsf_bkwd=[lambda x: x],
+            y_trsf_bkwd=lambda y: y,
+            seed=42,
+            size=5,
+            n_grid=4,
+        )

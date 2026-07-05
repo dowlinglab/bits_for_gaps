@@ -7,10 +7,12 @@ regression pin against the paper code's 5-component mixture example (huber_et_al
 
 import numpy as np
 import pytest
+from scipy import stats
 
 from bits_for_gaps.entropy import (
     entropy_lower_bound,
     first_order_entropy_approx,
+    gaussian_mixture_density,
     second_order_entropy,
 )
 
@@ -92,3 +94,33 @@ def test_first_order_entropy_approx_well_formed_mixture_unaffected():
     # The happy path must be completely unchanged by the assert -> raise conversion.
     H = first_order_entropy_approx(weights=[0.5, 0.5], means=[0.0, 1.0], covs=[1.0, 1.0])
     assert np.isfinite(H)
+
+
+## ---------------------------------------------------------------------------
+## gaussian_mixture_density (Eq 7): only exercised indirectly (via the entropy
+## estimators above) until now -- verify it directly against scipy.stats.
+## ---------------------------------------------------------------------------
+
+
+def test_gaussian_mixture_density_single_component_matches_scipy_univariate():
+    x = 0.3
+    density = gaussian_mixture_density(x, means=[0.0], covs=[2.0], weights=[1.0])
+    assert density == pytest.approx(stats.norm.pdf(x, loc=0.0, scale=np.sqrt(2.0)), rel=1e-12)
+
+
+def test_gaussian_mixture_density_two_components_is_weighted_sum():
+    x = 0.3
+    means, covs, weights = [0.0, 1.5], [1.0, 0.5], [0.4, 0.6]
+    density = gaussian_mixture_density(x, means, covs, weights)
+    expected = 0.4 * stats.norm.pdf(x, loc=0.0, scale=1.0) + 0.6 * stats.norm.pdf(
+        x, loc=1.5, scale=np.sqrt(0.5)
+    )
+    assert density == pytest.approx(expected, rel=1e-12)
+
+
+def test_gaussian_mixture_density_multivariate_matches_scipy():
+    x = np.array([0.2, -0.1])
+    mean = np.zeros(2)
+    cov = np.diag([1.0, 0.5])
+    density = gaussian_mixture_density(x, means=[mean], covs=[cov], weights=[1.0])
+    assert density == pytest.approx(stats.multivariate_normal.pdf(x, mean=mean, cov=cov), rel=1e-12)

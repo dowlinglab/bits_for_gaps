@@ -169,3 +169,19 @@ def test_call_model_accepts_well_formed_black_box_output():
     XData_new, yData_new = s.call_model([0.5, 358.0], np.array([[0.4, 357.0]]), np.array([1.0]))
     assert XData_new.shape == (2, 2)
     assert yData_new.shape == (2, 1)
+    np.testing.assert_array_equal(XData_new, [[0.4, 357.0], [0.5, 358.0]])
+    expected_y = _fwd_model(0.5, 358.0)[0]
+    assert yData_new[-1, 0] == pytest.approx(expected_y)
+
+
+def test_call_model_extracts_first_element_of_multi_element_output():
+    # A black box that (like Clapeyron's activity model) returns more than one value
+    # must have only its first element appended -- the rest is silently dropped, by
+    # design (call_model docstring): the GP models a single scalar output.
+    def multi_output_fwd_model(x1, x2):
+        return [float(x1 + x2), 999.0, -1.0]
+
+    s = _build()
+    s.FwdModel = multi_output_fwd_model
+    XData_new, yData_new = s.call_model([0.5, 358.0], np.array([[0.4, 357.0]]), np.array([1.0]))
+    assert yData_new[-1, 0] == pytest.approx(0.5 + 358.0)
