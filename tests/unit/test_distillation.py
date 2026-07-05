@@ -77,6 +77,74 @@ def test_resolve_fixed_indices_rejects_unknown_name():
         dist._resolve_fixed_indices(4, ["bogus"], [0.5])
 
 
+## ---------------------------------------------------------------------------
+## Phase 9c: solve_column's retry-on-non-convergence orchestration.
+##
+## Stubs _try_solve_column rather than hunting for a real equilibrium curve that
+## reproducibly fails to converge -- fsolve's behavior on synthetic curves is
+## empirically finicky (see this file's module docstring), so a test relying on that
+## would be fragile. This isolates the ORCHESTRATION logic (which initial guesses are
+## tried, in what order, and what's returned) from fsolve's actual convergence, which
+## is exercised for real under @pytest.mark.vle (test_mccabe_thiele.py) instead.
+## ---------------------------------------------------------------------------
+
+def _stub_result(converged, x_level=None):
+    return {
+        "converged": converged,
+        "warnings": [] if converged else ["fsolve did not report convergence"],
+        "stages": [{"stage": 1, "liquid": x_level, "vapor": x_level}],
+        "L": np.array([1.0]), "V": np.array([1.0]), "x": np.array([0.0, 0.0]),
+        "y": np.array([0.0, 0.0]), "D": 1.0, "R": 1.0, "W": 1.0, "F": 1.0, "xF": 0.5,
+        "q": 1.0,
+    }
+
+
+def test_solve_column_returns_first_attempt_unmodified_when_it_converges(monkeypatch):
+    calls = []
+
+    def fake_try_solve(v0, n, feed_stage_idx, equil, fixed_idx, fixed_vals, num_stages):
+        calls.append(float(v0[2 * num_stages + 1]))   # x[1]: interior, not fixed
+        return _stub_result(converged=True)
+
+    monkeypatch.setattr(dist, "_try_solve_column", fake_try_solve)
+    # 4 stages (matches the paper's actual column spec): x[0]/x[4] are fixed
+    # (xD/xW), x[1..3] stay at the initial-guess level, so x[1] is a valid probe.
+    result = dist.solve_column(4, 3, lambda x: x, ["xW", "F", "xF", "R", "xD"],
+                               [0.01, 100.0, 0.10, 1.0, 0.43])
+    assert result["converged"] is True
+    assert calls == [0.5]   # only the default guess was tried -- no retries needed
+    assert result["warnings"] == []   # untouched: no retry note added
+
+
+def test_solve_column_retries_alternate_guesses_on_non_convergence(monkeypatch):
+    calls = []
+
+    def fake_try_solve(v0, n, feed_stage_idx, equil, fixed_idx, fixed_vals, num_stages):
+        x_level = float(v0[2 * num_stages + 1])   # x[1]: interior, not fixed
+        calls.append(x_level)
+        return _stub_result(converged=(x_level == pytest.approx(0.7)))
+
+    monkeypatch.setattr(dist, "_try_solve_column", fake_try_solve)
+    result = dist.solve_column(4, 3, lambda x: x, ["xW", "F", "xF", "R", "xD"],
+                               [0.01, 100.0, 0.10, 1.0, 0.43])
+    assert result["converged"] is True
+    # Default (0.5) fails, then retries in _RETRY_INITIAL_GUESS_LEVELS order (0.3
+    # fails, 0.7 succeeds) -- stops there, never tries the third (0.2) guess.
+    assert calls == [0.5, 0.3, 0.7]
+    assert any("alternate initial guess" in w for w in result["warnings"])
+
+
+def test_solve_column_reports_when_all_retries_fail(monkeypatch):
+    def always_fails(v0, n, feed_stage_idx, equil, fixed_idx, fixed_vals, num_stages):
+        return _stub_result(converged=False)
+
+    monkeypatch.setattr(dist, "_try_solve_column", always_fails)
+    result = dist.solve_column(1, 1, lambda x: x, ["xW", "F", "xF", "R", "xD"],
+                               [0.2, 100.0, 0.4, 1.5, 0.6])
+    assert result["converged"] is False
+    assert any("none converged" in w for w in result["warnings"])
+
+
 def test_solve_column_stage_indexing_convention():
     # Confirm the returned "stages" pairing (x[i], y[i-1]) against a converged, hand-
     # verified solution rather than re-deriving fsolve convergence in this test.

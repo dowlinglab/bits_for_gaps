@@ -178,3 +178,26 @@ def test_run_checkpoint_dir_is_opt_in(tmp_path):
     written = {p.name for p in checkpoint_dir.iterdir()}
     assert {"rhat_value_1.txt", "ess_value_1.txt", "activity_data_2",
             "gp_model_1.pkl"} <= written
+
+
+@pytest.mark.slow
+def test_iteration_record_gpmodel_survives_downstream_mixture_sampling():
+    # Phase 9c regression guard for the exact real-world bug Phase 9b found (see
+    # paper/PHASE9B_INVESTIGATION.md): a caller that reuses history.last.GPmodel for a
+    # second purpose (e.g. building a surrogate phase diagram) AFTER something else
+    # (mixture.sample_gp_posterior_mixture, e.g. for a test-RMSE metric) has already
+    # been called on that same object must not find it left at an arbitrary leftover
+    # hyperparameter state. run()'s own internal acquisition search (entropy_objective,
+    # via optimize()/entropy_surface_2D()) used to leave exactly this kind of leftover
+    # state on record.GPmodel even before any downstream caller touched it.
+    from bits_for_gaps import mixture
+
+    X_init, y_init = _initial_design(n=12)
+    record = _build_sampler().run(X_init, y_init).last
+    before = [float(p.numpy()) for p in record.GPmodel.kernel.hyperparameters]
+
+    XGP, _ = record.GPmodel.data
+    mixture.sample_gp_posterior_mixture(record.trace, record.GPmodel, XGP, seed=1, size=5)
+
+    after = [float(p.numpy()) for p in record.GPmodel.kernel.hyperparameters]
+    assert after == before

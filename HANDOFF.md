@@ -12,11 +12,74 @@ State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before c
 - Phase 9 (reproduce ALL paper results, including the from-scratch stochastic
   HMC+acquisition loop; archive-free figure reproduction): done 2026-07-04, merged to
   `main`.
-- **Phase 9b (investigate + fix the McCabe-Thiele non-convergence Phase 9 flagged as a
-  discrepancy): done 2026-07-04 on branch `phase9b-investigation` — awaiting
+- Phase 9b (investigate + fix the McCabe-Thiele non-convergence Phase 9 flagged as a
+  discrepancy): done 2026-07-04, merged to `main`.
+- **Phase 9c (robustness hardening -- first sanctioned `src/bits_for_gaps/` core
+  change since Phase 4): done 2026-07-04 on branch `phase9c-hardening` — awaiting
   review/merge to `main` before Phase 10 (publish).**
 
-## Phase 9b — root-cause the McCabe-Thiele discrepancy (done; review gate before Phase 10)
+## Phase 9c — robustness hardening (done; review gate before Phase 10)
+
+Behavior-preserving only, by design: no numerical result, default, or seed changed.
+The pre-Phase-4 baseline (atol 1e-10) + all `paper/golden/*` regressions +
+`pytest -m vle` stayed green at every commit. 46 new tests added (120 -> 166 passed, 2
+deselected).
+
+**Mutation-footgun fix, broader than Phase 9b realized.** Phase 9b's bug (a script
+reusing a `GPmodel` after `mixture.sample_gp_posterior_mixture` mutated its kernel and
+left it at an arbitrary leftover state) turned out to be a symptom of a real footgun
+in the library, not a one-off script mistake: `sampler.py`'s own `run()` calls
+`entropy_surface_2D`/`optimize` (both funnel through `acquisition.entropy_objective`,
+which reassigns kernel hyperparameters in the same way) on the *same* `GPmodel` object
+it then stores in `IterationRecord.GPmodel` and optionally checkpoints. **Every run's
+returned/checkpointed model** used to carry this arbitrary state, not just the one
+Phase 9b patched. Both `sample_gp_posterior_mixture` and `entropy_objective` now
+save the kernel's hyperparameters before mutating and restore them in a `finally` --
+`kernels.py` gained `save_hyperparameters()` to pair with the existing
+`assign_hyperparameters()`. Verified behavior-preserving for every value either
+function computes/returns; new unit tests assert kernel state is unchanged
+before/after (including on the error path), plus an integration test reproducing the
+exact Phase 9b scenario end-to-end.
+
+**Public-API input validation** (`adaptiveEntropy`/`BitsForGaps`): clear `ValueError`s
+for `x_bounds` `lo >= hi`, bounds-vs-kernel-`ndim` mismatch (checked in `__init__`),
+non-positive/out-of-range HMC/acquisition config and `X_init`/`y_init` shape
+mismatches (checked in `run()`, since config is conventionally set via
+post-construction attribute assignment throughout this codebase, not passed to
+`__init__`), and a black-box output that isn't a non-empty sequence (`call_model`) --
+previously cryptic failures deep inside GPflow/TensorFlow or a bare `IndexError`.
+
+**SHOULD-fixes, confirmed valuable by the audit:** `entropy.py`'s `assert pl > 0`
+(silently stripped under `python -O`) is now an explicit `ValueError`.
+`examples/vle_distillation/distillation.py`'s `solve_column` retries a few generic
+alternate `fsolve` initial guesses if the default doesn't converge -- the primary
+attempt is byte-for-byte unchanged, so this only ever activates when the default
+already reports non-convergence. `mixture.sample_gp_posterior_mixture`/
+`predict_grid_2D` gained an optional `tf_seed` to make `predict_f_samples` draws
+reproducible on request (default `None` leaves the documented ambient-RNG behavior
+unchanged).
+
+**Verification:** re-ran the full 15-iteration stochastic loop from scratch
+(`results_remaked/phase9c_fullrun/`, gitignored; hit a one-off ~15 min TF
+`tf.function`-retracing anomaly at iteration 2, unrelated to this phase's changes --
+other iterations ran at the normal ~13 s/iteration pace). `column_surrogate_converged`
+stayed `True`; R-hat/ESS/hyperparameter posterior matched Phase 9b's committed
+`full_run_summary.json` to 5-6 significant figures (within the already-documented
+run-to-run floating-point tolerance) -- confirming the hardening changed no numerical
+behavior. No update to `paper/phase9_validation/` needed (values didn't move outside
+that tolerance).
+
+**Docs:** new `docs/improvements_over_paper.md` (wired into `docs/index.md`)
+consolidates bug fixes (the `equilibrium.py` missing-path repoint, Phase 9b's mutation
+bug), this phase's hardening, and the architecture wins from every prior phase.
+`docs/reproduce_paper.md` was also fixed in passing -- found stale from before Phase 9
+(still described the pre-archive-free, author-access-required flow).
+`sphinx-build -W docs docs/_build/html` succeeds with zero warnings.
+
+`paper/data/`, `paper/golden/*`, and the dependency stack were not touched.
+`import bits_for_gaps` confirmed still Julia-free.
+
+## Phase 9b — root-cause the McCabe-Thiele discrepancy (done; merged to main)
 
 Phase 9's "genuine discrepancy" (the fully-adaptive surrogate's McCabe-Thiele column
 not converging, attributed to entropy-driven acquisition) turned out to be **wrong** --
@@ -666,7 +729,7 @@ Key facts for the next session:
 - Markers registered in `pyproject.toml`: `vle` (Julia backend, deselected by default),
   `slow` (integration; still runs by default). Run gated tests with `pytest -m vle`.
 
-## What exists now (Phase 0 + Phase 3-lite + Phases 4-9 done)
+## What exists now (Phase 0 + Phase 3-lite + Phases 4-9c done)
 
 A pip-installable package with the **algorithm decomposed into focused, tested modules**,
 **generalized to N input dimensions**, a **ported VLE/distillation example** repo-side,
@@ -695,7 +758,9 @@ src/bits_for_gaps/
                  entropy_surface_2D stays 2-D-only (raises for d != 2).
   sampler.py     adaptiveEntropy (orchestrator) + BitsForGaps (public-API facade) -- N-D
                  throughout except the 2-D-only diagnostics, which run() skips for d != 2.
-tests/unit/      entropy/design/kernels(+N-D)/means/_util/transforms/state
+tests/unit/      entropy/design/kernels(+N-D)/means/_util/transforms/state +
+                 mixture/acquisition/sampler_validation (Phase 9c: mutation-footgun
+                 state-restore + input-validation error paths)
 tests/integration/ end-to-end (2-D, in-memory run()) + BitsForGaps facade parity +
                  nd_synthetic (1-D and 3-D, via BitsForGaps)
 tests/regression/  golden-file checks vs published paper values (Phase 2, 2-D only --
@@ -728,7 +793,7 @@ importable classes; both work at any input dimension as of Phase 5.
 conda env create -f environment.yml        # or reuse existing `bits_for_gaps` env
 conda activate bits_for_gaps               # /opt/anaconda3/envs/bits_for_gaps
 pip install -e ".[dev,vle]"                 # ,vle needed for the Julia example
-pytest -q                                   # 120 passed, 2 deselected (as of Phase 9)
+pytest -q                                   # 166 passed, 2 deselected (as of Phase 9c)
 ```
 Stack: Python 3.9.23, gpflow 2.9.2, TF 2.16.2, TFP 0.24.0, numpy 1.26.4, scipy 1.13.1.
 **macOS: `export PYTHON_JULIACALL_HANDLE_SIGNALS=yes`** before any juliacall import
@@ -770,11 +835,16 @@ Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_
    numbered steps in the "Phase 8" section); `.readthedocs.yaml` is ready and waiting
    for that one manual step.
 
-7. **Phase 9 — full stochastic reproduction + archive-free figures. ✅ DONE.** On
-   branch `phase9-repro`; merge to `main` after review, then start Phase 10. See the
-   "Phase 9" section above.
+7. **Phase 9 — full stochastic reproduction + archive-free figures. ✅ DONE.**
+   Merged to `main`. See the "Phase 9" section above.
 
-8. **Phase 10 — publish (TestPyPI -> PyPI).** No Zenodo deposit (REFACTOR_PLAN.md §7
+8. **Phase 9b — root-cause + fix the McCabe-Thiele discrepancy. ✅ DONE.** Merged to
+   `main`. See the "Phase 9b" section above.
+
+9. **Phase 9c — robustness hardening. ✅ DONE.** On branch `phase9c-hardening`; merge
+   to `main` after review, then start Phase 10. See the "Phase 9c" section above.
+
+10. **Phase 10 — publish (TestPyPI -> PyPI).** No Zenodo deposit (REFACTOR_PLAN.md §7
    decision 4 -- the private old repo is the archive of record). Needs: bump
    `version` in `pyproject.toml` off `0.0.1.dev0`, a GitHub Actions trusted-publishing
    workflow (or manual `twine upload`), a TestPyPI dry run before the real PyPI

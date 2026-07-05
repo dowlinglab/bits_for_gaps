@@ -44,13 +44,39 @@ from .transforms import InputTransform, OutputTransform
 f64 = gpflow.utilities.to_default_float
 
 
+def _validate_bounds(x_bounds):
+    """Each entry must be a ``(lo, hi)`` pair with ``lo < hi`` -- Phase 9c."""
+    for i, b in enumerate(x_bounds):
+        if len(b) != 2:
+            raise ValueError(f"x_bounds[{i}] must be a (lo, hi) pair, got {b!r}")
+        lo, hi = b
+        if not (float(lo) < float(hi)):
+            raise ValueError(
+                f"x_bounds[{i}] = ({lo}, {hi}) is invalid: lo must be strictly less "
+                f"than hi."
+            )
+
+
 class adaptiveEntropy:
     def __init__(self, exp_name, iters, x_bounds, likelihood_var, mean_fxn, kernel_fxn,
                  fwd_model, fwd_model_args):
         """
         exp_name, iters, x_bounds, likelihood_var, mean_fxn, kernel_fxn,
         fwd_model, fwd_model_args
+
+        Phase 9c: validates ``x_bounds`` (each ``lo < hi``) and, if ``kernel_fxn``
+        exposes an ``.ndim`` (e.g. ``kernels.AnisotropicSE``), that it matches
+        ``len(x_bounds)`` -- a mismatch here previously surfaced as a cryptic shape
+        error deep inside GPflow/TensorFlow the first time the kernel was evaluated.
         """
+        _validate_bounds(x_bounds)
+        kernel_ndim = getattr(kernel_fxn, "ndim", None)
+        if kernel_ndim is not None and kernel_ndim != len(x_bounds):
+            raise ValueError(
+                f"kernel_fxn has ndim={kernel_ndim} but x_bounds has {len(x_bounds)} "
+                f"dimensions -- these must match."
+            )
+
         ## Miscellaneous
         self.path = os.path.join("results", exp_name)   # default checkpoint dir (opt-in)
         self.seed = 123                                 # random seed
@@ -188,7 +214,13 @@ class adaptiveEntropy:
         xStar = np.asarray(xStar, dtype=float).reshape(-1)
         XData = np.atleast_2d(np.asarray(XData, dtype=float))
         yData = np.atleast_1d(np.asarray(yData, dtype=float)).reshape(-1, 1)
-        yStar = np.array(self.FwdModel(*self.FwdModelArgs, *xStar))
+        yStar = np.asarray(self.FwdModel(*self.FwdModelArgs, *xStar))
+        if yStar.ndim == 0 or yStar.shape[0] < 1:
+            raise ValueError(
+                f"The injected black box (FwdModel) must return a sequence with at "
+                f"least one element (the scalar output value), got {yStar!r} (shape "
+                f"{yStar.shape}) for input {xStar!r}."
+            )
         XData_new = np.vstack([XData, xStar])
         yData_new = np.vstack([yData, [[float(yStar[0])]]])
         return XData_new, yData_new
@@ -196,6 +228,33 @@ class adaptiveEntropy:
     ## ------------------------------------------------------------------
     ## Orchestration
     ## ------------------------------------------------------------------
+
+    def _validate_config(self):
+        """Positive/range checks on the HMC + acquisition config -- Phase 9c.
+
+        Checked here (not in ``__init__``) because every caller sets these via
+        attribute assignment *after* construction (e.g. ``bfg.noSamples = 5000``) --
+        this package's established convention throughout the examples/tests -- so
+        ``__init__`` would only ever see the as-yet-unmodified defaults.
+        """
+        for name in ("noIters", "noSamples", "noChains", "noLeapfrogSteps",
+                    "noGaussians", "noRestarts"):
+            value = getattr(self, name)
+            if not (isinstance(value, (int, np.integer)) and value > 0):
+                raise ValueError(f"{name} must be a positive integer, got {value!r}")
+        for name in ("noBurnIn", "noAdaptSteps"):
+            value = getattr(self, name)
+            if not (isinstance(value, (int, np.integer)) and value >= 0):
+                raise ValueError(f"{name} must be a non-negative integer, got {value!r}")
+        if not (self.stepSize > 0):
+            raise ValueError(f"stepSize must be positive, got {self.stepSize!r}")
+        if not (0.0 < self.targetAccept < 1.0):
+            raise ValueError(
+                f"targetAccept must be in the open interval (0, 1), got "
+                f"{self.targetAccept!r}"
+            )
+        if not (self.adaptRate > 0):
+            raise ValueError(f"adaptRate must be positive, got {self.adaptRate!r}")
 
     def run(self, X_init, y_init, checkpoint_dir=None, predict_grid=False):
         """Run the sequential BITS-for-GAPS design loop for ``self.noIters`` iterations.
@@ -219,8 +278,20 @@ class adaptiveEntropy:
         -------
         bits_for_gaps.state.RunHistory
         """
+        self._validate_config()
         XData = np.atleast_2d(np.asarray(X_init, dtype=float))
         yData = np.atleast_1d(np.asarray(y_init, dtype=float)).reshape(-1, 1)
+        d = len(self.XBnds)
+        if XData.shape[1] != d:
+            raise ValueError(
+                f"X_init has {XData.shape[1]} columns but x_bounds has {d} "
+                f"dimensions -- these must match."
+            )
+        if XData.shape[0] != yData.shape[0]:
+            raise ValueError(
+                f"X_init has {XData.shape[0]} rows but y_init has {yData.shape[0]} "
+                f"entries -- these must match."
+            )
         history = RunHistory()
 
         for i in range(self.noIters):

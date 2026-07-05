@@ -48,11 +48,27 @@ def gaussian_mixture_density(x, means, covs, weights):
 
 
 def first_order_entropy_approx(weights, means, covs, jitter=1e-10):
-    """First-order Taylor approximation of the mixture differential entropy."""
+    """First-order Taylor approximation of the mixture differential entropy.
+
+    Raises
+    ------
+    ValueError
+        If the mixture density at some component mean is not positive (e.g. floating-
+        point underflow for very small covariances / far-apart means) -- a data-
+        dependent runtime condition, not a static invariant, so Phase 9c makes this an
+        explicit exception rather than a bare ``assert`` (asserts are silently
+        stripped under ``python -O``, which would let a NaN/garbage entropy value
+        propagate instead of failing clearly).
+    """
     H = 0
     for loopA, wA in enumerate(weights):
         pl = gaussian_mixture_density(x=means[loopA], means=means, covs=covs, weights=weights)
-        assert pl > 0, "Density must be positive"
+        if not (pl > 0):
+            raise ValueError(
+                f"Gaussian-mixture density must be positive, got {pl!r} at component "
+                f"{loopA} -- check that means/covs/weights are well-formed (e.g. no "
+                f"degenerate/zero covariances)."
+            )
         H -= wA * np.log(pl + jitter)
     return H
 
