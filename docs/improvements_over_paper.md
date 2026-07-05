@@ -104,6 +104,13 @@ to, not replacing, the existing regression suite, which stayed green throughout.
   and 2-D mixtures with different overlap, and confirm the Taylor approximation
   stays within 15% of that MC estimate (calibrated empirically -- it was within 6% on
   every mixture tried) and the closed-form lower bound stays at or below it.
+- **A Julia-free onboarding path.** The original code's only worked example is the
+  paper's own Julia/Clapeyron-backed VLE case study -- a heavy first thing to set up
+  just to see the method run. `examples/synthetic/run_example.py` is a new, small,
+  actually-runnable script (`python examples/synthetic/run_example.py`, no Julia,
+  well under a minute) demonstrating the same sequential-design loop on a smooth
+  closed-form 2-D function; `docs/quickstart.md` now points to it instead of test
+  files.
 
 ## Architecture
 

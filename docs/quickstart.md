@@ -1,16 +1,24 @@
 # Quickstart
 
-A minimal, pure-Python example -- no Julia, no archived data, runs in a few seconds
-on a laptop. It sequentially designs experiments for a synthetic 2-D function using
-`BitsForGaps`, the public entry point (a thin, friendlier-named wrapper around the
-`adaptiveEntropy` sequential-design engine; see {doc}`api`).
+A minimal, pure-Python example -- no Julia, no archived data, runs in well under a
+minute on a laptop. It sequentially designs experiments for a synthetic 2-D function
+using `BitsForGaps`, the public entry point (a thin, friendlier-named wrapper around
+the `adaptiveEntropy` sequential-design engine; see {doc}`api`).
 
 ```{note}
 This page shows the code as a reference, without running it during the docs build
 (HMC sampling is too slow for a docs build and doesn't belong in CI for a docs job).
-A runnable version of the same idea lives in
-`tests/integration/test_nd_synthetic.py` and `tests/integration/test_end_to_end.py`
-if you want to execute it yourself.
+A runnable version of exactly this example lives in
+[`examples/synthetic/run_example.py`](https://github.com/dowlinglab/bits_for_gaps/blob/main/examples/synthetic/run_example.py) --
+no Julia, runs in well under a minute:
+
+```bash
+python examples/synthetic/run_example.py
+```
+
+See `examples/synthetic/README.md` for setup. (`tests/integration/test_nd_synthetic.py`
+and `test_end_to_end.py` exercise the same pipeline too, if you want to see it under
+test rather than as a standalone script.)
 ```
 
 ## The pieces
