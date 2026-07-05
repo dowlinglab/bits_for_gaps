@@ -1,5 +1,7 @@
 # BITS for GAPS
 
+[![CI](https://github.com/dowlinglab/bits_for_gaps/actions/workflows/ci.yml/badge.svg)](https://github.com/dowlinglab/bits_for_gaps/actions/workflows/ci.yml)
+
 **B**ayesian **I**nformation-**T**heoretic **S**ampling for hierarchical **GA**ussian **P**rocess **S**urrogates.
 
 A framework for information-theoretic sequential experimental design with Bayesian

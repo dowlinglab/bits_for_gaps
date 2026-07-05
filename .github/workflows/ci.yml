@@ -1,7 +1,10 @@
-# CI skeleton — runs the pure-Python unit tests on the core package.
-# NOTE (Phase 3/8): this is a starting point. The frozen stack (TF 2.16.2 / GPflow 2.9.2
-# / Py 3.9) can be finicky on Linux runners; the Julia-backed VLE + regression tests
-# should live in a separate, gated job. Refine when wiring ReadTheDocs + release.
+# CI — lint + the full default test suite (unit + integration + regression) on the
+# pure-Python core (no Julia/[vle] extra installed). `pytest -q`'s own addopts
+# (`-m 'not vle'`) deselects the Julia-backed tests automatically -- confirmed none of
+# the non-`vle`-marked tests import anything Julia-touching at module import time, so
+# this runs clean without the [vle] extra. The frozen stack (TF 2.16.2 / GPflow 2.9.2 /
+# Py 3.9) is what's pinned in pyproject.toml; Julia-backed VLE + regression tests that
+# need it stay a separate, gated job for whenever CI grows a Julia-capable runner.
 name: CI
 
 on:
@@ -11,7 +14,7 @@ on:
     branches: [main]
 
 jobs:
-  unit:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,5 +25,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-      - name: Run unit tests
-        run: pytest -q tests/unit
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Run the default test suite (unit + integration + regression, not vle)
+        run: pytest -q
