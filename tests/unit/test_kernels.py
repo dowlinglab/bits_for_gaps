@@ -216,3 +216,37 @@ def test_variance_prior_requires_lengthscale_priors():
         AnisotropicSE(
             variance_prior=tfp.distributions.LogNormal(loc=tf.math.log(f64(1.0)), scale=f64(2.0)),
         )
+
+
+## ---------------------------------------------------------------------------
+## Phase 9d: assign_hyperparameters raises a clear, specific error instead of a
+## low-level gpflow/TF traceback for a value that can't round-trip through a
+## parameter's transform -- the exact error class hit mid-investigation in Phase 9b/9c
+## (see paper/PHASE9B_INVESTIGATION.md and kernels.py's assign_hyperparameters
+## docstring). Behavior-preserving for every assignable value (every value seen in
+## this codebase's tests/golden regressions/from-scratch reproduction runs).
+## ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("bad_std_dev", [0.0, -1.0])
+def test_assign_hyperparameters_raises_clear_error_for_non_finite_unconstrained(
+    kernel, bad_std_dev
+):
+    # std_dev is positivity-constrained (Softplus); 0.0/-1.0 have no finite
+    # unconstrained (softplus-inverse) representation.
+    with pytest.raises(ValueError, match="std_dev"):
+        assign_hyperparameters(kernel, [bad_std_dev, 1.0, 1.0])
+
+
+def test_assign_hyperparameters_error_names_the_offending_value(kernel):
+    with pytest.raises(ValueError, match="-1.0"):
+        assign_hyperparameters(kernel, [-1.0, 1.0, 1.0])
+
+
+def test_assign_hyperparameters_still_works_for_valid_values_after_a_failed_call(kernel):
+    # The guard must not leave the kernel (or assign_hyperparameters itself) broken
+    # for subsequent valid calls.
+    with pytest.raises(ValueError):
+        assign_hyperparameters(kernel, [-1.0, 1.0, 1.0])
+    assign_hyperparameters(kernel, [2.0, 3.0, 4.0])
+    assert [_val(p) for p in kernel.hyperparameters] == [2.0, 3.0, 4.0]

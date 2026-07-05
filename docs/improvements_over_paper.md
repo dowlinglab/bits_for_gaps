@@ -73,6 +73,22 @@ a one-off script mistake:
   within the same process, in the original paper code too. Both functions now accept
   an optional `tf_seed`; passing one makes that call's draws reproducible. Default
   (`None`) leaves the original, documented behavior unchanged.
+- **A clear error instead of a cryptic gpflow/TensorFlow traceback for an
+  unassignable hyperparameter value** (Phase 9d). `kernels.assign_hyperparameters` is
+  called deep inside `mixture.py`/`acquisition.py`'s hot loops to replay one
+  posterior/mixture-component sample at a time. An extreme outlier sample -- most
+  plausibly from `lengthscale_2`, deliberately left unconstrained (no positivity
+  bijector, a real feature of the paper's kernel) so nothing bounds how far an HMC
+  leapfrog step can push it -- can round-trip through a bijector's inverse to a
+  non-finite unconstrained value, which gpflow's own `Parameter.assign` rejects with
+  a low-level `InvalidArgumentError` (`Tensor had NaN/Inf values [Op:CheckNumerics]`)
+  that doesn't say *which* value or parameter caused it. This is the exact error
+  class hit mid-investigation while tracing the Phase 9b bug (in that instance from
+  an unrelated script mistake, not a genuine posterior outlier -- but the underlying
+  gpflow failure mode is real). Re-raised as a `ValueError` naming the parameter and
+  value; behavior-preserving for every value that was already assignable (every value
+  seen across this codebase's tests, golden regressions, and the from-scratch
+  stochastic reproduction runs).
 
 46 new tests were added alongside this hardening (unit tests asserting kernel state is
 identical before/after, including on the error path; validation-error-path tests; an
