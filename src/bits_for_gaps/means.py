@@ -19,7 +19,20 @@ class FixedInverseMean(gpflow.mean_functions.MeanFunction):
     """A fixed (non-trainable) Box-Cox-transformed inverse mean in the first input.
 
     m(X) = ((max(base, eps))^lambda - 1) / lambda,  base = (2 - x) / (x + epsilon),
-    with x = X[:, 0] the mole fraction.
+    with x = X[:, 0] the mole fraction. This is the prior mean function ``m`` in Eq
+    (4)'s GP prior, for the physics-informed (non-zero-mean) alternative to
+    ``gpflow.mean_functions.Zero`` (the paper's actual default -- see the module
+    docstring).
+
+    Parameters
+    ----------
+    epsilon : float
+        Additive offset in the inverse-ratio ``base``, keeping it finite as ``x -> 0``.
+    lambda_bc : float
+        Box-Cox transform exponent.
+    eps : float
+        Floor on ``base`` before exponentiation, avoiding a negative base raised to a
+        non-integer power.
     """
 
     def __init__(self, epsilon: float = 0.6, lambda_bc: float = 0.1, eps: float = 1e-8) -> None:
@@ -29,6 +42,17 @@ class FixedInverseMean(gpflow.mean_functions.MeanFunction):
         self.eps = eps
 
     def __call__(self, X: tf.Tensor) -> tf.Tensor:
+        """Evaluate the mean function at each row of ``X``.
+
+        Parameters
+        ----------
+        X : tf.Tensor, shape (n, ndim)
+            Only column 0 (the mole fraction) is used.
+
+        Returns
+        -------
+        tf.Tensor, shape (n, 1)
+        """
         x = X[:, 0:1]
         base = (2.0 - x) / (x + self.epsilon)
         safe_base = tf.maximum(base, self.eps)

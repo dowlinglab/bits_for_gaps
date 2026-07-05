@@ -67,6 +67,8 @@ def entropy_objective(
 ) -> float:
     """Negative mixture entropy of the GP predictive posterior at a point.
 
+    Implements Eq (1)'s entropy ``H{f(x*)}``, so that ``optimize`` (Eq 2: ``max_x*
+    H{f(x*)}``) can call ``scipy.optimize.minimize`` on this function's negation.
     Negated because ``optimize`` minimizes it to maximize entropy. Dimension-general:
     ``xStarGP`` may have any number of columns. ``GPmodel.kernel``'s hyperparameters are
     reassigned once per posterior sample during the call, then restored before
@@ -91,6 +93,8 @@ def entropy_objective(
         means = []
         variances = []
         for sample in sub_samples:
+            # Eq (7): one mixture component per posterior draw theta^(s) -- assign it,
+            # then read off that draw's own GP predictive mean/variance (Eq 5a/5b).
             kernels.assign_hyperparameters(GPmodel.kernel, sample)
             mean, variance = GPmodel.predict_f(xStarGP, full_cov=True)
             means.append(mean.numpy().squeeze())
@@ -99,8 +103,8 @@ def entropy_objective(
         kernels.assign_hyperparameters(GPmodel.kernel, saved_hyperparameters)
     means = np.array(means)
     variances = np.array(variances)
-    weights = np.ones(no_gaussians) * 1 / no_gaussians
-    H = ENTROPY_ESTIMATORS[objective](weights, means, variances)
+    weights = np.ones(no_gaussians) * 1 / no_gaussians  # Eq (7): equal weights 1/S
+    H = ENTROPY_ESTIMATORS[objective](weights, means, variances)  # Eq (9) or Theorem/SI-2
     return -H
 
 

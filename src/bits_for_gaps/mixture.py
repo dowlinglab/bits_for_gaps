@@ -90,6 +90,8 @@ def sample_gp_posterior_mixture(
     try:
         samples = []
         for comp_id in comp_ids:
+            # Eq (7): one GMM component per selected hyperparameter-posterior draw --
+            # assign theta^(s), then draw from that draw's own GP predictive (Eq 5a/5b).
             kernels.assign_hyperparameters(GPmodel.kernel, sub_samples[comp_id])
             gp_out = GPmodel.predict_f_samples(XGP, full_cov=True)
             samples.append(gp_out)
