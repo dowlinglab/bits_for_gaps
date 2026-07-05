@@ -14,11 +14,81 @@ State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before c
   `main`.
 - Phase 9b (investigate + fix the McCabe-Thiele non-convergence Phase 9 flagged as a
   discrepancy): done 2026-07-04, merged to `main`.
-- **Phase 9c (robustness hardening -- first sanctioned `src/bits_for_gaps/` core
-  change since Phase 4): done 2026-07-04 on branch `phase9c-hardening` — awaiting
-  review/merge to `main` before Phase 10 (publish).**
+- Phase 9c (robustness hardening -- first sanctioned `src/bits_for_gaps/` core change
+  since Phase 4): done 2026-07-04, merged to `main`.
+- **Phase 9d (whole-codebase polish: hygiene [ruff, type hints, CI, coverage] +
+  faithfulness [selectable acquisition, MC-validation, synthetic example, hardening,
+  CHANGELOG]): done 2026-07-04 on branch `phase9d-polish` — awaiting review/merge to
+  `main` before Phase 10 (publish).**
 
-## Phase 9c — robustness hardening (done; review gate before Phase 10)
+## Phase 9d — whole-codebase polish: hygiene + faithfulness (done; review gate before Phase 10)
+
+Two batches, eight workstreams (A-D hygiene, E-H faithfulness/features), each its own
+commit, suite green at every one. Behavior-preserving throughout: baseline (atol
+1e-10) + all golden regressions + `pytest -m vle` never moved.
+
+**Hygiene (A-D):**
+
+- **A -- ruff lint + format, whole repo.** Added to the `[dev]` extra; configured
+  (`E`/`F`/`W`/`I`/`B`, line-length 100) with per-file-ignores protecting the two
+  load-bearing import orders (`__init__.py`'s eager-vs-lazy split;
+  `PYTHON_JULIACALL_HANDLE_SIGNALS` set before the `juliacall`/TF-threading-config
+  imports it protects, in `activity_model.py` and `paper/full_reproduction.py`). A
+  handful of non-autofixable findings (assigned lambdas, one unused import, two
+  intentionally-blind `pytest.raises(Exception)`) fixed by hand; the rest (52 files)
+  is `ruff format`'s cosmetic whitespace/quote normalization.
+- **B -- type hints across `src/bits_for_gaps/`, `py.typed` (PEP 561).** Every module
+  annotated via `from __future__ import annotations` (stringized -- no new runtime
+  imports, so the Julia-free/TF-lazy contract holds). `py.typed` confirmed included
+  in the built wheel. Fixed a real `sphinx-build` regression the new hints exposed:
+  `InputTransform`/`OutputTransform` are documented twice (top-level re-export +
+  original location), and once a type hint referenced them by bare name,
+  `autodoc-typehints` couldn't disambiguate ("more than one target found") -- fixed
+  via `docs/api.rst`'s `:exclude-members:`.
+- **C -- broadened CI + badge.** `.github/workflows/ci.yml` now runs `ruff check`
+  plus the full default `pytest -q` (unit + integration + regression; still excludes
+  `@pytest.mark.vle`), not just `tests/unit`. Verified in a fresh conda env with only
+  the `[dev]` extra (no Julia) that this is genuinely Julia-free.
+- **D -- coverage pass, 93% -> 97%.** `gp.py` had zero direct unit tests (only
+  indirect coverage via full HMC integration runs); new `tests/unit/test_gp.py`
+  closes it to 98%. A few real `sampler.py` gaps closed too (`read_data`,
+  `BitsForGaps`'s custom transform override, `run(predict_grid=True)`,
+  `run(initalLML=True)`). No coverage gate added to CI (informational only).
+
+**Faithfulness/features (E-H):**
+
+- **E -- `entropy_lower_bound` wired up as a selectable acquisition objective.** The
+  paper derives two entropy estimators; the closed-form lower bound was implemented
+  and unit-tested since Phase 2 but never usable for acquisition.
+  `acquisition.entropy_objective`/`optimize`/`entropy_surface_2D` gain
+  `objective="taylor"|"lower_bound"`; `BitsForGaps.acquisitionObjective` (default
+  `"taylor"` -- unchanged existing behavior).
+- **F -- Monte-Carlo validation of the entropy approximations.** New
+  `tests/unit/test_entropy_mc_validation.py` estimates the true GMM differential
+  entropy directly (sample the mixture, average -log of its own density at those
+  samples) on several mixtures and checks the Taylor approximation stays close
+  (rtol=0.15, calibrated empirically) and the lower bound stays at or below it --
+  validates approximation *quality*, not just a regression pin.
+- **G -- a pure-Python synthetic example.** `examples/synthetic/run_example.py`: a
+  small, actually-runnable, Julia-free script (`python examples/synthetic/run_example.py`,
+  well under a minute) -- the onboarding path that previously only pointed at test
+  files. `docs/quickstart.md` now points to it.
+- **H -- clear diagnostic for an unassignable hyperparameter value.**
+  `kernels.assign_hyperparameters` (called deep in `mixture.py`/`acquisition.py`'s hot
+  loops) now catches gpflow's low-level `InvalidArgumentError` for a value that can't
+  round-trip through a parameter's transform (e.g. an extreme `lengthscale_2` outlier
+  -- deliberately unconstrained, no positivity bijector) and re-raises a `ValueError`
+  naming the parameter and value. Also added `CHANGELOG.md` (Keep a Changelog,
+  Unreleased section summarizing every phase, targeting `v0.1.0`).
+
+`pytest -q`: 166 -> 193 passed (2 deselected throughout). `paper/data/`, `paper/golden/*`,
+and the pinned dependency stack untouched. `import bits_for_gaps` confirmed Julia-free
+and TensorFlow-lazy after every workstream. Docs updated:
+`docs/improvements_over_paper.md` (new sections for E/F/G/H), `docs/theory.md` and
+`docs/reproduce_paper.md` (both had gone stale describing pre-Phase-9/9d behavior --
+fixed in passing), `docs/quickstart.md`, `docs/api.rst`.
+
+## Phase 9c — robustness hardening (done; merged to main)
 
 Behavior-preserving only, by design: no numerical result, default, or seed changed.
 The pre-Phase-4 baseline (atol 1e-10) + all `paper/golden/*` regressions +
@@ -729,7 +799,7 @@ Key facts for the next session:
 - Markers registered in `pyproject.toml`: `vle` (Julia backend, deselected by default),
   `slow` (integration; still runs by default). Run gated tests with `pytest -m vle`.
 
-## What exists now (Phase 0 + Phase 3-lite + Phases 4-9c done)
+## What exists now (Phase 0 + Phase 3-lite + Phases 4-9d done)
 
 A pip-installable package with the **algorithm decomposed into focused, tested modules**,
 **generalized to N input dimensions**, a **ported VLE/distillation example** repo-side,
@@ -760,7 +830,8 @@ src/bits_for_gaps/
                  throughout except the 2-D-only diagnostics, which run() skips for d != 2.
 tests/unit/      entropy/design/kernels(+N-D)/means/_util/transforms/state +
                  mixture/acquisition/sampler_validation (Phase 9c: mutation-footgun
-                 state-restore + input-validation error paths)
+                 state-restore + input-validation error paths) + gp/
+                 sampler_legacy_and_transforms/entropy_mc_validation (Phase 9d)
 tests/integration/ end-to-end (2-D, in-memory run()) + BitsForGaps facade parity +
                  nd_synthetic (1-D and 3-D, via BitsForGaps)
 tests/regression/  golden-file checks vs published paper values (Phase 2, 2-D only --
@@ -769,6 +840,10 @@ tests/regression/  golden-file checks vs published paper values (Phase 2, 2-D on
                  (Phase 7) @pytest.mark.vle recomputes
 examples/vle_distillation/  the H2O-PrOH case study on the public API (Phase 6) --
                  repo-only, not in the pip wheel; see the "Phase 6" section above
+examples/synthetic/  Julia-free onboarding example (Phase 9d) -- repo-only, run
+                 `python examples/synthetic/run_example.py`
+src/bits_for_gaps/py.typed  PEP 561 marker (Phase 9d); every module in this
+                 directory is type-hinted via `from __future__ import annotations`
 paper/figures/ + paper/reproduce.py  all 11 paper figures reproduced (Phase 7),
                  archive-free by default as of Phase 9 via the tracked paper/data/
                  -- repo-only, not in the pip wheel; see the "Phase 7"/"Phase 9"
@@ -793,7 +868,8 @@ importable classes; both work at any input dimension as of Phase 5.
 conda env create -f environment.yml        # or reuse existing `bits_for_gaps` env
 conda activate bits_for_gaps               # /opt/anaconda3/envs/bits_for_gaps
 pip install -e ".[dev,vle]"                 # ,vle needed for the Julia example
-pytest -q                                   # 166 passed, 2 deselected (as of Phase 9c)
+pytest -q                                   # 193 passed, 2 deselected (as of Phase 9d)
+ruff check .                                 # lint (Phase 9d); ruff is in [dev]
 ```
 Stack: Python 3.9.23, gpflow 2.9.2, TF 2.16.2, TFP 0.24.0, numpy 1.26.4, scipy 1.13.1.
 **macOS: `export PYTHON_JULIACALL_HANDLE_SIGNALS=yes`** before any juliacall import
@@ -841,10 +917,14 @@ Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_
 8. **Phase 9b — root-cause + fix the McCabe-Thiele discrepancy. ✅ DONE.** Merged to
    `main`. See the "Phase 9b" section above.
 
-9. **Phase 9c — robustness hardening. ✅ DONE.** On branch `phase9c-hardening`; merge
-   to `main` after review, then start Phase 10. See the "Phase 9c" section above.
+9. **Phase 9c — robustness hardening. ✅ DONE.** Merged to `main`. See the "Phase 9c"
+   section above.
 
-10. **Phase 10 — publish (TestPyPI -> PyPI).** No Zenodo deposit (REFACTOR_PLAN.md §7
+10. **Phase 9d — whole-codebase polish (hygiene + faithfulness). ✅ DONE.** On branch
+   `phase9d-polish`; merge to `main` after review, then start Phase 10. See the
+   "Phase 9d" section above.
+
+11. **Phase 10 — publish (TestPyPI -> PyPI).** No Zenodo deposit (REFACTOR_PLAN.md §7
    decision 4 -- the private old repo is the archive of record). Needs: bump
    `version` in `pyproject.toml` off `0.0.1.dev0`, a GitHub Actions trusted-publishing
    workflow (or manual `twine upload`), a TestPyPI dry run before the real PyPI
