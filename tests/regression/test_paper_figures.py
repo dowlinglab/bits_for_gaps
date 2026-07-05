@@ -1,5 +1,5 @@
 """Regression: recompute the paper's quantitative figures and diff against
-``paper/golden/*``.
+``paper/reference/*``.
 
 As of Phase 9, the data these tests read comes from the curated, COMMITTED
 ``paper/data/`` subset (see ``paper/data/README.md``) -- no private-archive access
@@ -13,7 +13,7 @@ Point ``BFG_ARCHIVE_DIR`` at the full private archive instead of ``paper/data/``
 you want to check iterations beyond the curated subset.
 
 Fig 9's stage table already has its own gated test (``test_mccabe_thiele.py``) --
-not duplicated here. Fig 8 (phase diagram) has no dedicated golden file (it's a
+not duplicated here. Fig 8 (phase diagram) has no dedicated reference file (it's a
 visual reproduction, not a pinned scalar target -- see ``paper/REPRODUCTION.md``);
 instead its test cross-checks the freshly-recomputed Wilson curve against the
 committed ``gt_Wilson_data`` the paper's own Fig 8 was built from.
@@ -37,20 +37,20 @@ requires_archive = pytest.mark.skipif(
 
 
 @requires_archive
-def test_fig10_traces_match_golden(golden):
+def test_fig10_traces_match_reference(reference):
     from paper.figures import fig10_traces
 
     rhat, ess = fig10_traces.diagnostics(ARCHIVE_DIR)
-    g = golden("hmc_diagnostics.json")
+    g = reference("hmc_diagnostics.json")
     np.testing.assert_allclose(rhat, g["rhat"], atol=g["tol"]["rhat_atol"])
     np.testing.assert_allclose(ess, g["ess"], rtol=g["tol"]["ess_rtol"])
 
 
 @requires_archive
-def test_fig05_parity_error_metrics_match_golden(golden):
+def test_fig05_parity_error_metrics_match_reference(reference):
     from paper.figures import fig05_parity
 
-    g = golden("fig5_error_metrics.json")
+    g = reference("fig5_error_metrics.json")
     for it in (1, 15):
         computed = fig05_parity.error_metrics(ARCHIVE_DIR, it)
         expected = g[f"iter_{it}"]
@@ -60,13 +60,13 @@ def test_fig05_parity_error_metrics_match_golden(golden):
 
 
 @requires_archive
-def test_hyperparameter_posterior_summary_matches_golden(golden):
+def test_hyperparameter_posterior_summary_matches_reference(reference):
     # Fig 11's quantitative backbone: recompute the same posterior summary statistics
-    # extract_golden.py pinned, straight from the committed param_posterior_samples_15.
+    # extract_reference.py pinned, straight from the committed param_posterior_samples_15.
     from paper.figures import _archive
 
     params = _archive.load_param_posterior_samples(ARCHIVE_DIR)
-    g = golden("hyperparameter_posterior.json")
+    g = reference("hyperparameter_posterior.json")
     rtol = g["tol"]["rtol"]
     for j, name in enumerate(g["param_order"]):
         assert float(params[:, j].mean()) == pytest.approx(g["mean"][name], rel=rtol)
@@ -76,7 +76,7 @@ def test_hyperparameter_posterior_summary_matches_golden(golden):
 @requires_archive
 @pytest.mark.vle
 def test_fig08_wilson_curve_matches_archived_ground_truth():
-    # No dedicated golden file for Fig 8 (visual reproduction) -- cross-check the
+    # No dedicated reference file for Fig 8 (visual reproduction) -- cross-check the
     # freshly recomputed Wilson curve (live Clapeyron -- needs Julia, unlike the
     # read-only tests above) against the committed gt_Wilson_data the paper's own
     # Fig 8 was built from.

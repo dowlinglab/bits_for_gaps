@@ -5,8 +5,8 @@ Ported from ``train_test_split_proh.py``'s ``plot_parity`` / ``plot_parity_loglo
 detail, not the quantitative content) -- this is reproduction code, not a library API.
 
 Quantitatively pinned: ``error_metrics()`` returns exactly the per-draw RMSE/MAE
-distributions ``paper/golden/fig5_error_metrics.json`` was extracted from (same
-formulas as ``paper/extract_golden.py``).
+distributions ``paper/reference/fig5_error_metrics.json`` was extracted from (same
+formulas as ``paper/extract_reference.py``).
 """
 
 import os

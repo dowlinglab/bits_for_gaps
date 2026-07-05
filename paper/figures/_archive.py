@@ -10,7 +10,7 @@ iterations/figures beyond the curated subset. Every figure module reads via the
 functions below rather than hardcoding paths, so both sources work unchanged.
 
 Iteration 15 is the published run: its ``rhat_value_15.txt``/``ess_value_15.txt``
-match paper Fig 10 exactly (see ``paper/golden/hmc_diagnostics.json``).
+match paper Fig 10 exactly (see ``paper/reference/hmc_diagnostics.json``).
 """
 
 import os

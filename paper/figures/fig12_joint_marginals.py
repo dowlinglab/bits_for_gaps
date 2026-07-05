@@ -4,7 +4,7 @@ Ported from ``fxns/mcmc_plotter.py``'s ``plot_joint_marginals`` (``fxns/plot_res
 ``-m joint_marginals`` mode), simplified: a lower-triangular grid of hexbin plots with
 the MAP point and a 95% credible-interval box per pair -- dropped the KDE contour
 overlay (a purely visual smoothing detail, not the quantitative content) for a
-pragmatic reproduction. Visual reproduction only (no golden pin) -- spot-check against
+pragmatic reproduction. Visual reproduction only (no reference pin) -- spot-check against
 the archived ``joint_marginals_15.png``.
 """
 

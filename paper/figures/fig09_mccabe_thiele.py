@@ -6,7 +6,7 @@ modules -- this module only adds the plotting + LHS/GP setup on top.
 
 ``wilson_column()``/``surrogate_column()`` are the exact same recompute
 ``tests/regression/test_mccabe_thiele.py``'s gated stage-table regression pins against
-``paper/golden/mccabe_thiele_stages.json`` (moved here, Phase 7, so the figure and the
+``paper/reference/mccabe_thiele_stages.json`` (moved here, Phase 7, so the figure and the
 test share one implementation instead of two copies -- the test imports these
 functions rather than redefining them). See that test's module docstring for why the
 surrogate uses a fresh 30-point LHS + MLE fit rather than the full 15-iteration
@@ -17,7 +17,7 @@ import os
 
 import numpy as np
 
-# Geankoplis Ex. 11.4-1 column spec (paper Fig 9c) -- see paper/golden/mccabe_thiele_stages.json.
+# Geankoplis Ex. 11.4-1 column spec (paper Fig 9c) -- see paper/reference/mccabe_thiele_stages.json.
 COLUMN_VAR_NAMES = ["xW", "F", "xF", "R", "xD"]
 COLUMN_VAR_VALUES = [0.01, 100.0, 0.10, 1.0, 0.43]
 COLUMN_N_STAGES = 4

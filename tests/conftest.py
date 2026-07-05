@@ -1,8 +1,8 @@
 """Shared test fixtures.
 
-Locates the committed golden scalar targets under ``paper/golden/`` and exposes a
-``golden`` loader fixture. The golden files are small JSON snapshots extracted from the
-archived published run (iteration 15); see ``paper/golden/README.md``.
+Locates the committed reference scalar targets under ``paper/reference/`` and exposes
+a ``reference`` loader fixture. The reference files are small JSON snapshots extracted
+from the archived published run (iteration 15); see ``paper/reference/README.md``.
 
 Also puts the repo's ``examples/`` directory AND the repo root on ``sys.path`` so
 ``examples/`` and ``paper/`` (neither pip-installed -- see REFACTOR_PLAN.md §7.3) are
@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-GOLDEN_DIR = REPO_ROOT / "paper" / "golden"
+REFERENCE_DIR = REPO_ROOT / "paper" / "reference"
 EXAMPLES_DIR = REPO_ROOT / "examples"
 for _p in (EXAMPLES_DIR, REPO_ROOT):
     if str(_p) not in sys.path:
@@ -28,11 +28,11 @@ for _p in (EXAMPLES_DIR, REPO_ROOT):
 
 
 @pytest.fixture(scope="session")
-def golden():
-    """Return a callable that loads a golden JSON file by name."""
+def reference():
+    """Return a callable that loads a reference JSON file by name."""
 
     def _load(name):
-        with open(GOLDEN_DIR / name) as f:
+        with open(REFERENCE_DIR / name) as f:
             return json.load(f)
 
     return _load

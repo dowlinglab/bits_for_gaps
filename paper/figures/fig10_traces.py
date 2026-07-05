@@ -5,7 +5,7 @@ Ported from ``fxns/mcmc_plotter.py``'s ``plot_all_traces`` (``fxns/plot_res.py``
 chain, annotated with that parameter's R-hat and ESS.
 
 Quantitatively pinned: ``diagnostics()`` returns the exact (rhat, ess) arrays checked
-against ``paper/golden/hmc_diagnostics.json`` by the gated regression test.
+against ``paper/reference/hmc_diagnostics.json`` by the gated regression test.
 """
 
 import os

@@ -184,7 +184,7 @@ def assign_hyperparameters(kernel: gpflow.kernels.Kernel, values: Sequence[float
     genuinely out-of-range value, in that case an unrelated script bug, not a posterior
     sample) -- see ``paper/PHASE9B_INVESTIGATION.md``. Re-raised here with the
     parameter name and value attached; behavior-preserving for every value that was
-    already assignable (which is every value seen in this codebase's tests, golden
+    already assignable (which is every value seen in this codebase's tests, reference
     regressions, and the from-scratch stochastic reproduction runs).
     """
     for param, value in zip(kernel.hyperparameters, values):

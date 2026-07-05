@@ -1,4 +1,4 @@
-# Golden scalar targets
+# Reference scalar targets
 
 Small, version-controlled JSON snapshots of the paper's key scalar results, extracted
 from the **archived published run** (`results/less_x_new_manuscript_revisions`,
@@ -10,7 +10,7 @@ They serve two purposes:
 1. **Characterization / regression** — `tests/regression/` reads these files and pins
    them against the values reported in the paper (locks them against corruption).
 2. **Reproduction diff** — Phase 7's `paper/reproduce.py` regenerates the figures
-   through the clean API and diffs against these golden targets (with the stated
+   through the clean API and diffs against these reference targets (with the stated
    tolerances).
 
 | File | Paper ref | Contents | Source |
@@ -23,7 +23,7 @@ They serve two purposes:
 **Regenerating** (needs read access to the old-repo archive; pure NumPy):
 
 ```bash
-python paper/extract_golden.py
+python paper/extract_reference.py
 ```
 
 produces all but the McCabe-Thiele table (which is transcribed from the paper — its

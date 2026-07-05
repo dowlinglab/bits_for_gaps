@@ -29,7 +29,7 @@ approximation (``entropy.second_order_entropy``, the one that actually drove
 acquisition in the paper and remains the default here) and a closed-form lower bound
 (``entropy.entropy_lower_bound``, paper Theorem/SI-2), implemented and unit-tested
 since Phase 2 but never wired up as a *usable* acquisition objective. ``objective``
-selects between them (default ``"taylor"``, so existing behavior/baselines/golden
+selects between them (default ``"taylor"``, so existing behavior/baselines/reference
 values are unchanged unless a caller explicitly opts into ``"lower_bound"``).
 """
 

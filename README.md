@@ -38,7 +38,7 @@ dependency. Julia + Clapeyron are only needed for the `vle_distillation` example
 ```
 src/bits_for_gaps/   the library (algorithm)
 examples/            worked examples (incl. the paper's VLE/distillation case study)
-paper/               scripts + golden metrics to reproduce the published figures
+paper/               scripts + reference metrics to reproduce the published figures
 tests/               unit / integration / regression tests
 docs/                Sphinx documentation (ReadTheDocs)
 ```

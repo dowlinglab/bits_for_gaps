@@ -107,12 +107,12 @@ bits_for_gaps/
 ├── paper/                      # reproduce published figures
 │   ├── reproduce.py  Makefile
 │   ├── figures/                # mcmc_plotter split into per-figure scripts (5,8,9,10, etc.)
-│   ├── golden/                 # small scalar targets (R̂, ESS, MAP, stage table) + tolerances
+│   ├── reference/                 # small scalar targets (R̂, ESS, MAP, stage table) + tolerances
 │   └── DATA.md                 # pointer to the archived 2.5 GB results in the private old repo
 └── tests/
     ├── unit/                   # entropy math, transforms, kernels, GD integral, Antoine, design
     ├── integration/            # tiny end-to-end seeded run (few samples, 1 iter)
-    └── regression/             # golden-file checks vs paper metrics (Julia-gated, slow job)
+    └── regression/             # reference-file checks vs paper metrics (Julia-gated, slow job)
 ```
 
 **Key API idea (target):**
@@ -147,7 +147,7 @@ Core has **zero Julia dependency**; `pip install bits_for_gaps` pulls GPflow/TF/
 - Deliverable: a working env + a short "repro report" confirming archived == published.
 
 ### Phase 2 — Characterization / regression harness  *(BEFORE any refactor — your stated priority)*
-- **Golden scalars** from archived iter-15: R̂, ESS, MAP hyperparameters, Fig 9 stage-composition table, Fig 5 RMSE/MAE. Store in `paper/golden/` with tolerances.
+- **Reference scalars** from archived iter-15: R̂, ESS, MAP hyperparameters, Fig 9 stage-composition table, Fig 5 RMSE/MAE. Store in `paper/reference/` with tolerances.
 - **Unit tests on current behavior:** port `huber_et_al.py`'s 5D-mixture entropy curve to a pytest with pinned expected values; add tests for Gibbs-Duhem integral, Antoine `pvap`, transforms, LHS design determinism (seeded).
 - **Seeded integration test:** a minimal end-to-end run (e.g. 100 MCMC samples, 1 iteration) whose outputs are stable.
 - Everything green against the *unrefactored* code = the safety net.
@@ -169,7 +169,7 @@ Core has **zero Julia dependency**; `pip install bits_for_gaps` pulls GPflow/TF/
 - Rewrite `examples/vle_distillation/` to consume the public API (inject the Julia activity `f(x)`), fix hardcoded paths/`iters`, fix the `equilibrium.py` cross-experiment reference.
 
 ### Phase 7 — Reproduce ALL paper figures via the new API  *(Sonnet + Opus check)*
-- `paper/reproduce.py` regenerates Figs 5, 8, 9, 10 (and 2, 3, 4, 6, 7) through the package + examples. Diff against golden scalars and the PDF.
+- `paper/reproduce.py` regenerates Figs 5, 8, 9, 10 (and 2, 3, 4, 6, 7) through the package + examples. Diff against reference scalars and the PDF.
 
 ### Phase 8 — Documentation  *(Sonnet)*
 - Sphinx + MyST: install/env (incl. the juliacall gotcha), quickstart on the 1-D synthetic, API autodoc, a "reproduce the paper" guide, theory notes linking to the paper. Wire ReadTheDocs (`.readthedocs.yaml`); build the pure-Python parts without Julia.
@@ -179,18 +179,18 @@ Core has **zero Julia dependency**; `pip install bits_for_gaps` pulls GPflow/TF/
 - **Phase 9b correction:** Phase 9 initially reported the fully-adaptive surrogate's McCabe-Thiele column as non-converging and attributed it to entropy-driven design — that was a **bug** (shared-mutable-state in `full_reproduction.py`: the test-RMSE loop mutated `GPmodel.kernel` in place before the phase diagram reused it), **not** a scientific finding. Fixed (example layer only); the adaptive surrogate's column now converges and tracks Wilson within 0.03. See `paper/PHASE9B_INVESTIGATION.md`; retraction in `paper/REPRODUCTION.md`.
 
 ### Phase 9c — Robustness hardening (make it a reliable package)  *(Sonnet + Opus check)*
-- Make BITS for GAPS as robust as possible **without changing numerical behavior** — the pre-Phase-4 baseline (`synthetic_baseline.json`, atol 1e-10) + all golden regressions are the safety net and stay green. First sanctioned core change since Phase 4.
+- Make BITS for GAPS as robust as possible **without changing numerical behavior** — the pre-Phase-4 baseline (`synthetic_baseline.json`, atol 1e-10) + all reference regressions are the safety net and stay green. First sanctioned core change since Phase 4.
 - Targets: (1) fix the `mixture.sample_gp_posterior_mixture` in-place kernel-mutation footgun (save/restore state) — the Phase-9b bug; (2) public-API input validation with clear errors (bounds vs kernel ndim, lo<hi, positive config, X/y shapes, black-box output); (3) guard fragile spots (distillation `fsolve` convergence check/message, entropy `assert`→explicit raise, GP/Cholesky conditioning); (4) optional TF seed so the one documented non-reproducibility (`predict_f_samples`) can be made deterministic on request.
 - Rerun `paper/full_reproduction.py` to confirm the paper still reproduces (column converges, HMC to 7–8 sig figs, stage table tracks Wilson).
 - Document all improvements/fixes over the original paper code in `docs/improvements_over_paper.md`.
 
 ### Phase 9d — Polish pass (hygiene + faithfulness), whole-codebase  *(Sonnet + Opus check)*
-- Behavior-preserving (baseline 1e-10 + golden green at every commit). Hygiene: ruff lint+format whole repo (preserve load-bearing import order — lazy `__init__`, `HANDLE_SIGNALS`-before-juliacall), type hints across the codebase via `from __future__ import annotations` (keep `import bits_for_gaps` Julia-free + TF-lazy), `py.typed`, broaden CI to the full default suite + README badge, coverage pass.
+- Behavior-preserving (baseline 1e-10 + reference green at every commit). Hygiene: ruff lint+format whole repo (preserve load-bearing import order — lazy `__init__`, `HANDLE_SIGNALS`-before-juliacall), type hints across the codebase via `from __future__ import annotations` (keep `import bits_for_gaps` Julia-free + TF-lazy), `py.typed`, broaden CI to the full default suite + README badge, coverage pass.
 - Faithfulness/features: wire `entropy_lower_bound` (the paper's SI closed-form bound) as a SELECTABLE acquisition objective (Taylor stays default); MC-validation test for the entropy approximation; a pure-Python synthetic example/tutorial (no Julia); GP Cholesky-conditioning guard; `CHANGELOG.md`.
 
 ### Phase 9e — Docs / tests / comments quality pass  *(Sonnet + Opus check)*
 - Behavior-preserving (baseline 1e-10 + reference regressions green each commit). Three passes:
-  1. **RTD docs**: sensible organization, working cross-links, math faithful to the paper (key equations in the paper's notation — Eq 1/2 entropy+acquisition, Eq 6 SE kernel, Eq 7 GMM predictive, Eq 9 entropy, the Huber 2nd-order Taylor approx, the Theorem lower bound + SI-2 cross-overlap, Eq 10 extended Raoult, Eq 11 Gibbs–Duhem, SI-4 distillation), clearly explain the 3-phase loop. **Rename "golden" → "reference" everywhere** (git mv `paper/golden/`→`paper/reference/`, `golden` fixture→`reference`, all usages + docs).
+  1. **RTD docs**: sensible organization, working cross-links, math faithful to the paper (key equations in the paper's notation — Eq 1/2 entropy+acquisition, Eq 6 SE kernel, Eq 7 GMM predictive, Eq 9 entropy, the Huber 2nd-order Taylor approx, the Theorem lower bound + SI-2 cross-overlap, Eq 10 extended Raoult, Eq 11 Gibbs–Duhem, SI-4 distillation), clearly explain the 3-phase loop. **Rename "reference" → "reference" everywhere** (git mv `paper/reference/`→`paper/reference/`, `reference` fixture→`reference`, all usages + docs).
   2. **Tests**: unit tests on most functions; assert errors are raised; find + upgrade low-value/superficial tests.
   3. **Comments**: NumPy-style docstrings on all functions; inline comments on non-trivial code citing paper/SI equation numbers (map in the Phase-9e prompt / HANDOFF).
 
@@ -204,7 +204,7 @@ Core has **zero Julia dependency**; `pip install bits_for_gaps` pulls GPflow/TF/
 
 - **Dependency stack:** freeze the exact old stack (Py3.9/TF2.16/GPflow2.9/TFP0.24) as the reproduction baseline first. Modernization (newer Python/TF) is a *later, separate* effort — GPflow ties us to TensorFlow, so it's non-trivial; note GPJax/alternatives as future work, don't block on it.
 - **Determinism:** every stochastic path takes an explicit seed; document that HMC exact bitwise reproducibility can vary across TF/BLAS builds → regression uses tolerances, not equality.
-- **Data:** `paper/data/` holds the committed plot-input subset (16 MB, §7 decision 4) — never the full 564 MB run (that stays in the private old repo; no Zenodo). Golden scalars stay in `paper/golden/`.
+- **Data:** `paper/data/` holds the committed plot-input subset (16 MB, §7 decision 4) — never the full 564 MB run (that stays in the private old repo; no Zenodo). Reference scalars stay in `paper/reference/`.
 - **License:** add one (BSD-3-Clause or MIT recommended for scientific Python; paper text is CC BY 4.0).
 - **Session handoff:** keep a `LOG.md` + this `REFACTOR_PLAN.md` in the new repo so Opus↔Sonnet sessions hand off cleanly (the `codex-refactor` `reactor_log.md` is a good template).
 
@@ -214,7 +214,7 @@ Core has **zero Julia dependency**; `pip install bits_for_gaps` pulls GPflow/TF/
 
 1. **Package name = `bits_for_gaps`.** Import `import bits_for_gaps`.
 2. **One repo, no separate paper repo.** The old `entropy_driven_hybrid_models_code` repo stays **private** (with its bloated history) as the archive of record; the paper-reproduction code migrates into this `bits_for_gaps` repo.
-3. **Examples + paper-reproduction are repo-only — NOT shipped in the pip wheel** (keeps the package lightweight). Only `src/bits_for_gaps/` ships. Layout: `examples/vle_distillation/` = the reusable H2O–PrOH case study; `paper/` = thin reproduction scripts (import from `examples/`) + `golden/` + `DATA.md`. Both are importable in dev/CI via a `tests/conftest.py` `sys.path` insert, not via install.
+3. **Examples + paper-reproduction are repo-only — NOT shipped in the pip wheel** (keeps the package lightweight). Only `src/bits_for_gaps/` ships. Layout: `examples/vle_distillation/` = the reusable H2O–PrOH case study; `paper/` = thin reproduction scripts (import from `examples/`) + `reference/` + `DATA.md`. Both are importable in dev/CI via a `tests/conftest.py` `sys.path` insert, not via install.
 4. **`paper/data/` = a committed ~16 MB verbatim subset of the archive; keep it AS-IS** (FINAL, 2026-07-04). The figures read only a subset of the published run; `paper/data/` holds exactly those files (verified byte-identical copies of the private archive — provenance in `paper/data/README.md`), so `paper/reproduce.py` runs archive-free from a fresh clone. User set a ≤20 MB ceiling and chose **simple over aggressively lean** (minor package, maybe 1–2 follow-on papers): do NOT trim — keep the 12 MB `gp_predict_{1,15}` grids (no pickle-recompute machinery) and keep `traces_chain_*` (Fig 10 stays reproducible). The FULL 564 MB run (365 MB `gp_predict`×60 + 88 MB PNGs + 86 MB traces) stays in the **private old repo**; **no Zenodo**. (Correction: the earlier "2.5 GB" was the old repo's entire git history; the single published-run directory is 564 MB.)
 5. **2-D faithful first, then N-D.** Clean 2-D refactor + lock regression (Phases 3–4), then generalize to N-D as Phase 5 with new synthetic tests.
 6. **Freeze the current dependency stack** (Py3.9 / TF 2.16.2 / GPflow 2.9.2 / TFP 0.24.0) as the reproduction baseline; modernization is a separate later effort.
