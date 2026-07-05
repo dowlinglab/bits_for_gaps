@@ -79,6 +79,23 @@ identical before/after, including on the error path; validation-error-path tests
 integration test reproducing the exact Phase 9b scenario end-to-end) -- all in addition
 to, not replacing, the existing regression suite, which stayed green throughout.
 
+## Faithfulness (Phase 9d) -- using more of what the paper actually derived
+
+- **The paper's closed-form entropy lower bound is now a usable acquisition
+  objective.** The paper derives *two* entropy estimators for the hierarchical GP
+  predictive posterior: the 2nd-order Taylor approximation
+  ({func}`bits_for_gaps.entropy.second_order_entropy`, Huber et al. 2008) that
+  actually drove acquisition in the paper, and a closed-form cross-overlap lower
+  bound ({func}`bits_for_gaps.entropy.entropy_lower_bound`, paper Theorem/SI-2). The
+  lower bound was implemented and unit-tested since Phase 2, but nothing in the
+  sequential-design loop could ever call it -- {func}`~bits_for_gaps.acquisition.entropy_objective`
+  had the Taylor estimator hardcoded. It's now selectable via
+  `objective="taylor"|"lower_bound"`, threaded through
+  {func}`~bits_for_gaps.acquisition.optimize`/{func}`~bits_for_gaps.acquisition.entropy_surface_2D`
+  and exposed as `BitsForGaps.acquisitionObjective` (default `"taylor"` -- every
+  existing baseline/golden value is unaffected unless a caller explicitly opts into
+  `"lower_bound"`).
+
 ## Architecture
 
 - **Decomposed into focused, independently-testable modules** (Phase 4). The original

@@ -107,6 +107,10 @@ class adaptiveEntropy:
         self.noRestarts = 10
         self.noGaussians = 25
         self.entropyMesh = [10 for _ in self.XBnds]
+        # Phase 9d: "taylor" (default, the paper's 2nd-order Taylor estimator, matches
+        # all pre-Phase-9d behavior/baselines) or "lower_bound" (the paper's closed-
+        # form cross-overlap lower bound, Theorem/SI-2) -- see acquisition.py.
+        self.acquisitionObjective = "taylor"
         self.optMethod = None
         self.optOptions = None
         self.FwdModel = fwd_model
@@ -222,7 +226,12 @@ class adaptiveEntropy:
         self, xStarGP: np.ndarray, trace: np.ndarray, GPmodel: gpflow.models.GPR
     ) -> float:
         return acquisition.entropy_objective(
-            xStarGP, trace, GPmodel, seed=self.seed, no_gaussians=self.noGaussians
+            xStarGP,
+            trace,
+            GPmodel,
+            seed=self.seed,
+            no_gaussians=self.noGaussians,
+            objective=self.acquisitionObjective,
         )
 
     def entropy_surface_2D(self, trace: np.ndarray, GPmodel: gpflow.models.GPR) -> np.ndarray:
@@ -235,6 +244,7 @@ class adaptiveEntropy:
             x_trsf_bkwd=self.input_transform.backward_fns,
             seed=self.seed,
             no_gaussians=self.noGaussians,
+            objective=self.acquisitionObjective,
         )
 
     def optimize(self, trace: np.ndarray, GPmodel: gpflow.models.GPR) -> OptimizeResult:
@@ -249,6 +259,7 @@ class adaptiveEntropy:
             seed=self.seed,
             no_gaussians=self.noGaussians,
             no_restarts=self.noRestarts,
+            objective=self.acquisitionObjective,
         )
 
     def call_model(
@@ -310,6 +321,11 @@ class adaptiveEntropy:
             )
         if not (self.adaptRate > 0):
             raise ValueError(f"adaptRate must be positive, got {self.adaptRate!r}")
+        if self.acquisitionObjective not in acquisition.ENTROPY_ESTIMATORS:
+            raise ValueError(
+                f"acquisitionObjective must be one of "
+                f"{sorted(acquisition.ENTROPY_ESTIMATORS)}, got {self.acquisitionObjective!r}"
+            )
 
     def run(
         self,

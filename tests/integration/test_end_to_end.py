@@ -216,6 +216,33 @@ def test_run_with_initial_lml_maximization():
 
 
 @pytest.mark.slow
+def test_run_with_lower_bound_acquisition_objective_completes():
+    # Phase 9d: acquisitionObjective="lower_bound" selects the paper's closed-form
+    # entropy lower bound (Theorem/SI-2) instead of the default 2nd-order Taylor
+    # estimator -- implemented and unit-tested since Phase 2 but never wired up as a
+    # usable acquisition objective before now. Default ("taylor") behavior/baselines
+    # are covered by every other test in this file; this just confirms the
+    # alternative objective runs a full iteration end-to-end without error.
+    X_init, y_init = _initial_design(n=12)
+    s = _build_sampler()
+    s.acquisitionObjective = "lower_bound"
+    record = s.run(X_init, y_init).last
+    assert np.all(np.isfinite(record.xStar))
+    for j, (lo, hi) in enumerate(BOUNDS):
+        assert lo <= record.xStar[j] <= hi
+    assert np.isfinite(record.max_entropy)
+
+
+@pytest.mark.slow
+def test_run_rejects_unknown_acquisition_objective():
+    X_init, y_init = _initial_design(n=12)
+    s = _build_sampler()
+    s.acquisitionObjective = "bogus"
+    with pytest.raises(ValueError, match="acquisitionObjective"):
+        s.run(X_init, y_init)
+
+
+@pytest.mark.slow
 def test_iteration_record_gpmodel_survives_downstream_mixture_sampling():
     # Phase 9c regression guard for the exact real-world bug Phase 9b found (see
     # paper/PHASE9B_INVESTIGATION.md): a caller that reuses history.last.GPmodel for a
