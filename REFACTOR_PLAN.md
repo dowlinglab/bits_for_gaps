@@ -188,6 +188,12 @@ Core has **zero Julia dependency**; `pip install bits_for_gaps` pulls GPflow/TF/
 - Behavior-preserving (baseline 1e-10 + golden green at every commit). Hygiene: ruff lint+format whole repo (preserve load-bearing import order — lazy `__init__`, `HANDLE_SIGNALS`-before-juliacall), type hints across the codebase via `from __future__ import annotations` (keep `import bits_for_gaps` Julia-free + TF-lazy), `py.typed`, broaden CI to the full default suite + README badge, coverage pass.
 - Faithfulness/features: wire `entropy_lower_bound` (the paper's SI closed-form bound) as a SELECTABLE acquisition objective (Taylor stays default); MC-validation test for the entropy approximation; a pure-Python synthetic example/tutorial (no Julia); GP Cholesky-conditioning guard; `CHANGELOG.md`.
 
+### Phase 9e — Docs / tests / comments quality pass  *(Sonnet + Opus check)*
+- Behavior-preserving (baseline 1e-10 + reference regressions green each commit). Three passes:
+  1. **RTD docs**: sensible organization, working cross-links, math faithful to the paper (key equations in the paper's notation — Eq 1/2 entropy+acquisition, Eq 6 SE kernel, Eq 7 GMM predictive, Eq 9 entropy, the Huber 2nd-order Taylor approx, the Theorem lower bound + SI-2 cross-overlap, Eq 10 extended Raoult, Eq 11 Gibbs–Duhem, SI-4 distillation), clearly explain the 3-phase loop. **Rename "golden" → "reference" everywhere** (git mv `paper/golden/`→`paper/reference/`, `golden` fixture→`reference`, all usages + docs).
+  2. **Tests**: unit tests on most functions; assert errors are raised; find + upgrade low-value/superficial tests.
+  3. **Comments**: NumPy-style docstrings on all functions; inline comments on non-trivial code citing paper/SI equation numbers (map in the Phase-9e prompt / HANDOFF).
+
 ### Phase 10 — Publish  *(Opus + user)*
 - Artifacts are already finalized (Phase 9 committed `paper/data/`; §7 decision 4). Release engineering: polish `pyproject.toml` → `0.1.0`, `CHANGELOG.md` + `RELEASE.md`, `python -m build` + `twine check`, clean-env install audit, GitHub Actions **trusted-publishing** workflow.
 - User actions: create PyPI/TestPyPI projects + configure trusted publishing (OIDC); TestPyPI dry-run; `git tag v0.1.0`; activate RTD (steps in `HANDOFF.md`).
