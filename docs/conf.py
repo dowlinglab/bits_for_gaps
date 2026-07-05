@@ -4,6 +4,7 @@ Docs are repo-only (not shipped in the pip wheel, mirroring examples/ and paper/
 policy -- see REFACTOR_PLAN.md §7.3) and built with Sphinx + MyST + furo, all pulled
 in via the ``[docs]`` extra (``pip install -e ".[docs]"``).
 """
+
 import os
 import sys
 

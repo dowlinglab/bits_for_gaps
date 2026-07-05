@@ -24,6 +24,7 @@ Usage::
 Output goes to ``--out-dir`` (default: ``results_remaked/``, already gitignored) --
 nothing this script produces is committed.
 """
+
 import argparse
 import os
 import sys
@@ -61,19 +62,26 @@ FIGURE_MODULES = {
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
-        "--archive", default=os.environ.get("BFG_ARCHIVE_DIR", DEFAULT_ARCHIVE),
+        "--archive",
+        default=os.environ.get("BFG_ARCHIVE_DIR", DEFAULT_ARCHIVE),
         help="Path to the plot-input data (default: $BFG_ARCHIVE_DIR or the "
-             f"committed paper/data/ subset, {DEFAULT_ARCHIVE}); point this at the "
-             "full private archive for iterations/figures beyond the curated subset",
+        f"committed paper/data/ subset, {DEFAULT_ARCHIVE}); point this at the "
+        "full private archive for iterations/figures beyond the curated subset",
     )
-    parser.add_argument("--out-dir", default=DEFAULT_OUT_DIR,
-                        help=f"Output directory (default: {DEFAULT_OUT_DIR})")
-    parser.add_argument("--figures", nargs="+", default=sorted(FIGURE_MODULES, key=int),
-                        choices=sorted(FIGURE_MODULES, key=int),
-                        help="Which figure numbers to regenerate (default: all)")
+    parser.add_argument(
+        "--out-dir", default=DEFAULT_OUT_DIR, help=f"Output directory (default: {DEFAULT_OUT_DIR})"
+    )
+    parser.add_argument(
+        "--figures",
+        nargs="+",
+        default=sorted(FIGURE_MODULES, key=int),
+        choices=sorted(FIGURE_MODULES, key=int),
+        help="Which figure numbers to regenerate (default: all)",
+    )
     args = parser.parse_args(argv)
 
     from paper.figures import _archive
+
     _archive.require_archive(args.archive)
     os.makedirs(args.out_dir, exist_ok=True)
 

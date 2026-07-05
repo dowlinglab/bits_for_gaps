@@ -23,6 +23,7 @@ Usage::
     export PYTHON_JULIACALL_HANDLE_SIGNALS=yes
     python paper/full_reproduction.py --out-dir results_remaked/phase9_fullrun
 """
+
 import argparse
 import json
 import os
@@ -45,6 +46,7 @@ if EXAMPLES_DIR not in sys.path:
 # coordination for ops this small -- single-threading it removed a >10x slowdown
 # confirmed during Phase 9b's investigation (see paper/PHASE9B_INVESTIGATION.md).
 import tensorflow as tf
+
 tf.config.threading.set_intra_op_parallelism_threads(1)
 tf.config.threading.set_inter_op_parallelism_threads(1)
 
@@ -84,8 +86,9 @@ def _predict_split(record, XGP, seed, size):
     simplification (see ``paper/REPRODUCTION.md``'s Phase 9 section), not a bitwise
     match.
     """
-    yGP_draws = mixture.sample_gp_posterior_mixture(record.trace, record.GPmodel, XGP,
-                                                     seed=seed, size=size)
+    yGP_draws = mixture.sample_gp_posterior_mixture(
+        record.trace, record.GPmodel, XGP, seed=seed, size=size
+    )
     return OUTPUT_TRANSFORM.backward(yGP_draws).T
 
 
@@ -101,29 +104,38 @@ def run(out_dir, n_init=N_INIT, n_test=N_TEST, n_iters=N_ITERS, seed=SEED):
     np.savetxt(os.path.join(out_dir, "lhs_design"), X_init)
     np.savetxt(os.path.join(out_dir, "lhs_test_points"), X_test)
     np.savetxt(os.path.join(out_dir, "activity_data_1"), np.column_stack([X_init, y_init]))
-    np.savetxt(os.path.join(out_dir, "activity_test_points"),
-              np.column_stack([X_test, y_test]))
+    np.savetxt(os.path.join(out_dir, "activity_test_points"), np.column_stack([X_test, y_test]))
 
     bfg = BitsForGaps(
-        black_box=activity_model.black_box, bounds=BOUNDS, kernel=AnisotropicSE.paper_2d(),
-        mean_fxn=gpflow.mean_functions.Zero(), likelihood_variance=0.1,
-        input_transform=INPUT_TRANSFORM, output_transform=OUTPUT_TRANSFORM,
-        iters=n_iters, exp_name="phase9_fullrun",
+        black_box=activity_model.black_box,
+        bounds=BOUNDS,
+        kernel=AnisotropicSE.paper_2d(),
+        mean_fxn=gpflow.mean_functions.Zero(),
+        likelihood_variance=0.1,
+        input_transform=INPUT_TRANSFORM,
+        output_transform=OUTPUT_TRANSFORM,
+        iters=n_iters,
+        exp_name="phase9_fullrun",
     )
     bfg.seed = seed
     bfg.noSamples, bfg.noBurnIn = 5000, 0
     bfg.noChains, bfg.noLeapfrogSteps, bfg.stepSize = 4, 5, 0.05
     bfg.noAdaptSteps, bfg.targetAccept, bfg.adaptRate = 5, 0.9, 0.1
     bfg.noGaussians, bfg.noRestarts = 15, 10
-    bfg.noGPpredictions = 50   # matches the paper run's 50 full-grid posterior draws
+    bfg.noGPpredictions = 50  # matches the paper run's 50 full-grid posterior draws
 
-    print(f"Running {n_iters} adaptive design iterations from {n_init} initial points "
-         f"({n_test} held out)...", flush=True)
+    print(
+        f"Running {n_iters} adaptive design iterations from {n_init} initial points "
+        f"({n_test} held out)...",
+        flush=True,
+    )
     t0 = time.time()
     history = bfg.run(X_init, y_init, checkpoint_dir=out_dir, predict_grid=True)
     elapsed = time.time() - t0
-    print(f"Done in {elapsed / 3600:.2f} h. Final design has "
-         f"{history.last.XData.shape[0]} points.", flush=True)
+    print(
+        f"Done in {elapsed / 3600:.2f} h. Final design has {history.last.XData.shape[0]} points.",
+        flush=True,
+    )
 
     # Fig 8/9-style phase diagram + McCabe-Thiele column from the final, genuinely
     # 15-iteration adaptively-trained GP -- contrast with
@@ -144,13 +156,15 @@ def run(out_dir, n_init=N_INIT, n_test=N_TEST, n_iters=N_ITERS, seed=SEED):
     z_w, T_w, y1_w = pd.vle_curve(pd.wilson_gamma, z_grid=z_grid)
 
     def surrogate_gamma_fn(z, T):
-        return pd.surrogate_gamma_averaged(z, T, GPmodel, INPUT_TRANSFORM,
-                                           OUTPUT_TRANSFORM, trace_final, seed=seed)
+        return pd.surrogate_gamma_averaged(
+            z, T, GPmodel, INPUT_TRANSFORM, OUTPUT_TRANSFORM, trace_final, seed=seed
+        )
 
     z_s, T_s, y1_s = pd.vle_curve(surrogate_gamma_fn, z_grid=z_grid)
     np.savetxt(os.path.join(out_dir, "gt_Wilson_data"), np.column_stack([z_w, T_w, y1_w]))
-    np.savetxt(os.path.join(out_dir, "phase_diagram_surrogate_final"),
-              np.column_stack([z_s, T_s, y1_s]))
+    np.savetxt(
+        os.path.join(out_dir, "phase_diagram_surrogate_final"), np.column_stack([z_s, T_s, y1_s])
+    )
 
     # Fig-5-style train/test posterior-predictive draws at the first and last
     # iteration (mirrors gp_predict_{train,test}_{iter} in paper/data/), plus a
@@ -166,21 +180,19 @@ def run(out_dir, n_init=N_INIT, n_test=N_TEST, n_iters=N_ITERS, seed=SEED):
         test_rmse_by_iter[record.iteration] = rmse
         if record.iteration in (first_it, last_it):
             yhat_train = _predict_split(record, X_train_gp, seed, size=bfg.noGaussians)
-            np.savetxt(os.path.join(out_dir, f"gp_predict_train_{record.iteration}"),
-                      yhat_train)
-            np.savetxt(os.path.join(out_dir, f"gp_predict_test_{record.iteration}"),
-                      yhat_test)
+            np.savetxt(os.path.join(out_dir, f"gp_predict_train_{record.iteration}"), yhat_train)
+            np.savetxt(os.path.join(out_dir, f"gp_predict_test_{record.iteration}"), yhat_test)
 
     equil_wilson = equilibrium.make_equilibrium_function(z_w, y1_w)
     equil_surrogate = equilibrium.make_equilibrium_function(z_s, y1_s)
-    column_wilson = distillation.solve_column(COLUMN_N_STAGES, COLUMN_FEED_STAGE,
-                                              equil_wilson, COLUMN_VAR_NAMES,
-                                              COLUMN_VAR_VALUES)
+    column_wilson = distillation.solve_column(
+        COLUMN_N_STAGES, COLUMN_FEED_STAGE, equil_wilson, COLUMN_VAR_NAMES, COLUMN_VAR_VALUES
+    )
     try:
-        column_surrogate = distillation.solve_column(COLUMN_N_STAGES, COLUMN_FEED_STAGE,
-                                                      equil_surrogate, COLUMN_VAR_NAMES,
-                                                      COLUMN_VAR_VALUES)
-    except Exception as exc:   # the adaptive surrogate may not be well-behaved enough
+        column_surrogate = distillation.solve_column(
+            COLUMN_N_STAGES, COLUMN_FEED_STAGE, equil_surrogate, COLUMN_VAR_NAMES, COLUMN_VAR_VALUES
+        )
+    except Exception as exc:  # the adaptive surrogate may not be well-behaved enough
         column_surrogate = {"converged": False, "warnings": [repr(exc)], "stages": []}
 
     summary = {

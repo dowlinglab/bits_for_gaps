@@ -12,6 +12,7 @@ functions rather than redefining them). See that test's module docstring for why
 surrogate uses a fresh 30-point LHS + MLE fit rather than the full 15-iteration
 adaptive loop.
 """
+
 import os
 
 import numpy as np
@@ -21,9 +22,9 @@ COLUMN_VAR_NAMES = ["xW", "F", "xF", "R", "xD"]
 COLUMN_VAR_VALUES = [0.01, 100.0, 0.10, 1.0, 0.43]
 COLUMN_N_STAGES = 4
 COLUMN_FEED_STAGE = 3
-Z_GRID_SIZE = 50   # the distillation solver's fsolve convergence is sensitive to how
-                   # well-resolved the equilibrium curve is (confirmed empirically) --
-                   # do not shrink this casually.
+Z_GRID_SIZE = 50  # the distillation solver's fsolve convergence is sensitive to how
+# well-resolved the equilibrium curve is (confirmed empirically) --
+# do not shrink this casually.
 
 # Paper's exact 2-D VLE search space + GP input/output transforms (see
 # examples/vle_distillation/run_case_study.py for the full paper-trail justification).
@@ -40,8 +41,9 @@ def wilson_column():
     z_grid = np.linspace(0.0, 1.0, Z_GRID_SIZE)
     z, _T_bub, y = pd.vle_curve(pd.wilson_gamma, z_grid=z_grid)
     equil = equilibrium.make_equilibrium_function(z, y)
-    result = distillation.solve_column(COLUMN_N_STAGES, COLUMN_FEED_STAGE, equil,
-                                       COLUMN_VAR_NAMES, COLUMN_VAR_VALUES)
+    result = distillation.solve_column(
+        COLUMN_N_STAGES, COLUMN_FEED_STAGE, equil, COLUMN_VAR_NAMES, COLUMN_VAR_VALUES
+    )
     result["equil"] = equil
     return result
 
@@ -60,13 +62,13 @@ def surrogate_column():
     but-short design did not (confirmed empirically while developing this).
     """
     import gpflow
+    from vle_distillation import activity_model, distillation, equilibrium
+    from vle_distillation import phase_diagram as pd
 
     from bits_for_gaps import gp as gp_mod
     from bits_for_gaps.design import latin_hypercube_design
     from bits_for_gaps.kernels import AnisotropicSE
     from bits_for_gaps.transforms import InputTransform, OutputTransform
-    from vle_distillation import activity_model, distillation, equilibrium
-    from vle_distillation import phase_diagram as pd
 
     input_transform = InputTransform(
         forward_fns=[lambda x: np.log(x + 0.1), lambda T: (T - BOUNDS[1][0]) / 17.0],
@@ -74,15 +76,18 @@ def surrogate_column():
     )
     output_transform = OutputTransform(forward_fn=np.log, backward_fn=np.exp)
 
-    X_train, _ = latin_hypercube_design(BOUNDS, n_train=N_SURROGATE_TRAIN, n_test=0,
-                                        seed=SEED)
-    y_train = np.array([activity_model.activity_coefficients(z, T)[0]
-                        for z, T in X_train])
+    X_train, _ = latin_hypercube_design(BOUNDS, n_train=N_SURROGATE_TRAIN, n_test=0, seed=SEED)
+    y_train = np.array([activity_model.activity_coefficients(z, T)[0] for z, T in X_train])
 
     XGP = input_transform.forward(X_train)
     yGP = output_transform.forward(y_train.reshape(-1, 1))
-    GPmodel = gp_mod.build_gp(XGP, yGP, mean_fxn=gpflow.mean_functions.Zero(),
-                              kernel_fxn=AnisotropicSE.paper_2d(), likelihood_var=0.1)
+    GPmodel = gp_mod.build_gp(
+        XGP,
+        yGP,
+        mean_fxn=gpflow.mean_functions.Zero(),
+        kernel_fxn=AnisotropicSE.paper_2d(),
+        likelihood_var=0.1,
+    )
     _result, GPmodel = gp_mod.maximize_lml(GPmodel)
 
     def surrogate_gamma_fn(z, T):
@@ -91,8 +96,9 @@ def surrogate_column():
     z_grid = np.linspace(0.0, 1.0, Z_GRID_SIZE)
     z, _T_bub, y = pd.vle_curve(surrogate_gamma_fn, z_grid=z_grid)
     equil = equilibrium.make_equilibrium_function(z, y)
-    result = distillation.solve_column(COLUMN_N_STAGES, COLUMN_FEED_STAGE, equil,
-                                       COLUMN_VAR_NAMES, COLUMN_VAR_VALUES)
+    result = distillation.solve_column(
+        COLUMN_N_STAGES, COLUMN_FEED_STAGE, equil, COLUMN_VAR_NAMES, COLUMN_VAR_VALUES
+    )
     result["equil"] = equil
     return result
 
@@ -111,8 +117,10 @@ def make(archive_dir, out_dir, img_fmt="png"):
     surrogate = surrogate_column()
 
     paths = []
-    for label, result, letter in [("wilson", wilson, "(a) Wilson"),
-                                  ("surrogate", surrogate, "(b) Surrogate")]:
+    for label, result, letter in [
+        ("wilson", wilson, "(a) Wilson"),
+        ("surrogate", surrogate, "(b) Surrogate"),
+    ]:
         ax = distillation.plot_mccabe_thiele(result, result["equil"], COLUMN_FEED_STAGE)
         ax.set_xlim(-0.02, 0.5)
         ax.set_ylim(-0.02, 0.5)
@@ -120,6 +128,7 @@ def make(archive_dir, out_dir, img_fmt="png"):
         out_path = os.path.join(out_dir, f"eight_stages_feed_on_3_{label}.{img_fmt}")
         ax.figure.savefig(out_path, dpi=300, bbox_inches="tight")
         import matplotlib.pyplot as plt
+
         plt.close(ax.figure)
         paths.append(out_path)
 

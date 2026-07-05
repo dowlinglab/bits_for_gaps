@@ -10,6 +10,7 @@ second GP output. For an isothermal, isobaric binary mixture:
 integrated from a dilute reference ``z = zmin`` (where ``gamma_water ~= 1``, i.e. the
 integration constant ``ln(gamma_water) = 0``) up to ``z = z_star``.
 """
+
 import numpy as np
 
 

@@ -52,14 +52,22 @@ def _validate_bounds(x_bounds):
         lo, hi = b
         if not (float(lo) < float(hi)):
             raise ValueError(
-                f"x_bounds[{i}] = ({lo}, {hi}) is invalid: lo must be strictly less "
-                f"than hi."
+                f"x_bounds[{i}] = ({lo}, {hi}) is invalid: lo must be strictly less than hi."
             )
 
 
 class adaptiveEntropy:
-    def __init__(self, exp_name, iters, x_bounds, likelihood_var, mean_fxn, kernel_fxn,
-                 fwd_model, fwd_model_args):
+    def __init__(
+        self,
+        exp_name,
+        iters,
+        x_bounds,
+        likelihood_var,
+        mean_fxn,
+        kernel_fxn,
+        fwd_model,
+        fwd_model_args,
+    ):
         """
         exp_name, iters, x_bounds, likelihood_var, mean_fxn, kernel_fxn,
         fwd_model, fwd_model_args
@@ -78,45 +86,45 @@ class adaptiveEntropy:
             )
 
         ## Miscellaneous
-        self.path = os.path.join("results", exp_name)   # default checkpoint dir (opt-in)
-        self.seed = 123                                 # random seed
+        self.path = os.path.join("results", exp_name)  # default checkpoint dir (opt-in)
+        self.seed = 123  # random seed
 
         ## Data related
-        self.XBnds          = x_bounds
-        self.input_transform  = InputTransform(ndim=len(x_bounds))
+        self.XBnds = x_bounds
+        self.input_transform = InputTransform(ndim=len(x_bounds))
         self.output_transform = OutputTransform()
 
         ## Sequential design
-        self.noIters        = iters
-        self.startIter      = 0     # iteration offset for resuming a prior run
-                                    # (was a hardcoded ``i += 50`` in the manuscript run)
-        self.noRestarts     = 10
-        self.noGaussians    = 25
-        self.entropyMesh    = [10 for _ in self.XBnds]
-        self.optMethod      = None
-        self.optOptions     = None
-        self.FwdModel       = fwd_model
-        self.FwdModelArgs   = fwd_model_args
+        self.noIters = iters
+        self.startIter = 0  # iteration offset for resuming a prior run
+        # (was a hardcoded ``i += 50`` in the manuscript run)
+        self.noRestarts = 10
+        self.noGaussians = 25
+        self.entropyMesh = [10 for _ in self.XBnds]
+        self.optMethod = None
+        self.optOptions = None
+        self.FwdModel = fwd_model
+        self.FwdModelArgs = fwd_model_args
 
         ## Gaussian Process
-        self.likelihoodVar      = likelihood_var
-        self.meanFxn            = mean_fxn
-        self.kernelFxn           = kernel_fxn
-        self.noGPpredictions    = 20
-        self.summarizeGP        = False
-        self.initalLML          = False
-        self.debugCov           = False
-        self.showLMLres         = False
+        self.likelihoodVar = likelihood_var
+        self.meanFxn = mean_fxn
+        self.kernelFxn = kernel_fxn
+        self.noGPpredictions = 20
+        self.summarizeGP = False
+        self.initalLML = False
+        self.debugCov = False
+        self.showLMLres = False
 
         ## Hamiltonian MCMC
-        self.noSamples          = 5000
-        self.noBurnIn           = 2000
-        self.noChains           = 4
-        self.noLeapfrogSteps    = 5
-        self.stepSize           = 0.05
-        self.noAdaptSteps       = 5
-        self.targetAccept       = 0.90
-        self.adaptRate          = 0.10
+        self.noSamples = 5000
+        self.noBurnIn = 2000
+        self.noChains = 4
+        self.noLeapfrogSteps = 5
+        self.stepSize = 0.05
+        self.noAdaptSteps = 5
+        self.targetAccept = 0.90
+        self.adaptRate = 0.10
 
     ## ------------------------------------------------------------------
     ## Optional disk I/O (legacy convenience; not used internally by run())
@@ -146,25 +154,37 @@ class adaptiveEntropy:
         return XGP, yGP
 
     def build_gp(self, XGP, yGP):
-        return gp.build_gp(XGP, yGP, mean_fxn=self.meanFxn, kernel_fxn=self.kernelFxn,
-                           likelihood_var=self.likelihoodVar, summarize=self.summarizeGP)
+        return gp.build_gp(
+            XGP,
+            yGP,
+            mean_fxn=self.meanFxn,
+            kernel_fxn=self.kernelFxn,
+            likelihood_var=self.likelihoodVar,
+            summarize=self.summarizeGP,
+        )
 
     def maximize_lml(self, GPmodel):
         return gp.maximize_lml(GPmodel, debug_cov=self.debugCov)
 
     def run_mcmc(self, GPmodel):
         """Returns ``(trace, chains_states, rhat, ess, GPmodel)`` -- see ``gp.run_mcmc``."""
-        return gp.run_mcmc(GPmodel, seed=self.seed, no_samples=self.noSamples,
-                           no_burn_in=self.noBurnIn, no_chains=self.noChains,
-                           no_leapfrog_steps=self.noLeapfrogSteps, step_size=self.stepSize,
-                           no_adapt_steps=self.noAdaptSteps, target_accept=self.targetAccept,
-                           adapt_rate=self.adaptRate)
+        return gp.run_mcmc(
+            GPmodel,
+            seed=self.seed,
+            no_samples=self.noSamples,
+            no_burn_in=self.noBurnIn,
+            no_chains=self.noChains,
+            no_leapfrog_steps=self.noLeapfrogSteps,
+            step_size=self.stepSize,
+            no_adapt_steps=self.noAdaptSteps,
+            target_accept=self.targetAccept,
+            adapt_rate=self.adaptRate,
+        )
 
     def sample_gp_posterior_mixture(self, trace, GPmodel, XGP, size=None):
         if size is None:
             size = self.noGaussians
-        return mixture.sample_gp_posterior_mixture(trace, GPmodel, XGP, seed=self.seed,
-                                                    size=size)
+        return mixture.sample_gp_posterior_mixture(trace, GPmodel, XGP, seed=self.seed, size=size)
 
     def predict_grid_2D(self, GPmodel, trace):
         """Full-grid GP posterior-predictive samples (plotting-only diagnostic).
@@ -174,23 +194,31 @@ class adaptiveEntropy:
         bitwise-reproducible (``predict_f_samples`` draws from TF's ambient RNG).
         """
         return mixture.predict_grid_2D(
-            trace, GPmodel, x_bounds=self.XBnds,
+            trace,
+            GPmodel,
+            x_bounds=self.XBnds,
             x_trsf_fwd=self.input_transform.forward_fns,
             x_trsf_bkwd=self.input_transform.backward_fns,
             y_trsf_bkwd=self.output_transform.backward,
-            seed=self.seed, size=self.noGPpredictions,
+            seed=self.seed,
+            size=self.noGPpredictions,
         )
 
     def entropy_objective(self, xStarGP, trace, GPmodel):
-        return acquisition.entropy_objective(xStarGP, trace, GPmodel, seed=self.seed,
-                                             no_gaussians=self.noGaussians)
+        return acquisition.entropy_objective(
+            xStarGP, trace, GPmodel, seed=self.seed, no_gaussians=self.noGaussians
+        )
 
     def entropy_surface_2D(self, trace, GPmodel):
         return acquisition.entropy_surface_2D(
-            trace, GPmodel, x_bounds=self.XBnds, mesh=self.entropyMesh,
+            trace,
+            GPmodel,
+            x_bounds=self.XBnds,
+            mesh=self.entropyMesh,
             x_trsf_fwd=self.input_transform.forward_fns,
             x_trsf_bkwd=self.input_transform.backward_fns,
-            seed=self.seed, no_gaussians=self.noGaussians,
+            seed=self.seed,
+            no_gaussians=self.noGaussians,
         )
 
     def optimize(self, trace, GPmodel):
@@ -198,9 +226,13 @@ class adaptiveEntropy:
         ``acquisition.optimize``.
         """
         return acquisition.optimize(
-            trace, GPmodel, x_bounds=self.XBnds,
+            trace,
+            GPmodel,
+            x_bounds=self.XBnds,
             x_trsf_fwd=self.input_transform.forward_fns,
-            seed=self.seed, no_gaussians=self.noGaussians, no_restarts=self.noRestarts,
+            seed=self.seed,
+            no_gaussians=self.noGaussians,
+            no_restarts=self.noRestarts,
         )
 
     def call_model(self, xStar, XData, yData):
@@ -237,8 +269,14 @@ class adaptiveEntropy:
         this package's established convention throughout the examples/tests -- so
         ``__init__`` would only ever see the as-yet-unmodified defaults.
         """
-        for name in ("noIters", "noSamples", "noChains", "noLeapfrogSteps",
-                    "noGaussians", "noRestarts"):
+        for name in (
+            "noIters",
+            "noSamples",
+            "noChains",
+            "noLeapfrogSteps",
+            "noGaussians",
+            "noRestarts",
+        ):
             value = getattr(self, name)
             if not (isinstance(value, (int, np.integer)) and value > 0):
                 raise ValueError(f"{name} must be a positive integer, got {value!r}")
@@ -250,8 +288,7 @@ class adaptiveEntropy:
             raise ValueError(f"stepSize must be positive, got {self.stepSize!r}")
         if not (0.0 < self.targetAccept < 1.0):
             raise ValueError(
-                f"targetAccept must be in the open interval (0, 1), got "
-                f"{self.targetAccept!r}"
+                f"targetAccept must be in the open interval (0, 1), got {self.targetAccept!r}"
             )
         if not (self.adaptRate > 0):
             raise ValueError(f"adaptRate must be positive, got {self.adaptRate!r}")
@@ -328,9 +365,17 @@ class adaptiveEntropy:
             XData, yData = self.call_model(xStar, XData, yData)
 
             record = IterationRecord(
-                iteration=it, XData=XData, yData=yData, GPmodel=GPmodel, trace=trace,
-                chains_states=chains_states, rhat=rhat, ess=ess,
-                entropy_field=entropy_field, xStar=xStar, max_entropy=max_entropy,
+                iteration=it,
+                XData=XData,
+                yData=yData,
+                GPmodel=GPmodel,
+                trace=trace,
+                chains_states=chains_states,
+                rhat=rhat,
+                ess=ess,
+                entropy_field=entropy_field,
+                xStar=xStar,
+                max_entropy=max_entropy,
                 lml_result=lml_result,
             )
             history.append(record)
@@ -362,20 +407,26 @@ class adaptiveEntropy:
         """
         os.makedirs(checkpoint_dir, exist_ok=True)
         it = record.iteration
-        np.savetxt(os.path.join(checkpoint_dir, f"rhat_value_{it}.txt"), record.rhat,
-                   header="R-hat value")
-        np.savetxt(os.path.join(checkpoint_dir, f"ess_value_{it}.txt"), record.ess,
-                   header="ess value")
+        np.savetxt(
+            os.path.join(checkpoint_dir, f"rhat_value_{it}.txt"), record.rhat, header="R-hat value"
+        )
+        np.savetxt(
+            os.path.join(checkpoint_dir, f"ess_value_{it}.txt"), record.ess, header="ess value"
+        )
         np.savetxt(os.path.join(checkpoint_dir, f"param_posterior_samples_{it}"), record.trace)
         for c in range(record.chains_states.shape[1]):
-            np.savetxt(os.path.join(checkpoint_dir, f"traces_chain_{c}_exp_{it}"),
-                      record.chains_states[:, c, :])
+            np.savetxt(
+                os.path.join(checkpoint_dir, f"traces_chain_{c}_exp_{it}"),
+                record.chains_states[:, c, :],
+            )
         if record.entropy_field is not None:
             np.savetxt(os.path.join(checkpoint_dir, f"entropy_{it}"), record.entropy_field)
         if grid_predictions is not None:
             np.savetxt(os.path.join(checkpoint_dir, f"gp_predict_{it}"), grid_predictions)
-        np.savetxt(os.path.join(checkpoint_dir, f"activity_data_{it + 1}"),
-                  np.column_stack([record.XData, record.yData]))
+        np.savetxt(
+            os.path.join(checkpoint_dir, f"activity_data_{it + 1}"),
+            np.column_stack([record.XData, record.yData]),
+        )
         with open(os.path.join(checkpoint_dir, f"gp_model_{it}.pkl"), "wb") as f:
             pickle.dump(record.GPmodel, f)
 
@@ -395,14 +446,28 @@ class BitsForGaps(adaptiveEntropy):
     instance attributes inherited from ``adaptiveEntropy`` (e.g. ``.noSamples``).
     """
 
-    def __init__(self, black_box, bounds, kernel, mean_fxn=None, likelihood_variance=0.05,
-                 exp_name="bits_for_gaps_run", iters=1, fwd_model_args=(),
-                 input_transform=None, output_transform=None):
+    def __init__(
+        self,
+        black_box,
+        bounds,
+        kernel,
+        mean_fxn=None,
+        likelihood_variance=0.05,
+        exp_name="bits_for_gaps_run",
+        iters=1,
+        fwd_model_args=(),
+        input_transform=None,
+        output_transform=None,
+    ):
         super().__init__(
-            exp_name=exp_name, iters=iters, x_bounds=bounds,
+            exp_name=exp_name,
+            iters=iters,
+            x_bounds=bounds,
             likelihood_var=likelihood_variance,
             mean_fxn=mean_fxn if mean_fxn is not None else gpflow.mean_functions.Zero(),
-            kernel_fxn=kernel, fwd_model=black_box, fwd_model_args=fwd_model_args,
+            kernel_fxn=kernel,
+            fwd_model=black_box,
+            fwd_model_args=fwd_model_args,
         )
         if input_transform is not None:
             self.input_transform = input_transform

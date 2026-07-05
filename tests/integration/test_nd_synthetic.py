@@ -9,6 +9,7 @@ The 3-D kernel deliberately mixes prior families across dimensions (LogNormal-po
 Gamma-unconstrained, LogNormal-positive) -- the same per-dimension-Parameter design
 point that matters for the paper's 2-D kernel, now exercised at d=3.
 """
+
 import gpflow
 import numpy as np
 import pytest
@@ -61,10 +62,20 @@ def _kernel_3d():
 
 
 CASES = {
-    "1d": dict(bounds=[(0.0, 1.0)], kernel_factory=_kernel_1d, black_box=_fwd_model_1d,
-               true_f=_true_f_1d, n_hyperparameters=2),
-    "3d": dict(bounds=[(0.0, 1.0)] * 3, kernel_factory=_kernel_3d, black_box=_fwd_model_3d,
-               true_f=_true_f_3d, n_hyperparameters=4),
+    "1d": dict(
+        bounds=[(0.0, 1.0)],
+        kernel_factory=_kernel_1d,
+        black_box=_fwd_model_1d,
+        true_f=_true_f_1d,
+        n_hyperparameters=2,
+    ),
+    "3d": dict(
+        bounds=[(0.0, 1.0)] * 3,
+        kernel_factory=_kernel_3d,
+        black_box=_fwd_model_3d,
+        true_f=_true_f_3d,
+        n_hyperparameters=4,
+    ),
 }
 
 
@@ -79,8 +90,12 @@ def _initial_design(bounds, true_f, n=10, seed=0):
 
 
 def _build_bfg(case, seed=SEED):
-    bfg = BitsForGaps(black_box=case["black_box"], bounds=case["bounds"],
-                      kernel=case["kernel_factory"](), likelihood_variance=0.05)
+    bfg = BitsForGaps(
+        black_box=case["black_box"],
+        bounds=case["bounds"],
+        kernel=case["kernel_factory"](),
+        likelihood_variance=0.05,
+    )
     bfg.seed = seed
     # Tiny, fast configuration (the point is dimension-generality, not statistical quality).
     bfg.noSamples = 100

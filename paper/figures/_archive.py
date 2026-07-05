@@ -12,6 +12,7 @@ functions below rather than hardcoding paths, so both sources work unchanged.
 Iteration 15 is the published run: its ``rhat_value_15.txt``/``ess_value_15.txt``
 match paper Fig 10 exactly (see ``paper/golden/hmc_diagnostics.json``).
 """
+
 import os
 
 import numpy as np
@@ -135,6 +136,6 @@ def available_entropy_iters(archive_dir):
     """Sorted iteration numbers for every archived ``entropy_{i}`` file."""
     iters = []
     for name in os.listdir(archive_dir):
-        if name.startswith("entropy_") and name[len("entropy_"):].isdigit():
-            iters.append(int(name[len("entropy_"):]))
+        if name.startswith("entropy_") and name[len("entropy_") :].isdigit():
+            iters.append(int(name[len("entropy_") :]))
     return sorted(iters)

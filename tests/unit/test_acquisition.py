@@ -8,6 +8,7 @@ unchanged -- the same class of state-mutation footgun Phase 9b found in
 ``IterationRecord.GPmodel``, an unrestored kernel would silently corrupt every
 iteration's returned model.
 """
+
 import gpflow
 import numpy as np
 import pytest
@@ -55,7 +56,9 @@ def test_entropy_objective_restores_kernel_state_on_error(gp_model, trace):
     bad_trace = trace.copy()
     bad_trace[3, 1] = np.nan
     xStarGP = np.array([0.4, 358.0])
-    with pytest.raises(Exception):
+    # Exact exception type is TF/gpflow-internal and not the point of this test --
+    # only that *some* failure happens, and that it doesn't leave the kernel mutated.
+    with pytest.raises(Exception):  # noqa: B017
         entropy_objective(xStarGP, bad_trace, gp_model, seed=42, no_gaussians=len(trace))
     after = [_val(p) for p in gp_model.kernel.hyperparameters]
     assert after == before
@@ -63,17 +66,30 @@ def test_entropy_objective_restores_kernel_state_on_error(gp_model, trace):
 
 def test_optimize_restores_kernel_state(gp_model, trace):
     before = [_val(p) for p in gp_model.kernel.hyperparameters]
-    optimize(trace, gp_model, x_bounds=[(0.0, 1.0), (350.0, 367.0)],
-            x_trsf_fwd=[lambda x: x, lambda x: x], seed=42, no_gaussians=5,
-            no_restarts=2)
+    optimize(
+        trace,
+        gp_model,
+        x_bounds=[(0.0, 1.0), (350.0, 367.0)],
+        x_trsf_fwd=[lambda x: x, lambda x: x],
+        seed=42,
+        no_gaussians=5,
+        no_restarts=2,
+    )
     after = [_val(p) for p in gp_model.kernel.hyperparameters]
     assert after == before
 
 
 def test_entropy_surface_2d_restores_kernel_state(gp_model, trace):
     before = [_val(p) for p in gp_model.kernel.hyperparameters]
-    entropy_surface_2D(trace, gp_model, x_bounds=[(0.0, 1.0), (350.0, 367.0)],
-                       mesh=[3, 3], x_trsf_fwd=[lambda x: x, lambda x: x],
-                       x_trsf_bkwd=[lambda x: x, lambda x: x], seed=42, no_gaussians=5)
+    entropy_surface_2D(
+        trace,
+        gp_model,
+        x_bounds=[(0.0, 1.0), (350.0, 367.0)],
+        mesh=[3, 3],
+        x_trsf_fwd=[lambda x: x, lambda x: x],
+        x_trsf_bkwd=[lambda x: x, lambda x: x],
+        seed=42,
+        no_gaussians=5,
+    )
     after = [_val(p) for p in gp_model.kernel.hyperparameters]
     assert after == before

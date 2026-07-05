@@ -86,8 +86,18 @@ def sample_gp_posterior_mixture(trace, GPmodel, XGP, seed, size, tf_seed=None):
         kernels.assign_hyperparameters(GPmodel.kernel, saved_hyperparameters)
 
 
-def predict_grid_2D(trace, GPmodel, x_bounds, x_trsf_fwd, x_trsf_bkwd, y_trsf_bkwd,
-                    seed, size, n_grid=50, tf_seed=None):
+def predict_grid_2D(
+    trace,
+    GPmodel,
+    x_bounds,
+    x_trsf_fwd,
+    x_trsf_bkwd,
+    y_trsf_bkwd,
+    seed,
+    size,
+    n_grid=50,
+    tf_seed=None,
+):
     """Full-grid GP posterior-predictive samples, for 2-D plotting diagnostics only.
 
     Moved from ``adaptiveEntropy.gp_predict_2D``. This does **not** feed the acquisition
@@ -132,8 +142,7 @@ def predict_grid_2D(trace, GPmodel, x_bounds, x_trsf_fwd, x_trsf_bkwd, y_trsf_bk
     x1_grid, x2_grid = np.meshgrid(x1, x2)
     xStar = np.column_stack([x1_grid.ravel(), x2_grid.ravel()])
     XStarGP = np.column_stack([fwd(xStar[:, j]) for j, fwd in enumerate(x_trsf_fwd)])
-    yStarGP = sample_gp_posterior_mixture(trace, GPmodel, XStarGP, seed, size,
-                                          tf_seed=tf_seed)
+    yStarGP = sample_gp_posterior_mixture(trace, GPmodel, XStarGP, seed, size, tf_seed=tf_seed)
     xStar = np.column_stack([bkwd(XStarGP[:, j]) for j, bkwd in enumerate(x_trsf_bkwd)])
     yStar = y_trsf_bkwd(yStarGP).T
     return np.column_stack([xStar, yStar])

@@ -123,13 +123,17 @@ def second_order_entropy(weights, means, covs):
 
             if np.ndim(mu_l) == 0:
                 sigma_k_inv = 1 / covs[loopB]
-                pk_mu_l = gaussian_mixture_density(x=mu_l, means=[mu_k], covs=[covs[loopB]], weights=[1])
+                pk_mu_l = gaussian_mixture_density(
+                    x=mu_l, means=[mu_k], covs=[covs[loopB]], weights=[1]
+                )
                 term1 = (mu_l - mu_k) * grad_pl / pl
                 term2 = (mu_l - mu_k) * sigma_k_inv * (mu_l - mu_k)
                 Phi_mu_l += wB * sigma_k_inv * (term1 + term2 - 1) * pk_mu_l / pl
             else:
                 sigma_k_inv = np.linalg.inv(covs[loopB])
-                pk_mu_l = gaussian_mixture_density(x=mu_l, means=[mu_k], covs=[covs[loopB]], weights=[1])
+                pk_mu_l = gaussian_mixture_density(
+                    x=mu_l, means=[mu_k], covs=[covs[loopB]], weights=[1]
+                )
                 term1 = (mu_l - mu_k).reshape(-1, 1) @ grad_pl.reshape(1, -1) / pl
                 term2 = (mu_l - mu_k).reshape(-1, 1) @ (sigma_k_inv @ (mu_l - mu_k)).reshape(1, -1)
                 Phi_mu_l += wB * sigma_k_inv @ (term1 + term2 - np.eye(len(mu_l))) * pk_mu_l / pl
@@ -156,6 +160,7 @@ def entropy_lower_bound(weights, means, variances):
     float
         The entropy lower bound ``H_LB``.
     """
+
     def gaussian_density_1d(mu1, mu2, var_sum):
         return (1 / np.sqrt(2 * np.pi * var_sum)) * np.exp(-0.5 * ((mu1 - mu2) ** 2) / var_sum)
 

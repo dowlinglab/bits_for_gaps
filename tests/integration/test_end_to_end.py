@@ -16,6 +16,7 @@ each deterministic ``predict_f`` call, so the entropy field and the selected poi
 identical whether or not it ran. (It is also not bitwise-reproducible in isolation --
 see ``mixture.py``'s note on ``predict_f_samples``' ambient TF randomness.)
 """
+
 import json
 from pathlib import Path
 
@@ -51,9 +52,14 @@ def _initial_design(n=12, seed=0):
 
 def _build_sampler(seed=SEED):
     s = adaptiveEntropy(
-        exp_name="synthetic", iters=1, x_bounds=BOUNDS, likelihood_var=0.05,
-        mean_fxn=gpflow.mean_functions.Zero(), kernel_fxn=AnisotropicSE(),
-        fwd_model=_fwd_model, fwd_model_args=(),
+        exp_name="synthetic",
+        iters=1,
+        x_bounds=BOUNDS,
+        likelihood_var=0.05,
+        mean_fxn=gpflow.mean_functions.Zero(),
+        kernel_fxn=AnisotropicSE(),
+        fwd_model=_fwd_model,
+        fwd_model_args=(),
     )
     s.seed = seed
     # Tiny, fast configuration (the point is stability, not statistical quality).
@@ -176,8 +182,7 @@ def test_run_checkpoint_dir_is_opt_in(tmp_path):
     checkpoint_dir = tmp_path / "checkpoints"
     s.run(X_init, y_init, checkpoint_dir=str(checkpoint_dir))
     written = {p.name for p in checkpoint_dir.iterdir()}
-    assert {"rhat_value_1.txt", "ess_value_1.txt", "activity_data_2",
-            "gp_model_1.pkl"} <= written
+    assert {"rhat_value_1.txt", "ess_value_1.txt", "activity_data_2", "gp_model_1.pkl"} <= written
 
 
 @pytest.mark.slow

@@ -7,6 +7,7 @@ that ``paper/reproduce.py`` will diff against in Phase 7.
 
 Pure (JSON only) -- no TensorFlow, no Julia.
 """
+
 import numpy as np
 
 

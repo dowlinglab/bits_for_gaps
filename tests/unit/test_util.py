@@ -1,4 +1,5 @@
 """Unit tests for the small array helpers in ``bits_for_gaps._util``."""
+
 import numpy as np
 import tensorflow as tf
 

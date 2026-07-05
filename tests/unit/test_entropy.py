@@ -9,7 +9,9 @@ import numpy as np
 import pytest
 
 from bits_for_gaps.entropy import (
-    entropy_lower_bound, first_order_entropy_approx, second_order_entropy,
+    entropy_lower_bound,
+    first_order_entropy_approx,
+    second_order_entropy,
 )
 
 
@@ -36,8 +38,9 @@ def test_second_order_entropy_exact_for_multivariate_gaussian():
 @pytest.mark.parametrize("sigma2", [0.5, 1.0, 2.0])
 def test_lower_bound_is_below_true_entropy(sigma2):
     # For a single Gaussian: H_LB = 0.5 log(4*pi*sigma2) < true = 0.5 log(2*pi*e*sigma2).
-    lb = entropy_lower_bound(weights=np.array([1.0]), means=np.array([0.0]),
-                             variances=np.array([sigma2]))
+    lb = entropy_lower_bound(
+        weights=np.array([1.0]), means=np.array([0.0]), variances=np.array([sigma2])
+    )
     assert lb == pytest.approx(0.5 * np.log(4 * np.pi * sigma2), rel=1e-12)
     assert lb < gaussian_entropy(sigma2, d=1)
 
@@ -57,10 +60,15 @@ def test_huber_5d_mixture_regression():
     # Regression pin against the paper code (fxns/max_ent_design.second_order_entropy)
     # on the 5-component bivariate mixture from huber_et_al.py, with means[4] = [1, 1].
     means = np.array([[0, 0], [3, 2], [1, -0.5], [2.5, 1.5], [1, 1]], dtype=float)
-    covs = np.array([
-        np.diag([0.16, 1.0]), np.diag([1.0, 0.16]), np.diag([0.5, 0.5]),
-        np.diag([0.5, 0.5]), np.diag([0.5, 0.5]),
-    ])
+    covs = np.array(
+        [
+            np.diag([0.16, 1.0]),
+            np.diag([1.0, 0.16]),
+            np.diag([0.5, 0.5]),
+            np.diag([0.5, 0.5]),
+            np.diag([0.5, 0.5]),
+        ]
+    )
     weights = np.ones(5) * 0.2
     H = second_order_entropy(weights=weights, means=means, covs=covs)
     assert H == pytest.approx(2.9564178831291565, rel=1e-9)
@@ -70,6 +78,7 @@ def test_huber_5d_mixture_regression():
 ## Phase 9c: assert -> explicit exception for the runtime, data-dependent density
 ## check (asserts are silently stripped under python -O).
 ## ---------------------------------------------------------------------------
+
 
 def test_first_order_entropy_approx_raises_on_nonpositive_density():
     # A zero-weight component contributes nothing to the mixture density, driving

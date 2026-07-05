@@ -64,20 +64,28 @@ class AnisotropicSE(gpflow.kernels.Kernel):
         temperature lengthscale) unconstrained (Gamma prior only, no bijector).
     """
 
-    def __init__(self, variance_prior=None, lengthscale_priors=None, variance_init=1.25,
-                 lengthscale_inits=None, lengthscale_transforms=None):
+    def __init__(
+        self,
+        variance_prior=None,
+        lengthscale_priors=None,
+        variance_init=1.25,
+        lengthscale_inits=None,
+        lengthscale_transforms=None,
+    ):
         super().__init__()
 
         if lengthscale_priors is None:
-            if variance_prior is not None or lengthscale_inits is not None \
-                    or lengthscale_transforms is not None:
+            if (
+                variance_prior is not None
+                or lengthscale_inits is not None
+                or lengthscale_transforms is not None
+            ):
                 raise ValueError(
                     "lengthscale_priors is required whenever variance_prior / "
                     "lengthscale_inits / lengthscale_transforms are given explicitly."
                 )
             # Paper's exact 2-D VLE configuration (see paper_2d).
-            variance_prior = tfp.distributions.LogNormal(loc=tf.math.log(f64(1.0)),
-                                                          scale=f64(2.0))
+            variance_prior = tfp.distributions.LogNormal(loc=tf.math.log(f64(1.0)), scale=f64(2.0))
             lengthscale_priors = [
                 tfp.distributions.LogNormal(loc=tf.math.log(f64(0.3)), scale=f64(0.5)),
                 tfp.distributions.Gamma(concentration=f64(4.0), rate=f64(2.0)),
@@ -145,10 +153,10 @@ class AnisotropicSE(gpflow.kernels.Kernel):
         X_scaled = X / self.lengthscales
         X2_scaled = X2 / self.lengthscales
         dist_sq = tf.reduce_sum((X_scaled[:, None, :] - X2_scaled[None, :, :]) ** 2, axis=-1)
-        return self.std_dev ** 2 * tf.exp(-0.5 * dist_sq)
+        return self.std_dev**2 * tf.exp(-0.5 * dist_sq)
 
     def K_diag(self, X):
-        return tf.fill(tf.shape(X)[:-1], tf.squeeze(self.std_dev ** 2))
+        return tf.fill(tf.shape(X)[:-1], tf.squeeze(self.std_dev**2))
 
 
 def assign_hyperparameters(kernel, values):

@@ -7,6 +7,7 @@ overlay (a purely visual smoothing detail, not the quantitative content) for a
 pragmatic reproduction. Visual reproduction only (no golden pin) -- spot-check against
 the archived ``joint_marginals_15.png``.
 """
+
 import os
 
 import numpy as np
@@ -22,9 +23,14 @@ def make(archive_dir, out_dir, iters=_archive.PUBLISHED_ITERS, img_fmt="png"):
     params = _archive.load_param_posterior_samples(archive_dir, iters)
     n_params = params.shape[1]
 
-    fig, axes = plt.subplots(n_params - 1, n_params - 1,
-                             figsize=(4 * (n_params - 1), 4 * (n_params - 1)),
-                             sharex="col", sharey="row", squeeze=False)
+    fig, axes = plt.subplots(
+        n_params - 1,
+        n_params - 1,
+        figsize=(4 * (n_params - 1), 4 * (n_params - 1)),
+        sharex="col",
+        sharey="row",
+        squeeze=False,
+    )
 
     for i in range(1, n_params):
         for j in range(n_params - 1):

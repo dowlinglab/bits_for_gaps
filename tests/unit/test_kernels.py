@@ -6,6 +6,7 @@ predates the Phase 5 N-D generalization, plus new tests for the generalized API:
 canonical ``hyperparameters`` order, ``assign_hyperparameters`` round-tripping, and
 explicit N-D (1-D and 3-D) construction with per-dimension prior families.
 """
+
 import gpflow
 import numpy as np
 import pytest
@@ -95,6 +96,7 @@ def test_anisotropic_lengthscale_scaling(kernel):
 ## Phase 5: N-D generalization -- canonical ordering, generic assignment, N-D construction
 ## ---------------------------------------------------------------------------
 
+
 def test_hyperparameters_canonical_order(kernel):
     # [std_dev, lengthscale_1, lengthscale_2, ...] -- the contract gp.run_mcmc /
     # mixture.py / acquisition.py rely on for generic introspection.
@@ -136,6 +138,7 @@ def test_assign_hyperparameters_round_trips(kernel):
 ## (mixture.py/acquisition.py use these together; see their tests for the full loop).
 ## ---------------------------------------------------------------------------
 
+
 def test_save_hyperparameters_captures_current_values(kernel):
     assign_hyperparameters(kernel, [9.0, 8.0, 7.0])
     saved = save_hyperparameters(kernel)
@@ -143,7 +146,7 @@ def test_save_hyperparameters_captures_current_values(kernel):
 
 
 def test_save_then_assign_then_restore_round_trips(kernel):
-    saved = save_hyperparameters(kernel)   # the defaults: [1.25, 2.0, 0.5]
+    saved = save_hyperparameters(kernel)  # the defaults: [1.25, 2.0, 0.5]
     assign_hyperparameters(kernel, [9.0, 8.0, 7.0])
     assert [_val(p) for p in kernel.hyperparameters] != saved
     assign_hyperparameters(kernel, saved)

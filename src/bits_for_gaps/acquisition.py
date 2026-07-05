@@ -60,12 +60,12 @@ def entropy_objective(xStarGP, trace, GPmodel, seed, no_gaussians):
     means = np.array(means)
     variances = np.array(variances)
     H = max_ent_design.second_order_entropy(
-        weights=np.ones(no_gaussians) * 1 / no_gaussians, means=means, covs=variances)
+        weights=np.ones(no_gaussians) * 1 / no_gaussians, means=means, covs=variances
+    )
     return -H
 
 
-def entropy_surface_2D(trace, GPmodel, x_bounds, mesh, x_trsf_fwd, x_trsf_bkwd, seed,
-                       no_gaussians):
+def entropy_surface_2D(trace, GPmodel, x_bounds, mesh, x_trsf_fwd, x_trsf_bkwd, seed, no_gaussians):
     """Entropy field over a 2-D grid spanning ``x_bounds`` at ``mesh`` points per dim.
 
     Moved from ``adaptiveEntropy.gen_entropy_surface_data_2D``.
@@ -95,9 +95,7 @@ def entropy_surface_2D(trace, GPmodel, x_bounds, mesh, x_trsf_fwd, x_trsf_bkwd, 
     x1_grid, x2_grid = np.meshgrid(x1, x2)
     XStar = np.vstack([x1_grid.ravel(), x2_grid.ravel()]).T
     XStarGP = np.column_stack([fwd(XStar[:, j]) for j, fwd in enumerate(x_trsf_fwd)])
-    H = np.array([
-        -entropy_objective(x, trace, GPmodel, seed, no_gaussians) for x in XStarGP
-    ])
+    H = np.array([-entropy_objective(x, trace, GPmodel, seed, no_gaussians) for x in XStarGP])
     XStar = np.column_stack([bkwd(XStarGP[:, j]) for j, bkwd in enumerate(x_trsf_bkwd)])
     return np.column_stack([XStar, H])
 
@@ -133,8 +131,9 @@ def optimize(trace, GPmodel, x_bounds, x_trsf_fwd, seed, no_gaussians, no_restar
         x0 = sobol.random()[0]
         x0 = lo + x0 * (hi - lo)
         x0GP = np.array([f(x0[i]) for i, f in enumerate(x_trsf_fwd)])
-        result = minimize(entropy_objective, x0=x0GP, bounds=XBndsGP,
-                          args=(trace, GPmodel, seed, no_gaussians))
+        result = minimize(
+            entropy_objective, x0=x0GP, bounds=XBndsGP, args=(trace, GPmodel, seed, no_gaussians)
+        )
         if result.fun < best_value:
             best_value = result.fun
             best_result = result

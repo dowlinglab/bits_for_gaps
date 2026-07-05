@@ -1,4 +1,5 @@
 """Unit tests for the per-dimension Input/Output transform classes."""
+
 import numpy as np
 import pytest
 
@@ -14,8 +15,10 @@ def test_input_transform_identity_default():
 
 
 def test_input_transform_custom_per_dimension():
-    t = InputTransform(forward_fns=[lambda x: x * 2, lambda x: x - 1],
-                       backward_fns=[lambda x: x / 2, lambda x: x + 1])
+    t = InputTransform(
+        forward_fns=[lambda x: x * 2, lambda x: x - 1],
+        backward_fns=[lambda x: x / 2, lambda x: x + 1],
+    )
     X = np.array([[1.0, 10.0], [2.0, 20.0]])
     fwd = t.forward(X)
     np.testing.assert_allclose(fwd, np.array([[2.0, 9.0], [4.0, 19.0]]))

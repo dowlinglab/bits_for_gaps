@@ -4,6 +4,7 @@ Ported from ``fxns/mcmc_plotter.py``'s ``plot_gp_post_multiple_isotherms``
 (``fxns/plot_res.py``'s ``-m gp_post`` mode). Visual reproduction only (no golden pin)
 -- spot-check against the archived ``gp_posterior_isotherms_15.png``.
 """
+
 import os
 
 import numpy as np
@@ -13,8 +14,14 @@ from . import _archive
 TEMPS = (350, 355, 360, 367)
 
 
-def make(archive_dir, out_dir, iters=_archive.PUBLISHED_ITERS, offset_step=1.0,
-        max_sample_lines=20, img_fmt="png"):
+def make(
+    archive_dir,
+    out_dir,
+    iters=_archive.PUBLISHED_ITERS,
+    offset_step=1.0,
+    max_sample_lines=20,
+    img_fmt="png",
+):
     import matplotlib.pyplot as plt
 
     _archive.apply_plot_settings()

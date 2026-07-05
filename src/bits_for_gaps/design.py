@@ -63,9 +63,7 @@ def full_factorial_design(bounds, n_train, n_test=0, seed=None):
     grid_unit = np.array(list(product(*[np.linspace(0, 1, levels) for _ in range(d)])))
 
     if len(grid_unit) < n_total:
-        raise ValueError(
-            f"Factorial grid has {len(grid_unit)} points, need {n_total}."
-        )
+        raise ValueError(f"Factorial grid has {len(grid_unit)} points, need {n_total}.")
     if len(grid_unit) > n_total:
         rng = np.random.default_rng(seed)
         grid_unit = rng.choice(grid_unit, size=n_total, replace=False)

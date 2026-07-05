@@ -26,15 +26,15 @@ class IterationRecord:
     iteration: int
     XData: np.ndarray
     yData: np.ndarray
-    GPmodel: Any                          # fitted gpflow.models.GPR
-    trace: np.ndarray                     # HMC posterior samples, chain 0, constrained
-    chains_states: np.ndarray             # all chains, unconstrained
+    GPmodel: Any  # fitted gpflow.models.GPR
+    trace: np.ndarray  # HMC posterior samples, chain 0, constrained
+    chains_states: np.ndarray  # all chains, unconstrained
     rhat: np.ndarray
     ess: np.ndarray
-    entropy_field: Optional[np.ndarray] = None    # 2-D only (Phase 5 generalizes)
+    entropy_field: Optional[np.ndarray] = None  # 2-D only (Phase 5 generalizes)
     xStar: Optional[np.ndarray] = None
     max_entropy: Optional[float] = None
-    lml_result: Optional[Any] = None      # scipy OptimizeResult, if maximize_lml ran
+    lml_result: Optional[Any] = None  # scipy OptimizeResult, if maximize_lml ran
 
 
 @dataclass

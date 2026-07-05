@@ -49,8 +49,18 @@ def maximize_lml(GPmodel, debug_cov=False):
     return result, GPmodel
 
 
-def run_mcmc(GPmodel, seed, no_samples, no_burn_in, no_chains, no_leapfrog_steps,
-             step_size, no_adapt_steps, target_accept, adapt_rate):
+def run_mcmc(
+    GPmodel,
+    seed,
+    no_samples,
+    no_burn_in,
+    no_chains,
+    no_leapfrog_steps,
+    step_size,
+    no_adapt_steps,
+    target_accept,
+    adapt_rate,
+):
     """Run HMC over the GP kernel's hyperparameters and compute convergence diagnostics.
 
     Uses ``GPmodel.kernel.hyperparameters`` as the HMC state, in that kernel's own
@@ -68,24 +78,31 @@ def run_mcmc(GPmodel, seed, no_samples, no_burn_in, no_chains, no_leapfrog_steps
     GPmodel : the same model instance (hyperparameters are left at HMC's last state).
     """
     hmc_helper = gpflow.optimizers.SamplingHelper(
-        GPmodel.log_posterior_density, GPmodel.kernel.hyperparameters,
+        GPmodel.log_posterior_density,
+        GPmodel.kernel.hyperparameters,
     )
-    hmc = tfp.mcmc.HamiltonianMonteCarlo(target_log_prob_fn=hmc_helper.target_log_prob_fn,
-                                         num_leapfrog_steps=no_leapfrog_steps,
-                                         step_size=step_size)
-    adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(hmc,
-                                                     num_adaptation_steps=no_adapt_steps,
-                                                     target_accept_prob=target_accept,
-                                                     adaptation_rate=adapt_rate)
+    hmc = tfp.mcmc.HamiltonianMonteCarlo(
+        target_log_prob_fn=hmc_helper.target_log_prob_fn,
+        num_leapfrog_steps=no_leapfrog_steps,
+        step_size=step_size,
+    )
+    adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(
+        hmc,
+        num_adaptation_steps=no_adapt_steps,
+        target_accept_prob=target_accept,
+        adaptation_rate=adapt_rate,
+    )
 
     @tf.function
     def run_chain_fn(chain_seed):
-        return tfp.mcmc.sample_chain(num_results=no_samples,
-                                     num_burnin_steps=no_burn_in,
-                                     current_state=hmc_helper.current_state,
-                                     kernel=adaptive_hmc,
-                                     trace_fn=None,
-                                     seed=chain_seed)
+        return tfp.mcmc.sample_chain(
+            num_results=no_samples,
+            num_burnin_steps=no_burn_in,
+            current_state=hmc_helper.current_state,
+            kernel=adaptive_hmc,
+            trace_fn=None,
+            seed=chain_seed,
+        )
 
     start_time = time.time()
     chains = []

@@ -12,6 +12,7 @@ activity_model`` and ``import paper.figures.fig10_traces``. This also makes
 every ``<sys.path entry>/<subdir>/juliapkg.json``), pinning Clapeyron.jl for anything
 that lazily imports ``juliacall``.
 """
+
 import json
 import sys
 from pathlib import Path
@@ -29,7 +30,9 @@ for _p in (EXAMPLES_DIR, REPO_ROOT):
 @pytest.fixture(scope="session")
 def golden():
     """Return a callable that loads a golden JSON file by name."""
+
     def _load(name):
         with open(GOLDEN_DIR / name) as f:
             return json.load(f)
+
     return _load

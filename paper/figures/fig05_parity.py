@@ -8,6 +8,7 @@ Quantitatively pinned: ``error_metrics()`` returns exactly the per-draw RMSE/MAE
 distributions ``paper/golden/fig5_error_metrics.json`` was extracted from (same
 formulas as ``paper/extract_golden.py``).
 """
+
 import os
 
 import numpy as np
@@ -29,9 +30,9 @@ def error_metrics(archive_dir, iters):
     diff_train = y_train.reshape(-1, 1) - yhat_train
     diff_test = y_test.reshape(-1, 1) - yhat_test
     return {
-        "rmse_train": np.sqrt((diff_train ** 2).mean(axis=0)),
+        "rmse_train": np.sqrt((diff_train**2).mean(axis=0)),
         "mae_train": np.abs(diff_train).mean(axis=0),
-        "rmse_test": np.sqrt((diff_test ** 2).mean(axis=0)),
+        "rmse_test": np.sqrt((diff_test**2).mean(axis=0)),
         "mae_test": np.abs(diff_test).mean(axis=0),
     }
 
@@ -39,9 +40,18 @@ def error_metrics(archive_dir, iters):
 def _parity_panel(ax, y_true, yhat, color, marker, label):
     mean = yhat.mean(axis=1)
     lo, hi = np.quantile(yhat, [0.05, 0.95], axis=1)
-    ax.errorbar(y_true, mean, yerr=[mean - lo, hi - mean], fmt=marker,
-               color="w", markeredgecolor=color, ecolor=color, markersize=8,
-               capsize=2, label=label)
+    ax.errorbar(
+        y_true,
+        mean,
+        yerr=[mean - lo, hi - mean],
+        fmt=marker,
+        color="w",
+        markeredgecolor=color,
+        ecolor=color,
+        markersize=8,
+        capsize=2,
+        label=label,
+    )
 
 
 def _plot_parity(archive_dir, out_dir, img_fmt, loglog):
@@ -90,11 +100,19 @@ def _plot_error_box(archive_dir, out_dir, img_fmt):
     letters = {1: "(c)", 15: "(d)"}
     for it in ITERS:
         metrics = error_metrics(archive_dir, it)
-        data = [metrics["mae_train"], metrics["mae_test"], metrics["rmse_train"],
-               metrics["rmse_test"]]
+        data = [
+            metrics["mae_train"],
+            metrics["mae_test"],
+            metrics["rmse_train"],
+            metrics["rmse_test"],
+        ]
         fig, ax = plt.subplots(figsize=(5, 5))
-        bp = ax.boxplot(data, showfliers=False, patch_artist=True,
-                        tick_labels=["MAE\nTrain", "MAE\nTest", "RMSE\nTrain", "RMSE\nTest"])
+        bp = ax.boxplot(
+            data,
+            showfliers=False,
+            patch_artist=True,
+            tick_labels=["MAE\nTrain", "MAE\nTest", "RMSE\nTrain", "RMSE\nTest"],
+        )
         for patch, color in zip(bp["boxes"], ["r", "b", "r", "b"]):
             patch.set_facecolor("w")
             patch.set_edgecolor(color)

@@ -13,6 +13,7 @@ The recompute itself (``wilson_column``/``surrogate_column``) lives in
 ``paper.figures.fig09_mccabe_thiele`` (Phase 7) -- this test imports it rather than
 reimplementing it, since Fig 9's plotting script needs the exact same columns.
 """
+
 import pytest
 
 STAGES = [1, 2, 3, 4]
@@ -22,8 +23,15 @@ PHASES = ["liquid", "vapor"]
 def test_column_spec(golden):
     g = golden("mccabe_thiele_stages.json")
     spec = g["column_spec"]
-    assert spec == {"xW": 0.01, "F": 100.0, "xF": 0.10, "R": 1.0, "xD": 0.43,
-                    "n_stages": 4, "feed_stage": 3}
+    assert spec == {
+        "xW": 0.01,
+        "F": 100.0,
+        "xF": 0.10,
+        "R": 1.0,
+        "xD": 0.43,
+        "n_stages": 4,
+        "feed_stage": 3,
+    }
     assert g["component"] == "PrOH"
     assert [s["stage"] for s in g["stages"]] == STAGES
 
@@ -79,8 +87,10 @@ def test_reproduce_stage_table_with_distillation_backend(golden):
     surrogate = surrogate_column()
     assert surrogate["converged"], surrogate["warnings"]
 
-    for key, computed, atol in [("wilson", wilson["stages"], 0.015),
-                               ("surrogate", surrogate["stages"], 0.05)]:
+    for key, computed, atol in [
+        ("wilson", wilson["stages"], 0.015),
+        ("surrogate", surrogate["stages"], 0.05),
+    ]:
         for exp_stage, comp_stage in zip(g["stages"], computed):
             assert comp_stage["stage"] == exp_stage["stage"]
             for phase in PHASES:
