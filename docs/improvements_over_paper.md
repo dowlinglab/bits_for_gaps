@@ -95,6 +95,15 @@ to, not replacing, the existing regression suite, which stayed green throughout.
   and exposed as `BitsForGaps.acquisitionObjective` (default `"taylor"` -- every
   existing baseline/golden value is unaffected unless a caller explicitly opts into
   `"lower_bound"`).
+- **The entropy estimators are now validated against the quantity they approximate,
+  not just a captured historical value.** The existing regression test pins
+  `second_order_entropy`'s output on one specific mixture (a useful "did this
+  number move" check, but not an "is this number *right*" check). New
+  Monte-Carlo-validation tests estimate the true differential entropy directly (sample
+  the mixture, average the log of its own density at those samples) on several 1-D
+  and 2-D mixtures with different overlap, and confirm the Taylor approximation
+  stays within 15% of that MC estimate (calibrated empirically -- it was within 6% on
+  every mixture tried) and the closed-form lower bound stays at or below it.
 
 ## Architecture
 
