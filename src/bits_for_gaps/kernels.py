@@ -28,6 +28,10 @@ name as ``.std_dev``, ``.lengthscale_1``, ... ``.lengthscale_d`` (kept for backw
 compatibility with 2-D-era code addressing them by attribute name).
 """
 
+from __future__ import annotations
+
+from typing import List, Optional, Sequence
+
 import gpflow
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -66,12 +70,12 @@ class AnisotropicSE(gpflow.kernels.Kernel):
 
     def __init__(
         self,
-        variance_prior=None,
-        lengthscale_priors=None,
-        variance_init=1.25,
-        lengthscale_inits=None,
-        lengthscale_transforms=None,
-    ):
+        variance_prior: Optional[tfp.distributions.Distribution] = None,
+        lengthscale_priors: Optional[Sequence[tfp.distributions.Distribution]] = None,
+        variance_init: float = 1.25,
+        lengthscale_inits: Optional[Sequence[float]] = None,
+        lengthscale_transforms: Optional[Sequence[Optional[tfp.bijectors.Bijector]]] = None,
+    ) -> None:
         super().__init__()
 
         if lengthscale_priors is None:
@@ -122,7 +126,7 @@ class AnisotropicSE(gpflow.kernels.Kernel):
             self._lengthscale_params.append(param)
 
     @classmethod
-    def paper_2d(cls):
+    def paper_2d(cls) -> "AnisotropicSE":
         """The paper's exact 2-D VLE kernel configuration (mole fraction, temperature).
 
         Equivalent to ``AnisotropicSE()``; an explicit, self-documenting factory for the
@@ -131,11 +135,11 @@ class AnisotropicSE(gpflow.kernels.Kernel):
         return cls()
 
     @property
-    def ndim(self):
+    def ndim(self) -> int:
         return len(self._lengthscale_params)
 
     @property
-    def hyperparameters(self):
+    def hyperparameters(self) -> List[gpflow.Parameter]:
         """All hierarchical hyperparameters, in the canonical order -- see the module
         docstring. This is the contract ``gp.run_mcmc`` (HMC parameter / trace-column
         order) and ``mixture.py``/``acquisition.py`` (assigning trace rows back onto
@@ -144,10 +148,10 @@ class AnisotropicSE(gpflow.kernels.Kernel):
         return [self.std_dev] + list(self._lengthscale_params)
 
     @property
-    def lengthscales(self):
+    def lengthscales(self) -> tf.Tensor:
         return tf.stack(self._lengthscale_params)
 
-    def K(self, X, X2=None):
+    def K(self, X: tf.Tensor, X2: Optional[tf.Tensor] = None) -> tf.Tensor:
         if X2 is None:
             X2 = X
         X_scaled = X / self.lengthscales
@@ -155,11 +159,11 @@ class AnisotropicSE(gpflow.kernels.Kernel):
         dist_sq = tf.reduce_sum((X_scaled[:, None, :] - X2_scaled[None, :, :]) ** 2, axis=-1)
         return self.std_dev**2 * tf.exp(-0.5 * dist_sq)
 
-    def K_diag(self, X):
+    def K_diag(self, X: tf.Tensor) -> tf.Tensor:
         return tf.fill(tf.shape(X)[:-1], tf.squeeze(self.std_dev**2))
 
 
-def assign_hyperparameters(kernel, values):
+def assign_hyperparameters(kernel: gpflow.kernels.Kernel, values: Sequence[float]) -> None:
     """Assign ``values`` (in the canonical order -- see ``AnisotropicSE.hyperparameters``)
     onto ``kernel``'s hyperparameters, in place.
 
@@ -172,7 +176,7 @@ def assign_hyperparameters(kernel, values):
         param.assign(value)
 
 
-def save_hyperparameters(kernel):
+def save_hyperparameters(kernel: gpflow.kernels.Kernel) -> List[float]:
     """Snapshot ``kernel.hyperparameters``' current (constrained) values.
 
     Phase 9c: pairs with :func:`assign_hyperparameters` to save/restore a kernel's

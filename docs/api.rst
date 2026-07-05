@@ -15,6 +15,16 @@ cost -- see :mod:`bits_for_gaps`'s module docstring.
 .. automodule:: bits_for_gaps
    :members:
    :undoc-members:
+   :exclude-members: InputTransform,OutputTransform
+
+..
+   InputTransform/OutputTransform are excluded above (fully documented in "Design and
+   transforms" below at their canonical bits_for_gaps.transforms location) -- without
+   this, Sphinx indexes the same class under two names (the top-level re-export and
+   the original module path), and any type hint that references them by their bare
+   name (e.g. BitsForGaps.__init__'s input_transform/output_transform parameters)
+   becomes an ambiguous cross-reference ("more than one target found"), which
+   sphinx-build -W then fails on.
 
 Sequential-design engine
 -------------------------

@@ -14,11 +14,21 @@ components), so it is straightforward to unit-test. Moved verbatim-in-spirit fro
 paper code's ``fxns/max_ent_design.py`` (dead commented-out variants removed).
 """
 
+from __future__ import annotations
+
+from typing import Sequence, Union
+
 import numpy as np
 from scipy import stats
 
+# Univariate components: scalar mean/variance. Multivariate: vector mean / covariance
+# matrix. Both shapes flow through the same functions below (branched on np.ndim).
+_Point = Union[float, np.ndarray]
 
-def gaussian_mixture_density(x, means, covs, weights):
+
+def gaussian_mixture_density(
+    x: _Point, means: Sequence[_Point], covs: Sequence[_Point], weights: Sequence[float]
+) -> float:
     """Density of a Gaussian mixture at ``x``.
 
     Parameters
@@ -47,7 +57,9 @@ def gaussian_mixture_density(x, means, covs, weights):
     return density
 
 
-def first_order_entropy_approx(weights, means, covs, jitter=1e-10):
+def first_order_entropy_approx(
+    weights: Sequence[float], means: Sequence[_Point], covs: Sequence[_Point], jitter: float = 1e-10
+) -> float:
     """First-order Taylor approximation of the mixture differential entropy.
 
     Raises
@@ -73,14 +85,16 @@ def first_order_entropy_approx(weights, means, covs, jitter=1e-10):
     return H
 
 
-def cholesky(C):
+def cholesky(C: np.ndarray) -> np.ndarray:
     """Inverse of a covariance matrix via its Cholesky factor."""
     L = np.linalg.cholesky(C)
     L_inv = np.linalg.inv(L)
     return L_inv.T @ L_inv
 
 
-def gradient_gaussian_mixture_density(x, means, covs, weights):
+def gradient_gaussian_mixture_density(
+    x: _Point, means: Sequence[_Point], covs: Sequence[_Point], weights: Sequence[float]
+) -> _Point:
     """Gradient of the Gaussian-mixture density at ``x``."""
     grad = 0 if np.ndim(x) == 0 else np.zeros_like(x)
 
@@ -101,7 +115,9 @@ def gradient_gaussian_mixture_density(x, means, covs, weights):
     return grad
 
 
-def second_order_entropy(weights, means, covs):
+def second_order_entropy(
+    weights: Sequence[float], means: Sequence[_Point], covs: Sequence[_Point]
+) -> float:
     """Second-order Taylor approximation of the mixture differential entropy.
 
     This is the estimator maximized by the BITS for GAPS acquisition function.
@@ -143,7 +159,7 @@ def second_order_entropy(weights, means, covs):
     return H0 - H
 
 
-def entropy_lower_bound(weights, means, variances):
+def entropy_lower_bound(weights: np.ndarray, means: np.ndarray, variances: np.ndarray) -> float:
     """Closed-form lower bound on the differential entropy of a univariate GMM.
 
     Implements the cross-overlap lower bound derived in the paper (Theorem / SI-2):

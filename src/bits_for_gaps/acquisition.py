@@ -25,15 +25,26 @@ found in ``mixture.sample_gp_posterior_mixture`` (see
 the entropy value itself (computed before the restore).
 """
 
+from __future__ import annotations
+
+from typing import Callable, Sequence, Tuple
+
+import gpflow
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import OptimizeResult, minimize
 from scipy.stats.qmc import Sobol
 
 from . import entropy as max_ent_design
 from . import kernels
 
 
-def entropy_objective(xStarGP, trace, GPmodel, seed, no_gaussians):
+def entropy_objective(
+    xStarGP: np.ndarray,
+    trace: np.ndarray,
+    GPmodel: gpflow.models.GPR,
+    seed: int,
+    no_gaussians: int,
+) -> float:
     """Negative 2nd-order-Taylor mixture entropy of the GP predictive posterior at a point.
 
     Negated because ``optimize`` minimizes it to maximize entropy. Dimension-general:
@@ -65,7 +76,16 @@ def entropy_objective(xStarGP, trace, GPmodel, seed, no_gaussians):
     return -H
 
 
-def entropy_surface_2D(trace, GPmodel, x_bounds, mesh, x_trsf_fwd, x_trsf_bkwd, seed, no_gaussians):
+def entropy_surface_2D(
+    trace: np.ndarray,
+    GPmodel: gpflow.models.GPR,
+    x_bounds: Sequence[Tuple[float, float]],
+    mesh: Sequence[int],
+    x_trsf_fwd: Sequence[Callable[[np.ndarray], np.ndarray]],
+    x_trsf_bkwd: Sequence[Callable[[np.ndarray], np.ndarray]],
+    seed: int,
+    no_gaussians: int,
+) -> np.ndarray:
     """Entropy field over a 2-D grid spanning ``x_bounds`` at ``mesh`` points per dim.
 
     Moved from ``adaptiveEntropy.gen_entropy_surface_data_2D``.
@@ -100,7 +120,15 @@ def entropy_surface_2D(trace, GPmodel, x_bounds, mesh, x_trsf_fwd, x_trsf_bkwd, 
     return np.column_stack([XStar, H])
 
 
-def optimize(trace, GPmodel, x_bounds, x_trsf_fwd, seed, no_gaussians, no_restarts):
+def optimize(
+    trace: np.ndarray,
+    GPmodel: gpflow.models.GPR,
+    x_bounds: Sequence[Tuple[float, float]],
+    x_trsf_fwd: Sequence[Callable[[np.ndarray], np.ndarray]],
+    seed: int,
+    no_gaussians: int,
+    no_restarts: int,
+) -> OptimizeResult:
     """Multistart optimization of the entropy objective over ``x_bounds`` (N-D).
 
     Moved from ``adaptiveEntropy.optimize_2D``; generalized (Phase 5) to arbitrary

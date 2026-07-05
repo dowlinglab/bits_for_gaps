@@ -7,7 +7,10 @@ TensorFlow/GPflow-backed pieces (kernels, means, sampler) import lazily via PEP 
 TensorFlow import cost.
 """
 
+from __future__ import annotations
+
 from importlib import import_module
+from typing import Any, List
 
 __version__ = "0.0.1.dev0"
 
@@ -31,14 +34,14 @@ _LAZY = {
 }
 
 
-def __getattr__(name):
+def __getattr__(name: str) -> Any:
     if name in _LAZY:
         mod, attr = _LAZY[name]
         return getattr(import_module(f".{mod}", __name__), attr)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-def __dir__():
+def __dir__() -> List[str]:
     return sorted(list(globals().keys()) + list(_LAZY.keys()))
 
 

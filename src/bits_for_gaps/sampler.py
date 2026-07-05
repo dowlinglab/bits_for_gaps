@@ -31,11 +31,15 @@ otherwise, and both raise a clear ``ValueError`` if called directly for d != 2.
 ``FwdModel(*args, x2, x1)`` convention inherited from the VLE example's Julia call).
 """
 
+from __future__ import annotations
+
 import os
 import pickle
+from typing import Any, Callable, Optional, Sequence, Tuple
 
 import gpflow
 import numpy as np
+from scipy.optimize import OptimizeResult
 
 from . import acquisition, gp, mixture
 from .state import IterationRecord, RunHistory
@@ -43,8 +47,10 @@ from .transforms import InputTransform, OutputTransform
 
 f64 = gpflow.utilities.to_default_float
 
+Bounds = Sequence[Tuple[float, float]]
 
-def _validate_bounds(x_bounds):
+
+def _validate_bounds(x_bounds: Bounds) -> None:
     """Each entry must be a ``(lo, hi)`` pair with ``lo < hi`` -- Phase 9c."""
     for i, b in enumerate(x_bounds):
         if len(b) != 2:
@@ -59,15 +65,15 @@ def _validate_bounds(x_bounds):
 class adaptiveEntropy:
     def __init__(
         self,
-        exp_name,
-        iters,
-        x_bounds,
-        likelihood_var,
-        mean_fxn,
-        kernel_fxn,
-        fwd_model,
-        fwd_model_args,
-    ):
+        exp_name: str,
+        iters: int,
+        x_bounds: Bounds,
+        likelihood_var: float,
+        mean_fxn: Optional[gpflow.mean_functions.MeanFunction],
+        kernel_fxn: gpflow.kernels.Kernel,
+        fwd_model: Callable[..., Sequence[float]],
+        fwd_model_args: tuple,
+    ) -> None:
         """
         exp_name, iters, x_bounds, likelihood_var, mean_fxn, kernel_fxn,
         fwd_model, fwd_model_args
@@ -130,7 +136,7 @@ class adaptiveEntropy:
     ## Optional disk I/O (legacy convenience; not used internally by run())
     ## ------------------------------------------------------------------
 
-    def read_data(self, iters):
+    def read_data(self, iters: int) -> Tuple[np.ndarray, np.ndarray]:
         """Read an ``activity_data_{iters}`` file from ``self.path`` (legacy convention).
 
         Not called by :meth:`run` (which takes the initial design in memory); kept for
@@ -146,14 +152,14 @@ class adaptiveEntropy:
     ## Thin delegating wrappers over gp.py / mixture.py / acquisition.py
     ## ------------------------------------------------------------------
 
-    def trsf_data(self, XData, yData):
+    def trsf_data(self, XData: np.ndarray, yData: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         XData = np.atleast_2d(XData)
         yData = np.atleast_1d(yData).reshape(-1, 1)
         XGP = self.input_transform.forward(XData)
         yGP = self.output_transform.forward(yData)
         return XGP, yGP
 
-    def build_gp(self, XGP, yGP):
+    def build_gp(self, XGP: np.ndarray, yGP: np.ndarray) -> gpflow.models.GPR:
         return gp.build_gp(
             XGP,
             yGP,
@@ -163,10 +169,12 @@ class adaptiveEntropy:
             summarize=self.summarizeGP,
         )
 
-    def maximize_lml(self, GPmodel):
+    def maximize_lml(self, GPmodel: gpflow.models.GPR) -> Tuple[Any, gpflow.models.GPR]:
         return gp.maximize_lml(GPmodel, debug_cov=self.debugCov)
 
-    def run_mcmc(self, GPmodel):
+    def run_mcmc(
+        self, GPmodel: gpflow.models.GPR
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, gpflow.models.GPR]:
         """Returns ``(trace, chains_states, rhat, ess, GPmodel)`` -- see ``gp.run_mcmc``."""
         return gp.run_mcmc(
             GPmodel,
@@ -181,12 +189,18 @@ class adaptiveEntropy:
             adapt_rate=self.adaptRate,
         )
 
-    def sample_gp_posterior_mixture(self, trace, GPmodel, XGP, size=None):
+    def sample_gp_posterior_mixture(
+        self,
+        trace: np.ndarray,
+        GPmodel: gpflow.models.GPR,
+        XGP: np.ndarray,
+        size: Optional[int] = None,
+    ) -> np.ndarray:
         if size is None:
             size = self.noGaussians
         return mixture.sample_gp_posterior_mixture(trace, GPmodel, XGP, seed=self.seed, size=size)
 
-    def predict_grid_2D(self, GPmodel, trace):
+    def predict_grid_2D(self, GPmodel: gpflow.models.GPR, trace: np.ndarray) -> np.ndarray:
         """Full-grid GP posterior-predictive samples (plotting-only diagnostic).
 
         Expensive and does not feed the acquisition -- not called by :meth:`run` unless
@@ -204,12 +218,14 @@ class adaptiveEntropy:
             size=self.noGPpredictions,
         )
 
-    def entropy_objective(self, xStarGP, trace, GPmodel):
+    def entropy_objective(
+        self, xStarGP: np.ndarray, trace: np.ndarray, GPmodel: gpflow.models.GPR
+    ) -> float:
         return acquisition.entropy_objective(
             xStarGP, trace, GPmodel, seed=self.seed, no_gaussians=self.noGaussians
         )
 
-    def entropy_surface_2D(self, trace, GPmodel):
+    def entropy_surface_2D(self, trace: np.ndarray, GPmodel: gpflow.models.GPR) -> np.ndarray:
         return acquisition.entropy_surface_2D(
             trace,
             GPmodel,
@@ -221,7 +237,7 @@ class adaptiveEntropy:
             no_gaussians=self.noGaussians,
         )
 
-    def optimize(self, trace, GPmodel):
+    def optimize(self, trace: np.ndarray, GPmodel: gpflow.models.GPR) -> OptimizeResult:
         """Dimension-general acquisition optimizer (was ``optimize_2D``); see
         ``acquisition.optimize``.
         """
@@ -235,7 +251,9 @@ class adaptiveEntropy:
             no_restarts=self.noRestarts,
         )
 
-    def call_model(self, xStar, XData, yData):
+    def call_model(
+        self, xStar: np.ndarray, XData: np.ndarray, yData: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Evaluate the injected black box at ``xStar`` and append it to the design.
 
         Calls ``self.FwdModel(*self.FwdModelArgs, *xStar)`` -- ``xStar``'s components
@@ -261,7 +279,7 @@ class adaptiveEntropy:
     ## Orchestration
     ## ------------------------------------------------------------------
 
-    def _validate_config(self):
+    def _validate_config(self) -> None:
         """Positive/range checks on the HMC + acquisition config -- Phase 9c.
 
         Checked here (not in ``__init__``) because every caller sets these via
@@ -293,7 +311,13 @@ class adaptiveEntropy:
         if not (self.adaptRate > 0):
             raise ValueError(f"adaptRate must be positive, got {self.adaptRate!r}")
 
-    def run(self, X_init, y_init, checkpoint_dir=None, predict_grid=False):
+    def run(
+        self,
+        X_init: np.ndarray,
+        y_init: np.ndarray,
+        checkpoint_dir: Optional[str] = None,
+        predict_grid: bool = False,
+    ) -> RunHistory:
         """Run the sequential BITS-for-GAPS design loop for ``self.noIters`` iterations.
 
         Parameters
@@ -385,7 +409,7 @@ class adaptiveEntropy:
 
         return history
 
-    def run_model(self):
+    def run_model(self) -> RunHistory:
         """Deprecated legacy entry point.
 
         Reads the iteration-1 design from ``activity_data_1`` under ``self.path`` (the
@@ -396,7 +420,12 @@ class adaptiveEntropy:
         XData, yData = self.read_data(iters=1)
         return self.run(XData, yData, checkpoint_dir=self.path)
 
-    def _write_checkpoint(self, checkpoint_dir, record, grid_predictions=None):
+    def _write_checkpoint(
+        self,
+        checkpoint_dir: str,
+        record: IterationRecord,
+        grid_predictions: Optional[np.ndarray] = None,
+    ) -> None:
         """Persist one iteration's artifacts to disk (opt-in; off by default).
 
         A Phase-4, best-effort equivalent of the paper code's per-iteration file dump --
@@ -448,17 +477,17 @@ class BitsForGaps(adaptiveEntropy):
 
     def __init__(
         self,
-        black_box,
-        bounds,
-        kernel,
-        mean_fxn=None,
-        likelihood_variance=0.05,
-        exp_name="bits_for_gaps_run",
-        iters=1,
-        fwd_model_args=(),
-        input_transform=None,
-        output_transform=None,
-    ):
+        black_box: Callable[..., Sequence[float]],
+        bounds: Bounds,
+        kernel: gpflow.kernels.Kernel,
+        mean_fxn: Optional[gpflow.mean_functions.MeanFunction] = None,
+        likelihood_variance: float = 0.05,
+        exp_name: str = "bits_for_gaps_run",
+        iters: int = 1,
+        fwd_model_args: tuple = (),
+        input_transform: Optional[InputTransform] = None,
+        output_transform: Optional[OutputTransform] = None,
+    ) -> None:
         super().__init__(
             exp_name=exp_name,
             iters=iters,

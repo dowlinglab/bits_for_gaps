@@ -14,7 +14,10 @@ order that kernel defines as canonical) works here, not just the paper's 3-hyper
 so d=2 runs are bit-exact with the pre-Phase-5 code.
 """
 
+from __future__ import annotations
+
 import time
+from typing import Tuple
 
 import gpflow
 import numpy as np
@@ -27,7 +30,14 @@ from . import diagnostics
 f64 = gpflow.utilities.to_default_float
 
 
-def build_gp(XGP, yGP, mean_fxn, kernel_fxn, likelihood_var, summarize=False):
+def build_gp(
+    XGP: np.ndarray,
+    yGP: np.ndarray,
+    mean_fxn: gpflow.mean_functions.MeanFunction,
+    kernel_fxn: gpflow.kernels.Kernel,
+    likelihood_var: float,
+    summarize: bool = False,
+) -> gpflow.models.GPR:
     """Construct a GPR model with a fixed (non-trainable) likelihood variance."""
     GPmodel = gpflow.models.GPR(data=(XGP, yGP), mean_function=mean_fxn, kernel=kernel_fxn)
     gpflow.set_trainable(GPmodel.likelihood.variance, False)
@@ -37,7 +47,9 @@ def build_gp(XGP, yGP, mean_fxn, kernel_fxn, likelihood_var, summarize=False):
     return GPmodel
 
 
-def maximize_lml(GPmodel, debug_cov=False):
+def maximize_lml(
+    GPmodel: gpflow.models.GPR, debug_cov: bool = False
+) -> Tuple[object, gpflow.models.GPR]:
     """Maximize the GP log-marginal-likelihood over its trainable (kernel) parameters."""
     if debug_cov:
         XGP, _ = GPmodel.data
@@ -50,17 +62,17 @@ def maximize_lml(GPmodel, debug_cov=False):
 
 
 def run_mcmc(
-    GPmodel,
-    seed,
-    no_samples,
-    no_burn_in,
-    no_chains,
-    no_leapfrog_steps,
-    step_size,
-    no_adapt_steps,
-    target_accept,
-    adapt_rate,
-):
+    GPmodel: gpflow.models.GPR,
+    seed: int,
+    no_samples: int,
+    no_burn_in: int,
+    no_chains: int,
+    no_leapfrog_steps: int,
+    step_size: float,
+    no_adapt_steps: int,
+    target_accept: float,
+    adapt_rate: float,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, gpflow.models.GPR]:
     """Run HMC over the GP kernel's hyperparameters and compute convergence diagnostics.
 
     Uses ``GPmodel.kernel.hyperparameters`` as the HMC state, in that kernel's own

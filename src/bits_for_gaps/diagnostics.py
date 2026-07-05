@@ -5,10 +5,13 @@ Thin wrappers over ``tensorflow_probability.mcmc``, split out of ``driver_new.py
 diagnostics API directly (and so these two lines are independently testable/reusable).
 """
 
+from __future__ import annotations
+
+import numpy as np
 import tensorflow_probability as tfp
 
 
-def potential_scale_reduction(chains_states):
+def potential_scale_reduction(chains_states: np.ndarray) -> np.ndarray:
     """R-hat for each parameter.
 
     Parameters
@@ -22,7 +25,7 @@ def potential_scale_reduction(chains_states):
     return tfp.mcmc.potential_scale_reduction(chains_states, independent_chain_ndims=1).numpy()
 
 
-def effective_sample_size(chains_states):
+def effective_sample_size(chains_states: np.ndarray) -> np.ndarray:
     """Effective sample size for each parameter.
 
     Parameters

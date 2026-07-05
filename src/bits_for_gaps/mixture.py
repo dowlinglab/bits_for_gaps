@@ -33,13 +33,25 @@ plotting-only step from its determinism/baseline pins. Phase 9c adds an OPTIONAL
 before drawing) -- default ``None`` leaves the ambient-RNG behavior unchanged.
 """
 
+from __future__ import annotations
+
+from typing import Callable, Optional, Sequence, Tuple
+
+import gpflow
 import numpy as np
 import tensorflow as tf
 
 from . import kernels
 
 
-def sample_gp_posterior_mixture(trace, GPmodel, XGP, seed, size, tf_seed=None):
+def sample_gp_posterior_mixture(
+    trace: np.ndarray,
+    GPmodel: gpflow.models.GPR,
+    XGP: np.ndarray,
+    seed: int,
+    size: int,
+    tf_seed: Optional[int] = None,
+) -> np.ndarray:
     """Sample one full-covariance GP draw per selected hyperparameter-posterior component.
 
     Parameters
@@ -87,17 +99,17 @@ def sample_gp_posterior_mixture(trace, GPmodel, XGP, seed, size, tf_seed=None):
 
 
 def predict_grid_2D(
-    trace,
-    GPmodel,
-    x_bounds,
-    x_trsf_fwd,
-    x_trsf_bkwd,
-    y_trsf_bkwd,
-    seed,
-    size,
-    n_grid=50,
-    tf_seed=None,
-):
+    trace: np.ndarray,
+    GPmodel: gpflow.models.GPR,
+    x_bounds: Sequence[Tuple[float, float]],
+    x_trsf_fwd: Sequence[Callable[[np.ndarray], np.ndarray]],
+    x_trsf_bkwd: Sequence[Callable[[np.ndarray], np.ndarray]],
+    y_trsf_bkwd: Callable[[np.ndarray], np.ndarray],
+    seed: int,
+    size: int,
+    n_grid: int = 50,
+    tf_seed: Optional[int] = None,
+) -> np.ndarray:
     """Full-grid GP posterior-predictive samples, for 2-D plotting diagnostics only.
 
     Moved from ``adaptiveEntropy.gp_predict_2D``. This does **not** feed the acquisition
