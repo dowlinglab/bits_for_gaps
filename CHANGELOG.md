@@ -9,6 +9,50 @@ entry below summarizes the library relative to the paper's original research cod
 
 Nothing yet.
 
+## [0.1.2] - 2026-08-06
+
+Documentation and repository clarity. **No functional changes** -- the algorithm, defaults,
+dependencies, and numerical results are identical to 0.1.1; only docstrings, comments, and
+documentation changed inside the installed package.
+
+### Added
+
+- The published article is now bundled in the repository at
+  `paper/bits_for_gaps_paper.pdf`, redistributed under
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) with the citation and license
+  statement in `paper/PAPER_LICENSE.md`, and linked from the README and documentation. The
+  DOI remains the canonical citation. (Not shipped in the wheel or sdist.)
+
+### Changed
+
+- **`docs/reproduce_paper.md` rewritten for readers new to the project.** It now separates
+  the two things "reproduce the paper" can mean -- regenerating the figures from the
+  committed data (~1-2 minutes, deterministic) versus re-running the adaptive design loop
+  from scratch (~25-30 minutes, **stochastic**) -- gives the expected cost of each, and
+  states which results should agree with the paper qualitatively versus which will differ
+  from run to run.
+- Documentation no longer refers to the authors' private research repository as an
+  "archive of record" or implies that "author access" is needed for anything. Everything
+  required to regenerate the paper's figures is committed here. `--archive` /
+  `$BFG_ARCHIVE_DIR` is now documented for what it is generally useful for: pointing the
+  figure scripts at any directory of run artifacts, such as your own
+  `paper/full_reproduction.py` output.
+- The README gains a short Provenance section: the research code was originally developed
+  in a private repository and was then migrated here and reorganized into an installable,
+  tested package.
+- Removed the stale "pre-1.0, under active refactor" and "not yet published" notices, and
+  the development-process scaffolding (phase labels, internal handoff and planning
+  documents) that made the source read as a project journal rather than a package.
+
+### Fixed
+
+- `paper/extract_reference.py` defaulted to a hardcoded path that existed only on the
+  authors' machines, so it could not run for anyone else. It now defaults to the committed
+  `paper/data/` directory and reproduces `paper/reference/*.json` byte-identically from a
+  fresh clone.
+- Removed a dangling `PhaseDiagram.n_draws` documentation reference to a class that belongs
+  to the original research code and does not exist in this package.
+
 ## [0.1.1] - 2026-08-06
 
 Bug-fix release. **Users on setuptools >= 81 should upgrade from 0.1.0.**
