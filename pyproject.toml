@@ -39,6 +39,15 @@ dependencies = [
     "tensorflow-macos==2.16.2; platform_system == 'Darwin' and platform_machine == 'arm64'",
     "tensorflow==2.16.2; platform_system != 'Darwin' or platform_machine != 'arm64'",
     "tqdm",
+    # setuptools is already a runtime dependency of gpflow (>=41.0.0); we add the UPPER
+    # bound because gpflow 2.9.2 does `import pkg_resources` at import time
+    # (gpflow/versions.py) and setuptools >= 81 REMOVED pkg_resources. Without this,
+    # `pip install bits_for_gaps` into an environment with current setuptools yields a
+    # package whose TF-backed modules (kernels/means/gp/mixture/acquisition/sampler) all
+    # fail with `ModuleNotFoundError: No module named 'pkg_resources'` -- setuptools'
+    # own deprecation warning recommends exactly this pin. Revisit when the frozen
+    # GPflow/TF stack is modernized (REFACTOR_PLAN.md section 6).
+    "setuptools<81",
 ]
 
 [project.optional-dependencies]

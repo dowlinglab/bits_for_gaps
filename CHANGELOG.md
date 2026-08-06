@@ -8,7 +8,29 @@ research code (`entropy_driven_hybrid_models_code`) began. See `HANDOFF.md` for 
 
 ## [Unreleased]
 
-Nothing yet -- `v0.1.0` below is the first release.
+Nothing yet.
+
+## [0.1.1] - 2026-08-06
+
+Bug-fix release. **Users on setuptools >= 81 should upgrade from 0.1.0.**
+
+### Fixed
+
+- **`import` of every TensorFlow-backed module failed on setuptools >= 81** with
+  `ModuleNotFoundError: No module named 'pkg_resources'`. GPflow 2.9.2 does
+  `import pkg_resources` at import time (`gpflow/versions.py`), and setuptools 81
+  removed `pkg_resources`; setuptools 82.0.1 is the current default in a fresh
+  environment. In 0.1.0 this left `AnisotropicSE`, `FixedInverseMean`, `BitsForGaps`,
+  `adaptiveEntropy`, and the `gp`/`mixture`/`acquisition` modules unimportable for new
+  users, while the pure NumPy/SciPy parts (`entropy`, `design`, `transforms`) kept
+  working. Fixed by adding a `setuptools<81` bound to the runtime dependencies
+  (setuptools is already a runtime dependency of GPflow; this adds the upper bound that
+  setuptools' own deprecation warning recommends). Revisit when the frozen GPflow/TF
+  stack is modernized.
+
+  Why 0.1.0's release checks missed it: the clean-environment install audit exercised
+  only the eagerly-imported pure modules, so the lazy `__getattr__` never loaded GPflow.
+  `RELEASE.md`'s audit step now requires importing a TF-backed module too.
 
 ## [0.1.0] - 2026-08-06
 

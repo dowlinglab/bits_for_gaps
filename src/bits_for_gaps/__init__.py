@@ -12,7 +12,7 @@ from __future__ import annotations
 from importlib import import_module
 from typing import Any, List
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 # Pure (NumPy/SciPy) -- safe to import eagerly.
 from . import design, entropy, transforms

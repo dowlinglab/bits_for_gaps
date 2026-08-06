@@ -113,6 +113,13 @@ authenticate. No API tokens are used or stored anywhere in this repo.
   python -m venv /tmp/bfg-testpypi-check && source /tmp/bfg-testpypi-check/bin/activate
   pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ bits_for_gaps
   python -c "import bits_for_gaps, sys; assert 'juliacall' not in sys.modules and 'tensorflow' not in sys.modules; print(bits_for_gaps.__version__)"
+  # REQUIRED: also force-load a TensorFlow-backed module. The line above only touches
+  # the eagerly-imported pure modules, so the lazy __getattr__ never loads GPflow --
+  # exactly how 0.1.0 shipped with every TF-backed module broken on setuptools >= 81
+  # (see CHANGELOG 0.1.1). Do this in a fresh env that has CURRENT setuptools, so a
+  # missing dependency bound shows up here rather than in a user's traceback.
+  python -c "import bits_for_gaps as b; k = b.AnisotropicSE(); print('TF-backed OK, ndim =', k.ndim)"
+  python -c "import setuptools; print('setuptools resolved to', setuptools.__version__)"
   ```
   (`--extra-index-url` is needed because TestPyPI doesn't mirror PyPI's dependencies --
   GPflow/TensorFlow/etc. would otherwise fail to resolve.) Run the same smoke test as
