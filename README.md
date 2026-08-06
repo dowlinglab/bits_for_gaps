@@ -1,6 +1,15 @@
 # BITS for GAPS
 
 [![CI](https://github.com/dowlinglab/bits_for_gaps/actions/workflows/ci.yml/badge.svg)](https://github.com/dowlinglab/bits_for_gaps/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/bits_for_gaps.svg)](https://pypi.org/project/bits_for_gaps/)
+[![Docs](https://readthedocs.org/projects/bits-for-gaps/badge/?version=latest)](https://bits-for-gaps.readthedocs.io/en/latest/?badge=latest)
+
+<!--
+The PyPI badge 404s (shields.io renders it as "invalid" or "pypi | not found") until
+Phase 10's RELEASE.md STEP 3 actually publishes v0.1.0; the Docs badge similarly needs
+RELEASE.md STEP 4's ReadTheDocs import to be done once. Both are inert placeholders
+until then -- not a bug in this file.
+-->
 
 **B**ayesian **I**nformation-**T**heoretic **S**ampling for hierarchical **GA**ussian **P**rocess **S**urrogates.
 
