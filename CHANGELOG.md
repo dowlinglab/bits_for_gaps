@@ -1,15 +1,20 @@
 # Changelog
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/); versioning
-will follow [Semantic Versioning](https://semver.org/) once tagged. Nothing has been
-released yet -- this file summarizes everything since the package's extraction from
-the paper's research code (`entropy_driven_hybrid_models_code`) began. See
-`HANDOFF.md` for the full phase-by-phase narrative and `docs/improvements_over_paper.md`
-for a detailed comparison against the original code.
+follows [Semantic Versioning](https://semver.org/). `v0.1.0` (not yet tagged -- see
+`RELEASE.md`) is the first release; its entry below summarizes everything since the
+package's extraction from the paper's research code (`entropy_driven_hybrid_models_code`)
+began. See `HANDOFF.md` for the full phase-by-phase narrative and
+`docs/improvements_over_paper.md` for a detailed comparison against the original code.
 
 ## [Unreleased]
 
-Targeting `v0.1.0` (Phase 10 -- publish; see `REFACTOR_PLAN.md`).
+Nothing yet -- `v0.1.0` below is the first release.
+
+## [0.1.0] - YYYY-MM-DD
+
+The first release. `YYYY-MM-DD` is a placeholder -- the maintainer sets the actual
+release date at tag time (see `RELEASE.md`).
 
 ### Added
 
@@ -42,6 +47,11 @@ Targeting `v0.1.0` (Phase 10 -- publish; see `REFACTOR_PLAN.md`).
   example for onboarding.
 - Sphinx/MyST documentation (Phase 8), a CI workflow running the full default test
   suite plus `ruff check` (Phase 9d), and this changelog.
+- `docs/theory.md` rewritten to present the paper's key equations in its own notation
+  with equation numbers, each linked to the implementing module (Phase 9e).
+- Release engineering (Phase 10): `.github/workflows/publish.yml` publishes to PyPI
+  (on a `v*` tag) or TestPyPI (manual dry run) via OIDC trusted publishing -- no API
+  tokens in the repo; see `RELEASE.md` for the maintainer checklist.
 
 ### Changed
 
@@ -95,3 +105,7 @@ Targeting `v0.1.0` (Phase 10 -- publish; see `REFACTOR_PLAN.md`).
 - A Monte-Carlo validation of the entropy approximations against the true GMM
   differential entropy they approximate, not just a captured historical value
   (Phase 9d).
+- 204 tests passing (up from 166 at Phase 9d's start), closing coverage gaps found in
+  a function-by-function audit (`diagnostics.py` had zero direct unit tests; several
+  documented `ValueError` paths were never exercised) and upgrading a few shape-only
+  assertions to check actual values (Phase 9e).

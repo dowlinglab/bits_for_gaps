@@ -19,10 +19,71 @@ State of the fresh `bits_for_gaps` repo. Read this + `REFACTOR_PLAN.md` before c
 - Phase 9d (whole-codebase polish: hygiene [ruff, type hints, CI, coverage] +
   faithfulness [selectable acquisition, MC-validation, synthetic example, hardening,
   CHANGELOG]): done 2026-07-04, merged to `main`.
-- **Phase 9e (docs/tests/comments quality pass -- behavior-preserving: `golden` ->
+- Phase 9e (docs/tests/comments quality pass -- behavior-preserving: `golden` ->
   `reference` rename, `theory.md` equation fidelity, test-coverage gap-filling,
-  NumPy-docstring + inline equation-citation pass): done 2026-07-05 on branch
-  `phase9e-quality` — awaiting review/merge to `main` before Phase 10 (publish).**
+  NumPy-docstring + inline equation-citation pass): done 2026-07-05, merged to `main`.
+- **Phase 10 (release engineering for the v0.1.0 PyPI release -- packaging/CI only, no
+  algorithm changes, no credentialed step performed): done 2026-08-06 on branch
+  `phase10-release` — awaiting review/merge to `main`, then the maintainer-only steps
+  in `RELEASE.md`.**
+
+## Phase 10 — release engineering for v0.1.0 (done; review gate before the maintainer's release steps)
+
+Packaging/CI/docs only -- `src/bits_for_gaps` logic and every regression value
+untouched. `pytest -q`: 204 passed, 2 deselected throughout (unchanged from Phase 9e).
+
+- **Version, single-sourced.** `pyproject.toml`'s `[project]` gained
+  `dynamic = ["version"]` + a `[tool.hatch.version]` pointing at
+  `src/bits_for_gaps/__init__.py` (hatchling's default "regex" version source matches
+  `__version__ = "..."`), so `__version__` stays the one place edited to cut a
+  release. Bumped `0.0.1.dev0` -> `0.1.0`.
+- **PyPI metadata polish.** Classifiers: `Development Status :: 3 - Alpha` ->
+  `4 - Beta`, plus a generic `Python :: 3` classifier and an OS-independent /
+  AI-topic classifier. `project.urls` gained `Repository`/`Documentation`/`Changelog`
+  alongside the existing `Homepage`/`Paper`.
+- **Sdist scope, fixed.** `python -m build`'s sdist defaulted to hatchling's
+  whole-repo file set (193 entries, 6.9 MB, including all of `paper/data/`'s curated
+  ~16 MB plot-input subset, `tests/`, `examples/`, `docs/`) -- a real packaging gap,
+  not caught by the wheel (which was already clean:
+  `bits_for_gaps/*` + `py.typed` + dist-info only). Fixed via
+  `[tool.hatch.build.targets.sdist]`'s `only-include` (not `include`, which *adds* to
+  the default set -- tried first, still leaked several READMEs), restricting the
+  sdist to `src/bits_for_gaps` + `LICENSE`/`README.md`/`CHANGELOG.md` (6.9 MB -> 33 KB).
+  `twine check dist/*` passes for both artifacts; wheel `METADATA`'s `Version:` field
+  matches the single-sourced `__version__`.
+- **Clean-env install audit.** In a fresh, throwaway conda env (no dev tooling, no
+  editable install), `pip install dist/bits_for_gaps-0.1.0-py3-none-any.whl` resolved
+  every pinned dependency cleanly from wheel metadata alone; bare `import
+  bits_for_gaps` stayed Julia-free/TF-lazy; a smoke test (`AnisotropicSE()`,
+  `latin_hypercube_design`, `entropy.second_order_entropy`, and `docs/quickstart.md`'s
+  exact `BitsForGaps(...)` construction snippet) matched the installed API with no
+  doc changes needed. Env torn down after.
+- **Trusted-publishing CI.** New `.github/workflows/publish.yml`: a shared build job
+  (the same `python -m build` + `twine check` verified above) feeds two gated publish
+  jobs via OIDC trusted publishing (`pypa/gh-action-pypi-publish`, a dedicated
+  `release` environment, job-scoped `id-token: write`) -- no API tokens anywhere in
+  the repo. A `v*` tag push reaches PyPI; a manual `workflow_dispatch` reaches
+  TestPyPI only, for the pre-release dry run. `gh-action-pypi-publish` is referenced
+  via PyPA's own recommended floating tag (`release/v1`) rather than a fabricated
+  commit SHA (this session had no network access to verify one) -- `RELEASE.md`
+  documents the optional SHA-pinning step for the maintainer.
+- **CHANGELOG finalized, README badges added.** `[Unreleased]` renamed to
+  `[0.1.0] - YYYY-MM-DD` (a placeholder; the maintainer fills in the actual date at
+  tag time) with a fresh empty `[Unreleased]` left above it; added the Phase
+  9e/10 bullets that weren't yet reflected. `README.md` gained PyPI-version and
+  ReadTheDocs badges alongside the existing CI badge (both inert until the
+  maintainer's release/RTD-import steps below actually happen).
+- **`RELEASE.md`** — new maintainer checklist: the exact build-artifact contents
+  audit, the clean-env install audit, and the four maintainer-only steps in order
+  (register trusted publishers on PyPI + TestPyPI; TestPyPI dry run via
+  `workflow_dispatch`; set the CHANGELOG date, `git tag v0.1.0 && git push --tags`;
+  activate ReadTheDocs). None of these four were performed by this phase.
+
+Verified at every commit: `pytest -q` (204 passed, 2 deselected), `pytest -m vle` (2
+passed), `ruff check` clean, `sphinx-build -W` clean, and the Julia-free/TF-lazy
+import contract. No PyPI/TestPyPI upload, no account configuration, no trusted-
+publisher registration, no `git tag`, no RTD activation -- all maintainer-only, all
+documented in `RELEASE.md`, none performed.
 
 ## Phase 9e — docs/tests/comments quality pass (done; review gate before Phase 10)
 
@@ -920,7 +981,7 @@ importable classes; both work at any input dimension as of Phase 5.
 conda env create -f environment.yml        # or reuse existing `bits_for_gaps` env
 conda activate bits_for_gaps               # /opt/anaconda3/envs/bits_for_gaps
 pip install -e ".[dev,vle]"                 # ,vle needed for the Julia example
-pytest -q                                   # 193 passed, 2 deselected (as of Phase 9d)
+pytest -q                                   # 204 passed, 2 deselected (as of Phase 9e)
 ruff check .                                 # lint (Phase 9d); ruff is in [dev]
 ```
 Stack: Python 3.9.23, gpflow 2.9.2, TF 2.16.2, TFP 0.24.0, numpy 1.26.4, scipy 1.13.1.
@@ -975,18 +1036,19 @@ Old repo: `~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_
 10. **Phase 9d — whole-codebase polish (hygiene + faithfulness). ✅ DONE.** Merged to
    `main`. See the "Phase 9d" section above.
 
-11. **Phase 9e — docs/tests/comments quality pass. ✅ DONE.** On branch
-   `phase9e-quality`; merge to `main` after review, then start Phase 10. See the
-   "Phase 9e" section above.
+11. **Phase 9e — docs/tests/comments quality pass. ✅ DONE.** Merged to `main`. See
+   the "Phase 9e" section above.
 
-12. **Phase 10 — publish (TestPyPI -> PyPI).** No Zenodo deposit (REFACTOR_PLAN.md §7
-   decision 4 -- the private old repo is the archive of record). Needs: bump
-   `version` in `pyproject.toml` off `0.0.1.dev0`, a GitHub Actions trusted-publishing
-   workflow (or manual `twine upload`), a TestPyPI dry run before the real PyPI
-   publish, and a `v0.1.0` tag. Also the actual RTD connection from step 6, and
-   double-check `python -m build --wheel` one more time post-any-final-tweaks (last
-   verified in Phase 6/7: wheel contents are exactly `bits_for_gaps/*`, no
-   `examples/`/`paper/`/`docs/`).
+12. **Phase 10 — release engineering for v0.1.0. ✅ DONE.** On branch
+   `phase10-release`; merge to `main` after review, then the maintainer performs the
+   steps in `RELEASE.md`. See the "Phase 10" section above. No Zenodo deposit
+   (REFACTOR_PLAN.md §7 decision 4 -- the private old repo is the archive of record).
+
+13. **Actual publish (maintainer-only, not part of any automated phase).** Everything
+   up to this point is prepared and documented in `RELEASE.md`: register a PyPI +
+   TestPyPI trusted publisher, dry-run via `workflow_dispatch` to TestPyPI, set the
+   CHANGELOG date and `git tag v0.1.0 && git push --tags` to trigger the real PyPI
+   publish, then activate ReadTheDocs (import steps in the "Phase 8" section above).
 
 ## Known issues / decisions already made (do not re-litigate)
 
