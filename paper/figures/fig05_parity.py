@@ -1,8 +1,7 @@
 """Fig 5 -- train/test parity plots + RMSE/MAE error box-and-whisker plots.
 
-Ported from ``train_test_split_proh.py``'s ``plot_parity`` / ``plot_parity_loglog`` /
-``plot_error_bx_n_wskr``, simplified (dropped the zoomed inset -- a purely visual
-detail, not the quantitative content) -- this is reproduction code, not a library API.
+Simplified from the paper's own plotting code: dropped the zoomed inset (a purely
+visual detail, not the quantitative content).
 
 Quantitatively pinned: ``error_metrics()`` returns exactly the per-draw RMSE/MAE
 distributions ``paper/reference/fig5_error_metrics.json`` was extracted from (same

@@ -49,10 +49,6 @@ def test_full_factorial_exact_grid_size_needs_no_trimming():
 
 
 ## NOTE: `full_factorial_design`'s "grid too small" `ValueError` (design.py:74-75) is
-## unreachable via any (bounds, n_train, n_test) combination: `levels =
-## ceil(n_total ** (1/d))` guarantees `levels ** d >= n_total` for every positive
-## integer `n_total` and `d` (verified by brute-force search over n_total <= 2000,
-## d <= 4 -- no counterexample). It is defensive dead code, not a bug (every reachable
-## call returns a correctly-shaped grid); left as-is since this pass is
-## behavior-preserving and the guard is harmless. Not given a test here since there is
-## no real input that exercises it.
+## unreachable for any (bounds, n_train, n_test): `levels = ceil(n_total ** (1/d))`
+## guarantees `levels ** d >= n_total`. Defensive dead code, not a bug -- not exercised
+## here since no input triggers it.

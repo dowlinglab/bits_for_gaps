@@ -1,12 +1,10 @@
 """Unit tests for ``acquisition.py``'s entropy-maximization objective/optimizer.
 
-Phase 9c: the headline behavior under test is that ``entropy_objective`` (and its
-callers ``optimize``/``entropy_surface_2D``) leave the caller's ``GPmodel`` kernel
-unchanged -- the same class of state-mutation footgun Phase 9b found in
-``mixture.sample_gp_posterior_mixture`` (see ``paper/PHASE9B_INVESTIGATION.md``): since
-``sampler.py``'s ``run()`` calls these on the same ``GPmodel`` object it later stores in
-``IterationRecord.GPmodel``, an unrestored kernel would silently corrupt every
-iteration's returned model.
+The headline behavior under test is that ``entropy_objective`` (and its callers
+``optimize``/``entropy_surface_2D``) leave the caller's ``GPmodel`` kernel unchanged --
+since ``sampler.py``'s ``run()`` calls these on the same ``GPmodel`` object it later
+stores in ``IterationRecord.GPmodel``, an unrestored kernel would silently corrupt
+every iteration's returned model.
 """
 
 import gpflow
@@ -101,7 +99,7 @@ def test_entropy_surface_2d_restores_kernel_state(gp_model, trace):
 
 
 ## ---------------------------------------------------------------------------
-## Phase 9d: selectable acquisition objective (entropy_lower_bound wired up).
+## Selectable acquisition objective (entropy_lower_bound as an alternative to Taylor).
 ## ---------------------------------------------------------------------------
 
 
@@ -156,8 +154,8 @@ def test_entropy_estimators_registry_has_both_paper_estimators():
 
 
 def test_entropy_surface_2d_rejects_non_2d_bounds(gp_model, trace):
-    # entropy_surface_2D is a 2-D-only visualization diagnostic (Phase 5) -- it must
-    # raise a clear error for other dimensions rather than silently misbehaving.
+    # entropy_surface_2D is a 2-D-only visualization diagnostic -- it must raise a
+    # clear error for other dimensions rather than silently misbehaving.
     with pytest.raises(ValueError, match="2-D-only"):
         entropy_surface_2D(
             trace,

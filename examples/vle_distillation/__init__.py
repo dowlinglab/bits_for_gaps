@@ -1,5 +1,5 @@
-"""The paper's H2O-PrOH VLE / distillation case study, ported onto the public
-``bits_for_gaps`` API (Phase 6).
+"""The paper's H2O-PrOH VLE / distillation case study, built on the public
+``bits_for_gaps`` API.
 
 Not shipped in the ``bits_for_gaps`` pip wheel -- repo-only, importable in dev/CI via
 ``tests/conftest.py``'s ``sys.path`` insert of the repo's ``examples/`` directory (see

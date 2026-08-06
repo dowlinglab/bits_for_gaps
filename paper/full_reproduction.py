@@ -1,27 +1,25 @@
-"""Phase 9 STEP 2/3 -- from-scratch stochastic reproduction of the full adaptive loop.
+"""From-scratch stochastic reproduction of the full adaptive loop.
 
 Runs ``bits_for_gaps.sampler.BitsForGaps`` end-to-end against the same Wilson/
-Clapeyron black box, HMC config, and 2-D input space as the paper's published
-``less_x_new_manuscript_revisions`` run (Jones & Dowling 2026) -- see the private old
-repo's ``tests/less_x_new_manuscript_revisions.py`` and
-``examples/vle_distillation/run_case_study.py`` for the paper-trail on every constant
-below.
+Clapeyron black box, HMC config, and 2-D input space as the paper's published run
+(Jones & Dowling 2026) -- see ``examples/vle_distillation/run_case_study.py`` for the
+same configuration at a shorter, demo-sized iteration count.
 
 This is a ONE-TIME validation exercise, not part of the regression suite: results are
 stochastic (HMC + posterior-mixture sampling both draw randomness TensorFlow does not
 let us seed bitwise -- see ``bits_for_gaps.mixture``'s module docstring) and are
-expected to be *qualitatively*, not bitwise, consistent with the paper. It is
-hours-long (15 outer iterations, each running a 4-chain/5000-sample HMC fit plus a
-50-draw full-grid posterior-predictive diagnostic) -- run it in the background.
+expected to be *qualitatively*, not bitwise, consistent with the paper. Documented
+runtime is ~25-30 minutes on a laptop (15 outer iterations, each running a
+4-chain/5000-sample HMC fit plus a 50-draw full-grid posterior-predictive diagnostic).
 
-All artifacts go to ``--out-dir`` (default ``results_remaked/phase9_fullrun/``,
+All artifacts go to ``--out-dir`` (default ``results_remaked/full_reproduction/``,
 already gitignored) -- nothing this script produces is committed; only the numbers in
 its ``full_run_summary.json`` feed the write-up appended to ``paper/REPRODUCTION.md``.
 
 Usage::
 
     export PYTHON_JULIACALL_HANDLE_SIGNALS=yes
-    python paper/full_reproduction.py --out-dir results_remaked/phase9_fullrun
+    python paper/full_reproduction.py --out-dir results_remaked/full_reproduction
 """
 
 import argparse
@@ -43,8 +41,7 @@ if EXAMPLES_DIR not in sys.path:
 # This script dispatches thousands of tiny TF ops (one predict_f/predict_f_samples
 # call per bisection step, per z, per posterior draw). On macOS, TF eager's default
 # multi-threaded op dispatch spends most wall-clock time on thread wake-up/
-# coordination for ops this small -- single-threading it removed a >10x slowdown
-# confirmed during Phase 9b's investigation (see paper/PHASE9B_INVESTIGATION.md).
+# coordination for ops this small -- single-threading it removes a >10x slowdown.
 import tensorflow as tf
 
 tf.config.threading.set_intra_op_parallelism_threads(1)
@@ -82,9 +79,8 @@ def _predict_split(record, XGP, seed, size):
 
     Uses a 15-component hyperparameter-posterior subset (``noGaussians``, the same
     mixture size the acquisition function itself uses) rather than the paper's own
-    ``train_test_split_proh.py``'s dedicated 500-sample subset -- a documented
-    simplification (see ``paper/REPRODUCTION.md``'s Phase 9 section), not a bitwise
-    match.
+    dedicated 500-sample subset -- a documented simplification (see
+    ``paper/REPRODUCTION.md``), not a bitwise match.
     """
     yGP_draws = mixture.sample_gp_posterior_mixture(
         record.trace, record.GPmodel, XGP, seed=seed, size=size
@@ -115,7 +111,7 @@ def run(out_dir, n_init=N_INIT, n_test=N_TEST, n_iters=N_ITERS, seed=SEED):
         input_transform=INPUT_TRANSFORM,
         output_transform=OUTPUT_TRANSFORM,
         iters=n_iters,
-        exp_name="phase9_fullrun",
+        exp_name="full_reproduction",
     )
     bfg.seed = seed
     bfg.noSamples, bfg.noBurnIn = 5000, 0
@@ -144,12 +140,12 @@ def run(out_dir, n_init=N_INIT, n_test=N_TEST, n_iters=N_ITERS, seed=SEED):
     #
     # MUST run before the test-RMSE loop below: `_predict_split` (via
     # `mixture.sample_gp_posterior_mixture`) mutates `record.GPmodel.kernel` in place,
-    # and `history.last.GPmodel` is the SAME object -- running the RMSE loop first
-    # once left the kernel at an arbitrary leftover single-hyperparameter state and
-    # produced a spurious non-converging column (see paper/PHASE9B_INVESTIGATION.md).
-    # Uses `surrogate_gamma_averaged` (matches the paper's own `new_phase_diagram.py`
-    # construction) rather than `surrogate_gamma`'s single point-estimate, for the same
-    # reason: robust to any one hyperparameter draw being atypical.
+    # and `history.last.GPmodel` is the SAME object -- running the RMSE loop first would
+    # leave the kernel at an arbitrary leftover single-hyperparameter state and produce
+    # a spurious non-converging column. Uses `surrogate_gamma_averaged` (matches the
+    # paper's own posterior-averaging construction) rather than `surrogate_gamma`'s
+    # single point-estimate, for the same reason: robust to any one hyperparameter draw
+    # being atypical.
     GPmodel = history.last.GPmodel
     trace_final = history.last.trace
     z_grid = np.linspace(0.0, 1.0, Z_GRID_SIZE)
@@ -225,8 +221,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "--out-dir",
-        default=os.path.join(REPO_ROOT, "results_remaked", "phase9_fullrun"),
-        help="Gitignored output directory (default: results_remaked/phase9_fullrun)",
+        default=os.path.join(REPO_ROOT, "results_remaked", "full_reproduction"),
+        help="Gitignored output directory (default: results_remaked/full_reproduction)",
     )
     parser.add_argument("--n-iters", type=int, default=N_ITERS)
     args = parser.parse_args()

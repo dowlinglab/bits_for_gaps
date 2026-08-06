@@ -55,9 +55,9 @@ def run(n_init=N_INIT, n_iters=N_ITERS, seed=SEED):
     bfg.noGaussians = 8
     bfg.noRestarts = 3
     bfg.entropyMesh = [4, 4]
-    # Phase 9d: the paper's default acquisition objective is the 2nd-order Taylor
-    # entropy approximation. Uncomment to try the alternative closed-form lower bound
-    # instead (see docs/theory.md's "Entropy estimators" section):
+    # The paper's default acquisition objective is the 2nd-order Taylor entropy
+    # approximation. Uncomment to try the alternative closed-form lower bound instead
+    # (see docs/theory.md's "Entropy estimators" section):
     # bfg.acquisitionObjective = "lower_bound"
 
     print(f"Running {n_iters} adaptive design iterations from {n_init} initial points...")

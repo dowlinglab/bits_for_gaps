@@ -3,7 +3,7 @@
 Reads the committed reference snapshot (``paper/reference/hmc_diagnostics.json``) extracted
 from the archived iteration-15 run and pins it against the values reported in the paper.
 This locks the reference file against corruption and documents the reproduction tolerances
-that ``paper/reproduce.py`` will diff against in Phase 7.
+that ``paper/reproduce.py`` diffs against.
 
 Pure (JSON only) -- no TensorFlow, no Julia.
 """

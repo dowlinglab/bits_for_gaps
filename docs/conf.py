@@ -1,8 +1,8 @@
 """Sphinx configuration for bits_for_gaps.
 
 Docs are repo-only (not shipped in the pip wheel, mirroring examples/ and paper/'s
-policy -- see REFACTOR_PLAN.md §7.3) and built with Sphinx + MyST + furo, all pulled
-in via the ``[docs]`` extra (``pip install -e ".[docs]"``).
+policy) and built with Sphinx + MyST + furo, all pulled in via the ``[docs]`` extra
+(``pip install -e ".[docs]"``).
 """
 
 import os
@@ -44,8 +44,8 @@ html_static_path = []
 
 # --- autodoc ------------------------------------------------------------------
 #
-# The RTD/CI robustness decision (Phase 8): autodoc imports bits_for_gaps, which
-# imports gpflow/tensorflow/tensorflow_probability for the TF-backed modules
+# RTD/CI robustness: autodoc imports bits_for_gaps, which imports
+# gpflow/tensorflow/tensorflow_probability for the TF-backed modules
 # (kernels, means, sampler, gp, mixture, acquisition, diagnostics). We install the
 # REAL frozen stack rather than mocking it -- pip always installs a package's base
 # `dependencies` alongside any extra, so `pip install -e ".[docs]"` (what

@@ -1,10 +1,9 @@
 """Fig 3 -- predictive-entropy field over the (z_PrOH, T) design space, early iterations.
 
-Ported from ``fxns/mcmc_plotter.py``'s ``plot_entropy_2D`` (``fxns/plot_res.py``'s
-``-m entropy_2D`` mode), shown as a small multi-panel grid across the first few
-sequential-design iterations (matching the paper's lettered-panel (a)-(f) scheme)
-rather than one file per iteration. Visual reproduction only (no reference pin) --
-spot-check against the archived ``entropy_surface_{iters}.png`` files.
+Shown as a small multi-panel grid across the first few sequential-design iterations
+(matching the paper's lettered-panel (a)-(f) scheme) rather than one file per iteration.
+Visual reproduction only (no reference pin) -- spot-check against the archived
+``entropy_surface_{iters}.png`` files.
 """
 
 import os

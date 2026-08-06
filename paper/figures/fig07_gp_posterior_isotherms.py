@@ -1,8 +1,7 @@
 """Fig 7 -- GP posterior predictive at fixed isotherms, offset for readability.
 
-Ported from ``fxns/mcmc_plotter.py``'s ``plot_gp_post_multiple_isotherms``
-(``fxns/plot_res.py``'s ``-m gp_post`` mode). Visual reproduction only (no reference pin)
--- spot-check against the archived ``gp_posterior_isotherms_15.png``.
+Visual reproduction only (no reference pin) -- spot-check against the archived
+``gp_posterior_isotherms_15.png``.
 """
 
 import os

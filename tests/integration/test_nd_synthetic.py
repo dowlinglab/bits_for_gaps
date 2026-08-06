@@ -1,9 +1,9 @@
-"""Phase 5: N-D synthetic end-to-end tests via the ``BitsForGaps`` public API.
+"""N-D synthetic end-to-end tests via the ``BitsForGaps`` public API.
 
 Runs a tiny, fully-seeded ``BitsForGaps.run(...)`` on pure-Python synthetic black boxes
-(no Julia) at d=1 and d=3, proving the "already general" claim in code rather than just
-at d=2. Mirrors ``test_end_to_end.py``'s tiny configuration and assertion style, but
-parametrized over dimension.
+(no Julia) at d=1 and d=3, proving the pipeline is dimension-general in code rather than
+just at the paper's d=2. Mirrors ``test_end_to_end.py``'s tiny configuration and
+assertion style, but parametrized over dimension.
 
 The 3-D kernel deliberately mixes prior families across dimensions (LogNormal-positive,
 Gamma-unconstrained, LogNormal-positive) -- the same per-dimension-Parameter design

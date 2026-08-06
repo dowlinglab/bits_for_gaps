@@ -1,7 +1,6 @@
 """H2O-PrOH bubble-point / dew-point phase diagram (Geankoplis Ex. 11.4-1 system).
 
-Ported from the paper code's ``new_phase_diagram.py`` (``PhaseDiagram``). Two
-interchangeable activity-coefficient sources feed the same bubble-point/dew-point
+Two interchangeable activity-coefficient sources feed the same bubble-point/dew-point
 physics:
 
 - **Ground truth (Wilson)**: :func:`wilson_gamma` calls Clapeyron.jl directly (via
@@ -64,8 +63,8 @@ def surrogate_gamma(
     last state), not a posterior summary. See :func:`surrogate_gamma_averaged` for a
     hyperparameter-posterior-averaged alternative when a robust curve independent of
     which single HMC sample happens to be live matters more than raw speed (e.g.
-    feeding a McCabe-Thiele stage solver with a fixed initial guess -- see
-    ``paper/PHASE9B_INVESTIGATION.md``). Also: ``GPmodel.kernel`` is mutated in place
+    feeding a McCabe-Thiele stage solver with a fixed initial guess, which is sensitive
+    to which draw the curve came from). Also: ``GPmodel.kernel`` is mutated in place
     by anything that reassigns its hyperparameters (e.g.
     ``bits_for_gaps.mixture.sample_gp_posterior_mixture``, by design -- see its
     docstring), so callers that need this function's result to reflect a *specific*,
@@ -100,10 +99,9 @@ def surrogate_gamma_averaged(
 ):
     """Hyperparameter-posterior-averaged surrogate activity coefficients.
 
-    Matches the paper's own construction (the old repo's ``new_phase_diagram.py``'s
-    ``PhaseDiagram.run``/``gibbs_duhem_fast``, and ``equilibrium.py``'s
-    ``water_proh_eqm``, which fed the paper's *actual* Fig 9 surrogate column): draw
-    ``n_draws`` independent samples from the HMC hyperparameter posterior (``trace``),
+    Matches the paper's own posterior-averaging construction, which fed its actual
+    Fig 9 surrogate column: draw ``n_draws`` independent samples from the HMC
+    hyperparameter posterior (``trace``),
     evaluate this GP's own deterministic conditional mean under each one (not
     ``predict_f_samples`` -- no ambient-RNG, TF-non-reproducibility involved), and
     average ``gamma_proh`` pointwise. This is a Monte Carlo estimate of
@@ -121,8 +119,8 @@ def surrogate_gamma_averaged(
         HMC posterior samples (e.g. ``bits_for_gaps.state.IterationRecord.trace``), in
         ``GPmodel.kernel.hyperparameters``'s canonical order.
     n_draws : int
-        Number of posterior draws to average (50, matching the paper's
-        ``PhaseDiagram.n_draws``).
+        Number of posterior draws to average. The default of 50 matches the number of
+        draws behind the paper's Fig 8/9 surrogate curves.
     """
     from bits_for_gaps.kernels import assign_hyperparameters
 

@@ -6,9 +6,8 @@ Gibbs-Duhem correction, bubble-point/dew-point phase diagram, and a McCabe-Thiel
 distillation column solver.
 
 **This example is repo-only** -- it is *not* part of the `bits_for_gaps` package
-distributed on PyPI (the pip wheel ships only `bits_for_gaps/*`; see
-`REFACTOR_PLAN.md` §7.3). To run it you need a clone of this repository, not just
-`pip install bits_for_gaps`.
+distributed on PyPI (the pip wheel ships only `bits_for_gaps/*`). To run it you need a
+clone of this repository, not just `pip install bits_for_gaps`.
 
 ## Setup
 
@@ -68,9 +67,9 @@ both the Wilson ground truth and the GP surrogate. Runtime is a couple of minute
 (dominated by the adaptive design's HMC sampling, a handful of iterations by default --
 see `N_ITERS` in the script; the paper's published run used 15).
 
-This is a *demonstration* of the ported pipeline, not a reproduction of the paper's
-exact published figures (that full reproduction, matching the paper's real 15-iteration
-adaptive run, is Phase 7's job -- see `HANDOFF.md`).
+This is a *demonstration* of the pipeline (5 adaptive iterations, for speed), not a
+reproduction of the paper's exact published figures -- the paper's real run used 15
+iterations. For that, see `paper/full_reproduction.py` and `docs/reproduce_paper.md`.
 
 ## Sanity check
 

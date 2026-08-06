@@ -1,23 +1,37 @@
-# Paper data & reproduction
+# Paper data
 
-The bulk archived results from the published run (`less_x_new_manuscript_revisions`,
-iteration 15) are ~2.5 GB and are **not** tracked in this repo.
+**Everything needed to regenerate the paper's figures is committed in this repository.**
+`python paper/reproduce.py` works from a fresh clone with no additional downloads and no
+special access. If you only want the figures, you can stop reading here and go to
+[`REPRODUCTION.md`](REPRODUCTION.md).
 
-**Archive of record:** the private repository `dowlinglab/entropy_driven_hybrid_models_code`
-(the original paper code, kept private with its full history) under
-`entropy_driven_hms/results/less_x_new_manuscript_revisions/`. There is intentionally **no
-Zenodo deposit** — the private old repo is the archive of record (REFACTOR_PLAN.md §7
-decision 4).
+## What is committed
 
-Two small, curated subsets of that bulk archive **are** committed here:
+- **`paper/data/`** (~16 MB) — the run artifacts the figure scripts read: HMC traces and
+  posterior samples, the entropy fields, the surrogate phase-diagram draws, the Wilson
+  ground-truth curve, and the training/test activity-coefficient data. These are the
+  published run's own outputs, copied verbatim. See
+  [`data/README.md`](data/README.md) for the file-by-file manifest.
+- **`paper/reference/`** — small scalar targets used by the regression tests (R̂ and ESS,
+  train/test error metrics, the hyperparameter-posterior summary, the McCabe–Thiele stage
+  table), regenerable with `paper/extract_reference.py`.
 
-- `paper/reference/` — small scalar targets for regression (R̂/ESS, error metrics, posterior
-  summary, stage table), regenerable via `paper/extract_reference.py`.
-- `paper/data/` — the exact plot-input files `paper/figures/*.py` read (~16 MB; see
-  `paper/data/README.md` for the file manifest and how it was determined). Added in
-  Phase 9 so `python paper/reproduce.py` regenerates every figure from a fresh clone
-  with **no private-archive access** — the old Phase 7 assumption ("figure reproduction
-  assumes author access to that repo") no longer holds for the default path. Author
-  access to the full private archive is still needed only if you want figures at
-  iterations beyond the curated subset (e.g. Fig 6/7 at an iteration other than 1/15) —
-  pass `--archive`/`$BFG_ARCHIVE_DIR` to point at it.
+## What is not committed, and why that doesn't matter
+
+The published run also produced roughly half a gigabyte of intermediate artifacts — full
+posterior-prediction grids at all 60 iterations, per-iteration trace files, and rendered
+figure images. Committing all of it would bloat the repository to no purpose: the figure
+scripts read only the subset above, so that subset is what ships.
+
+The scripts accept `--archive` / `$BFG_ARCHIVE_DIR` to point at a different directory of run
+artifacts, laid out the same way as `paper/data/`. That is useful if you re-run the loop
+yourself (`paper/full_reproduction.py` writes such a directory) and want to plot *your* run
+instead of the published one. It is not a prerequisite for anything in
+[`REPRODUCTION.md`](REPRODUCTION.md).
+
+## The bundled paper
+
+`paper/bits_for_gaps_paper.pdf` is the published article, included so the method and the code
+can be read side by side. It is redistributed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — see
+[`PAPER_LICENSE.md`](PAPER_LICENSE.md) for the citation and license statement.

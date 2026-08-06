@@ -1,4 +1,4 @@
-"""Parity test for the ``BitsForGaps`` public-API facade (REFACTOR_PLAN.md Sec 4).
+"""Parity test for the ``BitsForGaps`` public-API facade.
 
 ``BitsForGaps`` is a thin, renamed-kwarg subclass of ``adaptiveEntropy`` -- it adds no
 new computation, so a run through it must reproduce the exact same pinned baseline as

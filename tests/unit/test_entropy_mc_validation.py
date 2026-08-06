@@ -1,5 +1,5 @@
 """Monte-Carlo validation of the entropy estimators against the true GMM differential
-entropy -- Phase 9d.
+entropy.
 
 ``test_entropy.py`` has closed-form checks (single-component exactness) and a
 regression pin against the paper code's output, but nothing that validates

@@ -17,13 +17,16 @@ K. D. Jones and A. W. Dowling, "BITS for GAPS: Bayesian Information-Theoretic
 Sampling for hierarchical GAussian Process Surrogates," *Computers & Chemical
 Engineering* **211** (2026) 109650.
 [doi:10.1016/j.compchemeng.2026.109650](https://doi.org/10.1016/j.compchemeng.2026.109650)
+
+The paper is also bundled in the repository —
+[`paper/bits_for_gaps_paper.pdf`](https://github.com/dowlinglab/bits_for_gaps/blob/main/paper/bits_for_gaps_paper.pdf)
+— redistributed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), so you can
+read the method alongside the code. Please cite the DOI.
 ```
 
 ```{admonition} Status
-:class: warning
-Pre-1.0. The public API (`BitsForGaps`, `AnisotropicSE`, ...) is stable across the
-refactor phases described in the project's `HANDOFF.md`, but has not yet had a
-tagged release.
+:class: note
+0.x: released on PyPI, but the public API may still change before a 1.0 release.
 ```
 
 ## Where to start

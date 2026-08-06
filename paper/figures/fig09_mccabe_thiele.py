@@ -1,16 +1,14 @@
 """Fig 9 -- McCabe-Thiele distillation column diagram (Wilson vs. GP surrogate).
 
-Ported from ``solve_distillation.py`` (called via ``run_example.py``), entirely via
-``examples/vle_distillation``'s ``phase_diagram``/``equilibrium``/``distillation``
-modules -- this module only adds the plotting + LHS/GP setup on top.
+Built entirely on ``examples/vle_distillation``'s ``phase_diagram``/``equilibrium``/
+``distillation`` modules -- this module only adds the plotting + LHS/GP setup on top.
 
 ``wilson_column()``/``surrogate_column()`` are the exact same recompute
 ``tests/regression/test_mccabe_thiele.py``'s gated stage-table regression pins against
-``paper/reference/mccabe_thiele_stages.json`` (moved here, Phase 7, so the figure and the
-test share one implementation instead of two copies -- the test imports these
-functions rather than redefining them). See that test's module docstring for why the
-surrogate uses a fresh 30-point LHS + MLE fit rather than the full 15-iteration
-adaptive loop.
+``paper/reference/mccabe_thiele_stages.json`` -- defined here so the figure and the test
+share one implementation instead of two copies (the test imports these functions rather
+than redefining them). See that test's module docstring for why the surrogate uses a
+fresh 30-point LHS + MLE fit rather than the full 15-iteration adaptive loop.
 """
 
 import os

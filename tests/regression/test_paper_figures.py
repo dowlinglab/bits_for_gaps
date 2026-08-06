@@ -1,16 +1,16 @@
 """Regression: recompute the paper's quantitative figures and diff against
 ``paper/reference/*``.
 
-As of Phase 9, the data these tests read comes from the curated, COMMITTED
-``paper/data/`` subset (see ``paper/data/README.md``) -- no private-archive access
-needed, so the three read-only tests below (Fig 10, Fig 5, the hyperparameter
-posterior behind Fig 11) run in the DEFAULT suite. Only
+The data these tests read comes from the curated, COMMITTED ``paper/data/`` subset
+(see ``paper/data/README.md``) -- no private-archive access needed, so the three
+read-only tests below (Fig 10, Fig 5, the hyperparameter posterior behind Fig 11) run
+in the DEFAULT suite. Only
 ``test_fig08_wilson_curve_matches_archived_ground_truth`` stays gated behind
 ``@pytest.mark.vle``: it *recomputes* the Wilson curve via live Clapeyron calls
 (needs Julia), unlike the others, which only read committed text files.
 
-Point ``BFG_ARCHIVE_DIR`` at the full private archive instead of ``paper/data/`` if
-you want to check iterations beyond the curated subset.
+Point ``BFG_ARCHIVE_DIR`` at another directory of run artifacts (same layout) instead
+of ``paper/data/`` to check a different run.
 
 Fig 9's stage table already has its own gated test (``test_mccabe_thiele.py``) --
 not duplicated here. Fig 8 (phase diagram) has no dedicated reference file (it's a

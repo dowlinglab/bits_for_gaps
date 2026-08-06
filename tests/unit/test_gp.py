@@ -1,8 +1,7 @@
 """Unit tests for ``gp.py``'s GP construction and log-marginal-likelihood optimization.
 
-Phase 9d: this module had no direct unit tests before (only indirect coverage via the
-integration suite's full HMC runs, which never exercise the ``summarize``/``debug_cov``
-diagnostic branches). ``run_mcmc`` itself stays integration-tested (it's inherently a
+Covers the ``summarize``/``debug_cov`` diagnostic branches the integration suite's full
+HMC runs don't exercise. ``run_mcmc`` itself stays integration-tested (it's inherently a
 full HMC run, not a cheap unit) -- see ``tests/integration/test_end_to_end.py``.
 """
 

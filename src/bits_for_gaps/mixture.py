@@ -1,36 +1,28 @@
 """Gaussian-mixture predictive posterior from hyperparameter-posterior draws.
 
-Moved from the paper code's ``driver_new.py`` (``adaptiveEntropy.sample_gp_posterior_mixture``
-/ ``gp_predict_2D``). Each mixture component corresponds to one HMC posterior draw of the
-GP kernel's hyperparameters (in that kernel's canonical order -- see
-``kernels.AnisotropicSE.hyperparameters``); sampling reassigns the given GP model's kernel
-parameters, once per draw, to walk through the mixture components, matching the paper code.
+Each mixture component corresponds to one HMC posterior draw of the GP kernel's
+hyperparameters (Eq 7), in that kernel's canonical order (see
+``kernels.AnisotropicSE.hyperparameters``). Sampling reassigns the given GP model's
+kernel parameters once per draw to walk through the mixture components, via
+``kernels.assign_hyperparameters`` -- which maps trace columns to a kernel's
+``.hyperparameters`` generically, so this works for any dimension/kernel exposing that
+contract.
 
-Phase 5: kernel hyperparameters are no longer assigned by hardcoded attribute name --
-``kernels.assign_hyperparameters`` maps trace columns to a kernel's ``.hyperparameters``
-generically, so this works for any dimension/kernel exposing that contract.
-
-Phase 9c: :func:`sample_gp_posterior_mixture` used to leave ``GPmodel.kernel`` at
-whatever the *last* draw's hyperparameters happened to be -- harmless for the values
-this module itself returns (computed before the mutation matters), but a footgun for
-any caller that reuses the same ``GPmodel`` object afterward: Phase 9b traced a
-from-scratch validation script's spurious McCabe-Thiele non-convergence to exactly
-this (see ``paper/PHASE9B_INVESTIGATION.md``) -- a test-RMSE step left the kernel at an
-arbitrary leftover state before a later step reused the same model for the phase
-diagram. Now saves the kernel's hyperparameters before sampling and restores them in a
-``finally``, so the caller's model is unchanged after the call regardless of how it
-exits. This changes only the model's POST-call state, not any value this module
-computes and returns -- behavior-preserving for every existing test/baseline.
+CAUTION -- kernel mutation: :func:`sample_gp_posterior_mixture` reassigns
+``GPmodel.kernel``'s hyperparameters once per posterior draw while it runs. It saves the
+kernel's hyperparameters beforehand and restores them in a ``finally``, so the caller's
+model is unchanged after the call returns regardless of how it exits. A caller that
+reuses the same ``GPmodel`` object for a second purpose (e.g. building a phase diagram)
+must do so *after* this function returns, not concurrently with it -- reusing it from
+code that runs interleaved with this function would see the kernel at an arbitrary
+intermediate draw's hyperparameters, not the model's real state.
 
 NOTE: ``GPmodel.predict_f_samples`` draws from GPflow/TensorFlow's *ambient* default
 random generator, not ``numpy``'s -- the ``np.random.seed`` call below seeds which
-posterior-sample components are selected, but not the draws themselves. This means
-these two functions were never bitwise-reproducible in the original paper code either
-(confirmed: two successive calls to ``predict_f_samples`` on the same inputs, same
-process, differ). That is why the Phase 2 integration test deliberately excludes this
-plotting-only step from its determinism/baseline pins. Phase 9c adds an OPTIONAL
-``tf_seed`` to make a single call reproducible on request (seeds TF's global RNG right
-before drawing) -- default ``None`` leaves the ambient-RNG behavior unchanged.
+posterior-sample components are selected, but not the draws themselves. Two successive
+calls to ``predict_f_samples`` on the same inputs, in the same process, will differ. Pass
+``tf_seed`` to make a single call's draws reproducible (seeds TF's global RNG right
+before drawing) -- the default ``None`` leaves the ambient-RNG behavior unchanged.
 """
 
 from __future__ import annotations
@@ -114,13 +106,13 @@ def predict_grid_2D(
 ) -> np.ndarray:
     """Full-grid GP posterior-predictive samples, for 2-D plotting diagnostics only.
 
-    Moved from ``adaptiveEntropy.gp_predict_2D``. This does **not** feed the acquisition
-    (entropy/next-point selection) -- it is an expensive (``size`` full-covariance draws
-    over an ``n_grid x n_grid`` grid), disk-write-oriented diagnostic kept only for
-    parity with the paper's plotting pipeline. Callers should treat it as opt-in.
+    This does **not** feed the acquisition (entropy/next-point selection) -- it is an
+    expensive (``size`` full-covariance draws over an ``n_grid x n_grid`` grid),
+    disk-write-oriented diagnostic kept only for parity with the paper's plotting
+    pipeline. Callers should treat it as opt-in.
 
-    2-D-ONLY (Phase 5): a dense grid is exponential in the input dimension d, so this
-    is intentionally not generalized to N-D -- see ``acquisition.optimize`` for the
+    2-D-ONLY: a dense grid is exponential in the input dimension d, so this is
+    intentionally not generalized to N-D -- see ``acquisition.optimize`` for the
     N-D-general acquisition path this diagnostic does not feed.
 
     Parameters

@@ -1,8 +1,8 @@
 """HMC convergence diagnostics.
 
-Thin wrappers over ``tensorflow_probability.mcmc``, split out of ``driver_new.py``'s
-``adaptiveEntropy.run_mcmc`` so ``gp.py``'s HMC driver doesn't need to know the
-diagnostics API directly (and so these two lines are independently testable/reusable).
+Thin wrappers over ``tensorflow_probability.mcmc``, split out so ``gp.py``'s HMC driver
+doesn't need to know the diagnostics API directly (and so these two functions are
+independently testable/reusable).
 """
 
 from __future__ import annotations

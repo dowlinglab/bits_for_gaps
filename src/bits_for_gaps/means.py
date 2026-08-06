@@ -1,12 +1,11 @@
 """GP mean functions.
 
-Moved from the paper code's ``fxns/my_mean_fxn.py``. The paper's VLE study uses a
-zero mean over the log-activity-coefficient output (encoding ideal mixing, gamma -> 1,
-in the absence of data). ``FixedInverseMean`` is an alternative physics-informed mean
-retained for reference.
+The paper's VLE study uses a zero mean over the log-activity-coefficient output
+(encoding ideal mixing, gamma -> 1, in the absence of data). ``FixedInverseMean`` is an
+alternative physics-informed mean retained for reference.
 
-TODO(Phase 5): ``FixedInverseMean`` assumes the mole fraction is input column 0;
-generalize the input-column convention when the kernel goes N-D.
+TODO: ``FixedInverseMean`` assumes the mole fraction is input column 0; generalize the
+input-column convention for kernels with more input dimensions.
 """
 
 from __future__ import annotations

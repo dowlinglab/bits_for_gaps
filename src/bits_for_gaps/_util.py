@@ -1,4 +1,4 @@
-"""Small array helpers. Moved from the paper code's ``fxns/util.py``."""
+"""Small array helpers."""
 
 from __future__ import annotations
 

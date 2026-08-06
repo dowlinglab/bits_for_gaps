@@ -1,7 +1,6 @@
 """Julia/Clapeyron activity-coefficient model for the H2O-PrOH VLE case study.
 
-Ported from the paper code's ``proh_water_class.py`` + ``fxns/calculate_activities.jl``
-(Wilson activity-coefficient model via Clapeyron.jl). Requires
+Wilson activity-coefficient model via Clapeyron.jl. Requires
 ``pip install "bits_for_gaps[vle]"`` plus a working Julia installation --
 ``juliacall``/Clapeyron are imported LAZILY (only when a function here is actually
 called), so ``import vle_distillation.activity_model`` succeeds without Julia; only
@@ -88,7 +87,7 @@ def black_box(z_proh, temperature):
     """BitsForGaps-compatible black box: called as ``FwdModel(*args, *xStar)``.
 
     ``xStar`` is in bounds order ``[z_PrOH, T]`` (see ``run_case_study.py``), so this
-    accepts ``(z_proh, temperature)`` positionally, matching Phase 5's natural-
+    accepts ``(z_proh, temperature)`` positionally, matching the sampler's natural-
     dimension-order calling convention for the injected black box.
 
     Returns only the PrOH activity coefficient (component 0): the GP surrogate models

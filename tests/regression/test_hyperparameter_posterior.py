@@ -3,7 +3,7 @@
 Reads ``paper/reference/hyperparameter_posterior.json`` -- the posterior mean/median/std
 and 5%/95% quantiles of the three kernel hyperparameters at the published iteration --
 and checks the summary is well-formed and physically sensible. This pins the target the
-mixture-posterior code must reproduce after the Phase 4/5 refactor.
+mixture-posterior code must reproduce.
 
 Pure (JSON only) -- no TensorFlow, no Julia.
 """

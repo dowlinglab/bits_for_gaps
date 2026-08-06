@@ -3,14 +3,14 @@
 The stage table is the paper's end-to-end validation: the distillation column designed
 with the BITS-for-GAPS GP *surrogate* reproduces the column designed with the *Wilson*
 ground-truth activity model. Reproducing it requires the Julia/Clapeyron VLE distillation
-backend, ported in Phase 6 (``examples/vle_distillation/``); the recompute test below is
-gated behind ``@pytest.mark.vle`` (needs Julia -- deselected by default).
+backend (``examples/vle_distillation/``); the recompute test below is gated behind
+``@pytest.mark.vle`` (needs Julia -- deselected by default).
 
 The consistency checks below read only the committed reference JSON and pin the paper's
 claim (surrogate == Wilson within tolerance), so they run in the default suite.
 
 The recompute itself (``wilson_column``/``surrogate_column``) lives in
-``paper.figures.fig09_mccabe_thiele`` (Phase 7) -- this test imports it rather than
+``paper.figures.fig09_mccabe_thiele`` -- this test imports it rather than
 reimplementing it, since Fig 9's plotting script needs the exact same columns.
 """
 
@@ -75,9 +75,9 @@ def test_surrogate_matches_wilson(reference):
 
 @pytest.mark.vle
 def test_reproduce_stage_table_with_distillation_backend(reference):
-    # Phase 6/7: recompute the stage table through the ported VLE distillation backend
-    # and diff against the reference (transcribed from paper Fig 9c, hence the looser-
-    # than-report atol below -- see paper/reference/README.md and HANDOFF.md).
+    # Recompute the stage table through the VLE distillation backend and diff against
+    # the reference (transcribed from paper Fig 9c, hence the looser-than-report atol
+    # below -- see paper/reference/README.md).
     from paper.figures.fig09_mccabe_thiele import surrogate_column, wilson_column
 
     g = reference("mccabe_thiele_stages.json")

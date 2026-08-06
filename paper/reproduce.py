@@ -7,18 +7,17 @@ figures. This does NOT re-run the paper's 15-iteration adaptive HMC loop (stocha
 expensive, and not what "reproduce the figures" requires) -- it loads what that loop
 already produced.
 
-As of Phase 9, the default data source is the curated, committed ``paper/data/``
-subset (~16 MB -- exactly the files the figures read, copied from the private
-archive; see ``paper/data/README.md``), so this runs with **no private-archive
-access** out of the box. Pass ``--archive`` (or set ``BFG_ARCHIVE_DIR``) to point at
-the full private archive instead -- e.g. to regenerate Fig 3/4 with more than the 6
-committed early-iteration panels, or Fig 6/7 at iterations other than 1/15.
+The default data source is the committed ``paper/data/`` directory (~16 MB -- exactly
+the files the figures read; see ``paper/data/README.md``), so this runs from a fresh clone
+with no extra downloads. Pass ``--archive`` (or set ``BFG_ARCHIVE_DIR``) to point at
+another directory of run artifacts with the same layout instead -- for example the output
+of ``paper/full_reproduction.py``, to plot your own run rather than the published one.
 
 Usage::
 
     export PYTHON_JULIACALL_HANDLE_SIGNALS=yes   # macOS, only needed for Fig 8/9
     python paper/reproduce.py                     # uses the committed paper/data/
-    python paper/reproduce.py --archive /path/to/less_x_new_manuscript_revisions
+    python paper/reproduce.py --archive /path/to/other/run/artifacts
     python paper/reproduce.py --figures 5 8 9 10  # only regenerate a subset
 
 Output goes to ``--out-dir`` (default: ``results_remaked/``, already gitignored) --
@@ -36,8 +35,8 @@ EXAMPLES_DIR = os.path.join(REPO_ROOT, "examples")
 if EXAMPLES_DIR not in sys.path:
     sys.path.insert(0, EXAMPLES_DIR)
 
-# Phase 9: default to the curated, committed subset (no private-archive access
-# needed); override with --archive/$BFG_ARCHIVE_DIR to use the full private archive.
+# Default to the committed paper/data/ directory; override with
+# --archive/$BFG_ARCHIVE_DIR to plot a different run's artifacts.
 DEFAULT_ARCHIVE = os.path.join(REPO_ROOT, "paper", "data")
 DEFAULT_OUT_DIR = os.path.join(REPO_ROOT, "results_remaked")
 
@@ -65,8 +64,8 @@ def main(argv=None):
         "--archive",
         default=os.environ.get("BFG_ARCHIVE_DIR", DEFAULT_ARCHIVE),
         help="Path to the plot-input data (default: $BFG_ARCHIVE_DIR or the "
-        f"committed paper/data/ subset, {DEFAULT_ARCHIVE}); point this at the "
-        "full private archive for iterations/figures beyond the curated subset",
+        f"committed paper/data/ directory, {DEFAULT_ARCHIVE}); point this at another "
+        "run's artifacts (same layout) to plot that run instead",
     )
     parser.add_argument(
         "--out-dir", default=DEFAULT_OUT_DIR, help=f"Output directory (default: {DEFAULT_OUT_DIR})"

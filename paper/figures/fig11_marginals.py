@@ -1,10 +1,8 @@
 """Fig 11 -- 1-D marginal posterior distributions of the GP kernel hyperparameters.
 
-Ported from ``fxns/mcmc_plotter.py``'s ``plot_marginals`` (``fxns/plot_res.py``'s
-``-m marginals`` mode). Visual reproduction only (no reference pin -- the underlying
-posterior summary IS pinned quantitatively, in
-``paper/reference/hyperparameter_posterior.json``) -- spot-check against the archived
-``marginals_15.png``.
+Visual reproduction only (no reference pin -- the underlying posterior summary IS
+pinned quantitatively, in ``paper/reference/hyperparameter_posterior.json``) --
+spot-check against the archived ``marginals_15.png``.
 """
 
 import os

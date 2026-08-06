@@ -28,8 +28,9 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-# Frozen reproduction baseline (see REFACTOR_PLAN.md decision 4).
-# tensorflow-macos on Apple Silicon; plain tensorflow elsewhere.
+# Frozen reproduction baseline: an exact, verified-working stack rather than floating
+# version ranges, since GPflow's TensorFlow dependency makes casual version bumps
+# risky. tensorflow-macos on Apple Silicon; plain tensorflow elsewhere.
 dependencies = [
     "numpy>=1.26,<2",
     "scipy>=1.13,<1.14",
@@ -46,7 +47,7 @@ dependencies = [
     # package whose TF-backed modules (kernels/means/gp/mixture/acquisition/sampler) all
     # fail with `ModuleNotFoundError: No module named 'pkg_resources'` -- setuptools'
     # own deprecation warning recommends exactly this pin. Revisit when the frozen
-    # GPflow/TF stack is modernized (REFACTOR_PLAN.md section 6).
+    # GPflow/TF stack is modernized.
     "setuptools<81",
 ]
 
@@ -75,7 +76,7 @@ packages = ["src/bits_for_gaps"]
 [tool.hatch.build.targets.sdist]
 # hatchling's default sdist includes the whole repo (paper/data's ~16 MB, tests/,
 # examples/, docs/) -- restrict it to the package + the files a source release needs
-# (REFACTOR_PLAN.md §7 decision 3: examples/paper/docs stay repo-only, not shipped).
+# (examples/paper/docs stay repo-only, not shipped -- see docs/installation.md).
 # `only-include` (not `include`, which ADDS to hatchling's default vcs-based file set
 # rather than replacing it) is what actually makes this an allowlist.
 only-include = [
@@ -109,10 +110,9 @@ ignore = ["B023"]
 #   on macOS or juliacall SIGBUSes. This is a function-local import ruff's isort
 #   wouldn't touch, but ignore E402 here defensively in case rule selection changes.
 "examples/vle_distillation/activity_model.py" = ["I001", "E402"]
-# - full_reproduction.py sets TF's single-threaded config (a >10x wall-clock fix
-#   found during Phase 9b's investigation) before importing bits_for_gaps/
-#   vle_distillation, so those imports don't trigger TF's default multi-threaded
-#   init first.
+# - full_reproduction.py sets TF's single-threaded config (a >10x wall-clock fix for
+#   this script's many small ops) before importing bits_for_gaps/vle_distillation, so
+#   those imports don't trigger TF's default multi-threaded init first.
 "paper/full_reproduction.py" = ["I001", "E402"]
 
 [tool.ruff.format]

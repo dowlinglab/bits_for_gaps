@@ -1,24 +1,19 @@
-# Curated plot-input subset (tracked)
+# Plot-input data for the paper's figures (tracked)
 
 **This directory IS tracked in git** (unlike `results_remaked/`, which is gitignored
-output). It's a small, curated subset of the private archive's published run --
-exactly the files `paper/figures/*.py` read, no more -- committed so that
-`python paper/reproduce.py` works from a fresh clone with **no private-archive
-access** (Phase 9, STEP 1).
+output). It holds exactly the files `paper/figures/*.py` read -- no more -- so that
+`python paper/reproduce.py` regenerates every figure from a fresh clone with no
+additional downloads and no special access.
 
 ## Provenance
 
-Copied verbatim (unmodified) from the private old repo's archive of record:
+These are the published run's own output files, copied verbatim (unmodified) from the run
+that produced the paper's figures. **Iteration 15** is that published run: its
+`rhat_value_15.txt` / `ess_value_15.txt` match paper Fig 10 exactly (pinned in
+`paper/reference/hmc_diagnostics.json`).
 
-```
-~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_hms/
-  results/less_x_new_manuscript_revisions/
-```
-
-**Iteration 15** = the published run (its `rhat_value_15.txt`/`ess_value_15.txt`
-match paper Fig 10 exactly -- see `paper/reference/hmc_diagnostics.json`). See
-`paper/DATA.md` for how this relates to the bulk (~2.5 GB, not committed anywhere)
-archive.
+That run also produced a much larger set of intermediate artifacts that are deliberately
+not committed, because no figure script reads them -- see `paper/DATA.md`.
 
 ## How this set was determined
 
@@ -44,7 +39,7 @@ files, ~16 MB.
 
 Fig 9 (McCabe-Thiele) needs none of this -- it's a pure physics recompute (Wilson via
 live Clapeyron; the surrogate via a fresh LHS + MLE-fit GP, same as
-`tests/regression/test_mccabe_thiele.py`, Phase 6/7).
+`tests/regression/test_mccabe_thiele.py`).
 
 ## Why plain text, not compressed or `gp_model_*.pkl`-recomputed
 
@@ -68,7 +63,7 @@ this directory. Two alternatives were considered and rejected for now:
 
 ## Do not edit by hand
 
-These are frozen snapshots of a specific archived run. If the curated set ever needs
-to change (a new figure needs a new file, or an existing one needs a different
-iteration), copy the new file(s) from the private archive the same way -- don't
-regenerate or edit any file here.
+These are frozen snapshots of the published run. If this set ever needs to change (a new
+figure needs a new file, or an existing one needs a different iteration), copy the new
+file(s) verbatim from that run's artifacts the same way -- don't regenerate or edit any
+file here.

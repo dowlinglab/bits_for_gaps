@@ -94,7 +94,7 @@ def test_resolve_fixed_indices_rejects_unknown_name():
 
 
 ## ---------------------------------------------------------------------------
-## Phase 9c: solve_column's retry-on-non-convergence orchestration.
+## solve_column's retry-on-non-convergence orchestration.
 ##
 ## Stubs _try_solve_column rather than hunting for a real equilibrium curve that
 ## reproducibly fails to converge -- fsolve's behavior on synthetic curves is

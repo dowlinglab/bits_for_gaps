@@ -15,8 +15,7 @@ estimators used in the paper:
   analytic reference for the true mixture entropy.
 
 Everything here is pure NumPy/SciPy and dimension-agnostic (univariate or multivariate
-components), so it is straightforward to unit-test. Moved verbatim-in-spirit from the
-paper code's ``fxns/max_ent_design.py`` (dead commented-out variants removed).
+components), so it is straightforward to unit-test.
 """
 
 from __future__ import annotations
@@ -99,10 +98,10 @@ def first_order_entropy_approx(
     ValueError
         If the mixture density at some component mean is not positive (e.g. floating-
         point underflow for very small covariances / far-apart means) -- a data-
-        dependent runtime condition, not a static invariant, so Phase 9c makes this an
-        explicit exception rather than a bare ``assert`` (asserts are silently
-        stripped under ``python -O``, which would let a NaN/garbage entropy value
-        propagate instead of failing clearly).
+        dependent runtime condition, not a static invariant, hence an explicit
+        exception rather than a bare ``assert`` (asserts are silently stripped under
+        ``python -O``, which would let a NaN/garbage entropy value propagate instead of
+        failing clearly).
     """
     H = 0
     for loopA, wA in enumerate(weights):

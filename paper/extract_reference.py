@@ -1,12 +1,13 @@
-"""Extract reference scalar targets from the archived published run (iteration 15).
+"""Regenerate the reference scalar targets in paper/reference/ from run artifacts.
 
-Pure NumPy; reads the read-only old-repo archive and writes small JSON files into
+Pure NumPy; reads a directory of run artifacts and writes small JSON files into
 paper/reference/ (a sibling of this script). Run from anywhere:
 
     python paper/extract_reference.py
 
-Archived run = results/less_x_new_manuscript_revisions, iteration 15 = the published
-run whose R-hat/ESS match paper Fig 10 exactly.
+Iteration 15 is the published run, whose R-hat/ESS match paper Fig 10 exactly. The
+committed reference files were produced from the published run's artifacts, which ship
+in paper/data/ -- so this script reproduces them from a fresh clone.
 """
 
 import json
@@ -14,9 +15,12 @@ import os
 
 import numpy as np
 
-ARCHIVE = os.path.expanduser(
-    "~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_hms/"
-    "results/less_x_new_manuscript_revisions"
+# Directory of run artifacts to summarize. Defaults to the committed paper/data/ subset;
+# set $BFG_ARCHIVE_DIR to summarize a different run instead (for example one produced by
+# paper/full_reproduction.py).
+ARCHIVE = os.environ.get(
+    "BFG_ARCHIVE_DIR",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"),
 )
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reference")
 os.makedirs(OUT, exist_ok=True)
@@ -69,7 +73,7 @@ write_json(
 #    y_true from activity_data_1 (fixed 10 train pts) / activity_test_points (10 test).
 #    Predictions: gp_predict_{train,test}_{iter} = (n_points, 500 mixture draws).
 #    Metrics computed per-draw (axis=0 over points) => 500-length distributions,
-#    exactly as fxns/train_test_split_proh.plot_error_bx_n_wskr.
+#    matching the paper's own error-metric computation.
 # ---------------------------------------------------------------------------
 y_train = np.loadtxt(os.path.join(ARCHIVE, "activity_data_1"))[:, 2]
 y_test = np.loadtxt(os.path.join(ARCHIVE, "activity_test_points"))[:, 2]
@@ -126,7 +130,7 @@ write_json(
 # ---------------------------------------------------------------------------
 # 4. McCabe-Thiele stage table (paper Fig 9c) -- values from the paper (the column
 #    design + surrogate/Wilson stage compositions). Reproduction needs the Julia VLE
-#    distillation backend (Phase 6 port), so the recompute test is @pytest.mark.vle.
+#    distillation backend, so the recompute test is @pytest.mark.vle.
 # ---------------------------------------------------------------------------
 write_json(
     "mccabe_thiele_stages.json",

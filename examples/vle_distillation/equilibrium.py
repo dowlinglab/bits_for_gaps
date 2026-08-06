@@ -1,9 +1,8 @@
 """Wrap a VLE curve as an ``x_liquid -> y_vapor`` equilibrium function.
 
-Ported from the paper code's ``equilibrium.py`` (``water_proh_eqm`` /
-``water_proh_eqm_julia``), generalized to take the curve arrays directly (e.g. from
-``phase_diagram.vle_curve``) instead of reading fixed archived filenames -- the
-distillation solver (``distillation.py``) needs a plain ``x -> y`` callable.
+Takes the curve arrays directly (e.g. from ``phase_diagram.vle_curve``) rather than
+reading them from a file -- the distillation solver (``distillation.py``) needs a plain
+``x -> y`` callable.
 """
 
 import numpy as np

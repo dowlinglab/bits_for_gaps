@@ -30,7 +30,7 @@ _LAZY = {
     "AnisotropicSE": ("kernels", "AnisotropicSE"),
     "FixedInverseMean": ("means", "FixedInverseMean"),
     "adaptiveEntropy": ("sampler", "adaptiveEntropy"),
-    "BitsForGaps": ("sampler", "BitsForGaps"),  # target public API (Phase 4)
+    "BitsForGaps": ("sampler", "BitsForGaps"),  # friendly-named public API facade
 }
 
 
