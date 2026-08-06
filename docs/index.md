@@ -20,10 +20,8 @@ Engineering* **211** (2026) 109650.
 ```
 
 ```{admonition} Status
-:class: warning
-Pre-1.0. The public API (`BitsForGaps`, `AnisotropicSE`, ...) is stable across the
-refactor phases described in the project's `HANDOFF.md`, but has not yet had a
-tagged release.
+:class: note
+0.x: released on PyPI, but the public API may still change before a 1.0 release.
 ```
 
 ## Where to start

@@ -6,23 +6,26 @@ optional VLE/distillation example, and even then only when you actually call int
 
 ## Core library
 
-```{admonition} Frozen dependency stack
-:class: note
-The core pins an exact, verified-working stack rather than floating version ranges:
-Python 3.9, NumPy 1.26, SciPy 1.13, GPflow 2.9.2, TensorFlow 2.16.2, TensorFlow
-Probability 0.24.0. This is a deliberate reproducibility choice (see
-`REFACTOR_PLAN.md` §7 decision 6) -- GPflow's TensorFlow dependency makes casual
-version bumps risky, so modernizing the stack is left as a separate, later effort.
-```
-
-Once published (see `HANDOFF.md` for current status -- this repo is pre-1.0):
-
 ```bash
 pip install bits_for_gaps
 ```
 
-**From source** (the current way to get it, and the way to get `examples/` and
-`paper/` -- see below):
+```{admonition} Frozen dependency stack
+:class: note
+The core pins an exact, verified-working stack rather than floating version ranges:
+Python 3.9, NumPy 1.26, SciPy 1.13, GPflow 2.9.2, TensorFlow 2.16.2, TensorFlow
+Probability 0.24.0. This is a deliberate reproducibility choice -- GPflow's TensorFlow
+dependency makes casual version bumps risky, so modernizing the stack is left as a
+separate, later effort.
+```
+
+Verify it imports (no Julia touched):
+
+```bash
+python -c "import bits_for_gaps; print(bits_for_gaps.__version__)"
+```
+
+## From source (for `examples/`, `paper/`, or development)
 
 ```bash
 git clone https://github.com/dowlinglab/bits_for_gaps
@@ -32,30 +35,24 @@ conda activate bits_for_gaps
 pip install -e .
 ```
 
-Verify it imports (no Julia touched):
-
-```bash
-python -c "import bits_for_gaps; print(bits_for_gaps.__version__)"
-```
-
 ## Development install
 
 ```bash
 pip install -e ".[dev]"     # adds pytest, pytest-cov
-pytest -q                   # 193 passed, 2 deselected
+pytest -q                   # 204 passed, 2 deselected
 ```
 
-The 2 deselected tests need the private archived published run and/or Julia -- see
-{doc}`reproduce_paper` and `HANDOFF.md`.
+The 2 deselected tests need Julia (`@pytest.mark.vle`) -- run them with
+`pytest -m vle` after installing the `[vle]` extra below. See {doc}`reproduce_paper`.
 
 ## `examples/` and `paper/` are repo-only
 
 ```{important}
 The paper's worked example (`examples/vle_distillation/`) and figure-reproduction
 scripts (`paper/`) are **not part of the `bits_for_gaps` PyPI package** -- the wheel
-ships only `src/bits_for_gaps/`, to keep the installed package lightweight
-(`REFACTOR_PLAN.md` §7 decision 3). To use either, **clone the repository**; `pip
-install bits_for_gaps` alone does not give you them.
+ships only `src/bits_for_gaps/`, to keep the installed package lightweight. To use
+either, **clone the repository**; `pip install bits_for_gaps` alone does not give you
+them.
 ```
 
 Once cloned, `examples/` and `paper/` are importable as regular Python packages

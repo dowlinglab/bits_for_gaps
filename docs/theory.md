@@ -177,9 +177,7 @@ has no closed form, so `bits_for_gaps.entropy` provides two estimators:
   \exp\!\left(-\frac12 \frac{(\mu_s - \mu_{s'})^2}{\sigma_s^2 + \sigma_{s'}^2}\right)$$
 
   Selectable as the acquisition objective via `objective="lower_bound"` (or, on
-  `BitsForGaps`/`adaptiveEntropy`, `.acquisitionObjective = "lower_bound"`) --
-  implemented since Phase 2 but only wired up as a usable acquisition choice in
-  Phase 9d.
+  `BitsForGaps`/`adaptiveEntropy`, `.acquisitionObjective = "lower_bound"`).
 
 Both reduce to the exact differential entropy of a single Gaussian in the
 degenerate one-component case (see `tests/unit/test_entropy.py`, which checks this
