@@ -43,7 +43,8 @@ python -c "import bits_for_gaps; print(bits_for_gaps.__version__)"
 ```bash
 git clone https://github.com/dowlinglab/bits_for_gaps
 cd bits_for_gaps
-conda env create -f environment.yml   # Python 3.9 + the pinned stack
+conda env create -f environment.yml   # Python 3.12 + the pinned stack (see the file's
+                                       # header comment for using 3.9 instead)
 conda activate bits_for_gaps
 pip install -e .
 ```
