@@ -63,6 +63,19 @@ path = "src/bits_for_gaps/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/bits_for_gaps"]
 
+[tool.hatch.build.targets.sdist]
+# hatchling's default sdist includes the whole repo (paper/data's ~16 MB, tests/,
+# examples/, docs/) -- restrict it to the package + the files a source release needs
+# (REFACTOR_PLAN.md §7 decision 3: examples/paper/docs stay repo-only, not shipped).
+# `only-include` (not `include`, which ADDS to hatchling's default vcs-based file set
+# rather than replacing it) is what actually makes this an allowlist.
+only-include = [
+    "src/bits_for_gaps",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py39"
