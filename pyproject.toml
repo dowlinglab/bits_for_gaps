@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bits_for_gaps"
-version = "0.0.1.dev0"
+dynamic = ["version"]
 description = "Bayesian Information-Theoretic Sampling for hierarchical GAussian Process Surrogates (BITS for GAPS)"
 readme = "README.md"
 requires-python = ">=3.9,<3.10"
@@ -18,11 +18,14 @@ keywords = [
     "surrogate-modeling", "experimental-design", "information-theory",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Operating System :: OS Independent",
 ]
 
 # Frozen reproduction baseline (see REFACTOR_PLAN.md decision 4).
@@ -46,7 +49,16 @@ docs = ["sphinx>=7", "myst-parser", "furo", "sphinx-autodoc-typehints"]
 
 [project.urls]
 Homepage = "https://github.com/dowlinglab/bits_for_gaps"
+Repository = "https://github.com/dowlinglab/bits_for_gaps"
+Documentation = "https://bits-for-gaps.readthedocs.io"
+Changelog = "https://github.com/dowlinglab/bits_for_gaps/blob/main/CHANGELOG.md"
 Paper = "https://doi.org/10.1016/j.compchemeng.2026.109650"
+
+[tool.hatch.version]
+# Single-sources the version from __version__ (hatchling's default "regex" version
+# source matches `__version__ = "..."`) -- see src/bits_for_gaps/__init__.py, which
+# stays the one place that gets edited to cut a release.
+path = "src/bits_for_gaps/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bits_for_gaps"]
