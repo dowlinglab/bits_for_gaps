@@ -1,10 +1,12 @@
 # CI — lint + the full default test suite (unit + integration + regression) on the
-# pure-Python core (no Julia/[vle] extra installed). `pytest -q`'s own addopts
-# (`-m 'not vle'`) deselects the Julia-backed tests automatically -- confirmed none of
-# the non-`vle`-marked tests import anything Julia-touching at module import time, so
-# this runs clean without the [vle] extra. The frozen stack (TF 2.16.2 / GPflow 2.9.2 /
-# Py 3.9) is what's pinned in pyproject.toml; Julia-backed VLE + regression tests that
-# need it stay a separate, gated job for whenever CI grows a Julia-capable runner.
+# pure-Python core (no Julia/[vle] extra installed), across every Python version this
+# package claims to support (3.9-3.12; see pyproject.toml's requires-python and
+# docs/installation.md for why 3.13+ isn't -- upstream, GPflow requires numpy<2 and no
+# numpy 1.x supports 3.13). `pytest -q`'s own addopts (`-m 'not vle'`) deselects the
+# Julia-backed tests automatically -- confirmed none of the non-`vle`-marked tests
+# import anything Julia-touching at module import time, so this runs clean without the
+# [vle] extra. Julia-backed VLE + regression tests that need it stay a separate, gated
+# job for whenever CI grows a Julia-capable runner.
 name: CI
 
 on:
@@ -14,7 +16,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,5 +29,21 @@ jobs:
           pip install -e ".[dev]"
       - name: Lint (ruff)
         run: ruff check .
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install (core + dev)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
       - name: Run the default test suite (unit + integration + regression, not vle)
         run: pytest -q
