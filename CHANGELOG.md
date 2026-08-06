@@ -7,7 +7,19 @@ entry below summarizes the library relative to the paper's original research cod
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- Support for Python 3.10, 3.11, and 3.12, alongside the existing 3.9 (`pyproject.toml`'s
+  `requires-python` widened from `>=3.9,<3.10` to `>=3.9,<3.13`; Python 3.9 alone is EOL
+  as of October 2025). Verified with a full test-suite run -- including the exact-value
+  regression pins (`tests/integration/data/synthetic_baseline.json`, atol 1e-10) and the
+  paper reference-value regressions -- on all four versions; no dependency version
+  changed. `.github/workflows/ci.yml` now runs the default suite across a 3.9-3.12
+  matrix. `.readthedocs.yaml` builds on Python 3.12.
+- A documented explanation of why Python 3.13+ isn't supported: GPflow requires
+  `numpy<2` in every release, and no NumPy 1.x publishes a Python 3.13 wheel -- an
+  upstream constraint, not a limitation of this package's own pins. See
+  `docs/installation.md`.
 
 ## [0.1.2] - 2026-08-06
 

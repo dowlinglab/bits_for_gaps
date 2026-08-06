@@ -31,6 +31,11 @@ The **core library is pure Python** (GPflow / TensorFlow / NumPy / SciPy) with n
 dependency. Julia + Clapeyron are only needed for the `vle_distillation` example, which
 isn't part of the PyPI package -- see "From source" below.
 
+Supports **Python 3.9-3.12**. Python 3.13+ isn't available: this package depends on
+GPflow, and GPflow requires `numpy<2` in every release -- no NumPy 1.x publishes a
+Python 3.13 wheel. That's an upstream constraint, not something this package can work
+around; see [`docs/installation.md`](docs/installation.md) for the full explanation.
+
 **macOS note:** set `export PYTHON_JULIACALL_HANDLE_SIGNALS=yes` before importing
 `juliacall`, or Julia crashes with a bus error (SIGBUS).
 
