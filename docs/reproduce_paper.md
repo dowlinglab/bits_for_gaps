@@ -1,8 +1,13 @@
 # Reproducing the paper's results
 
-This page assumes you've read Jones & Dowling (2026) once and know the figures by
-number. There are two different things you might mean by "reproduce the paper," and
-they have very different costs:
+This page assumes you've read Jones & Dowling (2026) once and know the figures by number.
+(The article is bundled in the repository at
+[`paper/bits_for_gaps_paper.pdf`](https://github.com/dowlinglab/bits_for_gaps/blob/main/paper/bits_for_gaps_paper.pdf)
+if you want it open alongside.) Everything you need is committed here — there are no
+additional downloads.
+
+There are two different things you might mean by "reproduce the paper," and they have very
+different costs:
 
 |  | Regenerate the figures | Re-run the full adaptive loop |
 |---|---|---|
@@ -11,7 +16,6 @@ they have very different costs:
 | Cost | ~1-2 minutes | ~25-30 minutes on a laptop |
 | Determinism | Deterministic (same inputs, same plots) | **Stochastic** -- will not reproduce the paper's exact numbers |
 | Needs Julia? | Only Fig 8/9 | Yes, throughout |
-| Needs private-archive access? | No | No |
 
 Both are **repo-only** (`git clone` required; see {doc}`installation` -- neither is
 part of the `pip install bits_for_gaps` package).
@@ -44,10 +48,10 @@ Clapeyron.jl); the other 9 figures render from pure Python/NumPy and need neithe
 nor the `[vle]` extra. If you only want those 9: `pip install -e ".[dev]"` is enough,
 and you can skip the `PYTHON_JULIACALL_HANDLE_SIGNALS` export.
 
-Point `--archive`/`$BFG_ARCHIVE_DIR` at the full private archive (see `paper/DATA.md`)
-only if you want figures at iterations beyond the curated subset (e.g. Fig 6/7 at an
-iteration other than 1 or 15) -- that access is author-only and not needed for the
-default path above.
+Everything these figures read is committed in `paper/data/`, so nothing above requires
+extra downloads. If you re-run the loop yourself (next section), point
+`--archive`/`$BFG_ARCHIVE_DIR` at your run's output directory to plot your results
+instead of the published ones.
 
 ## Re-run the full adaptive loop from scratch (slow, stochastic)
 

@@ -1,13 +1,13 @@
 """Shared loaders for the published run's plot-input data + common plot style.
 
-``paper/reproduce.py`` defaults ``archive_dir`` to the curated, COMMITTED
-``paper/data/`` subset (~16 MB -- exactly the files the figures below read; see
-``paper/data/README.md`` for the file manifest and provenance), so figure reproduction
-needs no private-archive access out of the box. ``archive_dir`` can still be pointed at
-the full private archive (the archive of record, see ``paper/DATA.md``) via
-``--archive``/``$BFG_ARCHIVE_DIR`` for iterations/figures beyond the curated subset.
-Every figure module reads via the functions below rather than hardcoding paths, so both
-sources work unchanged.
+``paper/reproduce.py`` defaults ``archive_dir`` to the COMMITTED ``paper/data/`` directory
+(~16 MB -- exactly the files the figures below read; see ``paper/data/README.md`` for the
+manifest and provenance), so figure reproduction works from a fresh clone with no extra
+downloads. ``archive_dir`` can be pointed at any other directory of run artifacts with the
+same layout via ``--archive``/``$BFG_ARCHIVE_DIR`` -- for example the output directory of
+``paper/full_reproduction.py``, to plot your own run instead of the published one. Every
+figure module reads via the functions below rather than hardcoding paths, so both work
+unchanged.
 
 Iteration 15 is the published run: its ``rhat_value_15.txt``/``ess_value_15.txt``
 match paper Fig 10 exactly (see ``paper/reference/hmc_diagnostics.json``).
@@ -24,12 +24,12 @@ def require_archive(archive_dir):
     """Raise a clear error if the data directory isn't where expected."""
     if not os.path.isdir(archive_dir):
         raise FileNotFoundError(
-            f"Data directory not found: {archive_dir!r}. This should be the "
-            f"committed 'paper/data/' subset (see paper/data/README.md), or -- for "
-            f"iterations/figures beyond that curated subset -- the private old "
-            f"repo's 'entropy_driven_hms/results/less_x_new_manuscript_revisions/' "
-            f"(see paper/DATA.md). Pass it via `paper/reproduce.py --archive <path>` "
-            f"or the BFG_ARCHIVE_DIR environment variable."
+            f"Data directory not found: {archive_dir!r}. This should be the committed "
+            f"'paper/data/' directory (the default -- see paper/data/README.md), or "
+            f"another directory of run artifacts with the same layout, such as the "
+            f"output of paper/full_reproduction.py. Pass it via "
+            f"`paper/reproduce.py --archive <path>` or the BFG_ARCHIVE_DIR "
+            f"environment variable."
         )
     return archive_dir
 

@@ -135,11 +135,10 @@ one-off script mistake:
   install bits_for_gaps` pulls GPflow/TensorFlow/NumPy/SciPy only); `juliacall` is
   imported lazily, only when the VLE example's activity model is actually called, and
   only if you installed the `[vle]` extra.
-- **Archive-free figure reproduction.** The original figures could only be
-  regenerated with author access to the private, 564 MB archived run. A curated ~16 MB
-  subset of exactly the files the figures read is committed to `paper/data/`
-  (provenance in `paper/data/README.md`), so `python paper/reproduce.py` reproduces
-  every figure from a fresh clone with no private-archive access.
+- **Self-contained figure reproduction.** Regenerating the original figures required
+  the full ~564 MB of run artifacts. Exactly the ~16 MB the figure scripts actually read
+  is committed to `paper/data/` (provenance in `paper/data/README.md`), so
+  `python paper/reproduce.py` reproduces every figure from a fresh clone.
 - **A real regression/reference-file test suite.** The original code had no automated
   tests. This package pins a numerical baseline (`tests/integration/data/
   synthetic_baseline.json`, atol 1e-10) plus reference scalars extracted from the

@@ -1,12 +1,13 @@
-"""Extract reference scalar targets from the archived published run (iteration 15).
+"""Regenerate the reference scalar targets in paper/reference/ from run artifacts.
 
-Pure NumPy; reads the read-only old-repo archive and writes small JSON files into
+Pure NumPy; reads a directory of run artifacts and writes small JSON files into
 paper/reference/ (a sibling of this script). Run from anywhere:
 
     python paper/extract_reference.py
 
-Archived run = results/less_x_new_manuscript_revisions, iteration 15 = the published
-run whose R-hat/ESS match paper Fig 10 exactly.
+Iteration 15 is the published run, whose R-hat/ESS match paper Fig 10 exactly. The
+committed reference files were produced from the published run's artifacts, which ship
+in paper/data/ -- so this script reproduces them from a fresh clone.
 """
 
 import json
@@ -14,9 +15,12 @@ import os
 
 import numpy as np
 
-ARCHIVE = os.path.expanduser(
-    "~/DowlingLab/CAREER/entropy_driven_hybrid_models_code/entropy_driven_hms/"
-    "results/less_x_new_manuscript_revisions"
+# Directory of run artifacts to summarize. Defaults to the committed paper/data/ subset;
+# set $BFG_ARCHIVE_DIR to summarize a different run instead (for example one produced by
+# paper/full_reproduction.py).
+ARCHIVE = os.environ.get(
+    "BFG_ARCHIVE_DIR",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"),
 )
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reference")
 os.makedirs(OUT, exist_ok=True)

@@ -7,10 +7,10 @@ expensive, and not what reproducing a figure requires) -- it loads what that loo
 already produced and renders it through the `bits_for_gaps` package +
 `examples/vle_distillation`.
 
-**No private-archive access needed by default** -- the data comes from the curated,
-committed `paper/data/` subset (~16 MB; see `paper/data/README.md`). Point
-`--archive`/`$BFG_ARCHIVE_DIR` at the full private archive only if you want figures at
-iterations beyond that curated subset (see `paper/DATA.md`).
+**Everything needed is committed here** -- the data comes from `paper/data/` (~16 MB;
+see `paper/data/README.md`), so this works from a fresh clone. Point
+`--archive`/`$BFG_ARCHIVE_DIR` at another directory of run artifacts (same layout) to plot
+a different run, such as one produced by `paper/full_reproduction.py`.
 
 ```bash
 export PYTHON_JULIACALL_HANDLE_SIGNALS=yes    # macOS; needed for Fig 8/9 (Clapeyron)
@@ -48,12 +48,12 @@ below.
 tests that *recompute* something via Clapeyron stay gated (`@pytest.mark.vle`,
 deselected by default -- run with `pytest -m vle`, needs Julia): Fig 8's Wilson-curve
 cross-check and Fig 9's full stage-table recompute. Fig 5/10/11's tests only *read* the
-committed `paper/data/` text files (no Julia, no private archive) and run in the
+committed `paper/data/` text files (no Julia needed) and run in the
 **default** `pytest -q` suite. Fig 8 has no dedicated reference *file* (it's a visual
 reproduction, not a paper-reported scalar) -- its pin is a direct cross-check against
-the committed `gt_Wilson_data` instead. `BFG_ARCHIVE_DIR` can still point any of these
-at the full private archive instead of `paper/data/` (e.g. to check other iterations),
-but that's not required for the default-suite tests to run.
+the committed `gt_Wilson_data` instead. `BFG_ARCHIVE_DIR` can point any of these at a
+different run's artifacts instead of `paper/data/`, but that's not required for the
+default-suite tests to run.
 
 **Visually reproduced** (2, 3, 4, 6, 7, 12): no reference file exists for these (the
 paper doesn't report them as scalars), so they're spot-checked by eye against the

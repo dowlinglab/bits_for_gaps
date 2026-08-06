@@ -10,6 +10,11 @@ the paper and its supplementary information (SI):
 > Engineering* **211** (2026) 109650.
 > [doi:10.1016/j.compchemeng.2026.109650](https://doi.org/10.1016/j.compchemeng.2026.109650)
 
+The article itself is bundled in the repository at
+[`paper/bits_for_gaps_paper.pdf`](https://github.com/dowlinglab/bits_for_gaps/blob/main/paper/bits_for_gaps_paper.pdf)
+(redistributed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)), so the
+equation numbers cited below can be checked directly against it.
+
 ## The loop
 
 BITS for GAPS is a sequential experimental-design loop over a **hierarchical**

@@ -16,6 +16,11 @@ Reference: K. D. Jones and A. W. Dowling, "BITS for GAPS: Bayesian Information-T
 Sampling for hierarchical GAussian Process Surrogates," *Computers & Chemical
 Engineering* **211** (2026) 109650. https://doi.org/10.1016/j.compchemeng.2026.109650
 
+The paper is **bundled in this repository** so you can read the method alongside the code:
+[`paper/bits_for_gaps_paper.pdf`](paper/bits_for_gaps_paper.pdf). It is redistributed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (© 2026 The Authors, published by
+Elsevier Ltd); the DOI above is the canonical citation.
+
 ## Install
 
 ```bash
@@ -55,6 +60,16 @@ docs/                Sphinx documentation (ReadTheDocs)
 ```bash
 pytest -q
 ```
+
+## Provenance
+
+The research code behind the paper was originally developed in a private repository over the
+course of the study. It was then migrated here and reorganized into an installable, tested
+package: the algorithm was separated from the vapor–liquid-equilibrium case study, generalized
+to arbitrary input dimension, and covered by a test suite. That private repository holds only
+the development history — **nothing you need to use this package or to reproduce the paper's
+figures is missing from this repository.** The data the figure scripts read is committed here
+under `paper/data/` (see [`paper/REPRODUCTION.md`](paper/REPRODUCTION.md)).
 
 ## Docs
 
