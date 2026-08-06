@@ -1,12 +1,11 @@
 """GP covariance kernels with hierarchical (prior-bearing) hyperparameters.
 
-Moved from the paper code's ``fxns/my_kermel_fxn.py`` (commented-out variants and the
-misspelled module name dropped). The kernel's hyperparameters carry the tfp priors that
-make the GP *hierarchical* -- HMC samples these to form the mixture predictive posterior.
+The kernel's hyperparameters carry the tfp priors that make the GP *hierarchical* -- HMC
+samples these to form the mixture predictive posterior.
 
-Phase 5: generalized to N input dimensions. DESIGN DECISION -- each lengthscale (and the
-kernel variance) is its own scalar ``gpflow.Parameter``, not a single vector-valued
-Parameter. This is deliberate: the paper's method hinges on per-dimension PRIOR FAMILIES,
+Works at N input dimensions. DESIGN DECISION -- each lengthscale (and the kernel
+variance) is its own scalar ``gpflow.Parameter``, not a single vector-valued Parameter.
+This is deliberate: the paper's method hinges on per-dimension PRIOR FAMILIES,
 not just per-dimension prior parameters -- ``std_dev`` ~ LogNormal, ``lengthscale_1`` ~
 LogNormal, ``lengthscale_2`` ~ Gamma *and unconstrained* (no positivity bijector). A
 single vector Parameter carries exactly one prior distribution and one transform for the
@@ -42,7 +41,7 @@ f64 = gpflow.utilities.to_default_float
 class AnisotropicSE(gpflow.kernels.Kernel):
     """Anisotropic squared-exponential kernel with per-dimension lengthscales.
 
-    Generalized (Phase 5) to N input dimensions. Each lengthscale -- and the kernel
+    Works at N input dimensions. Each lengthscale -- and the kernel
     variance -- is its own ``gpflow.Parameter``, carrying its own prior distribution and
     (optionally) its own bijector, so per-dimension prior FAMILIES are supported (see
     the module docstring for why this matters).
@@ -196,20 +195,15 @@ def assign_hyperparameters(kernel: gpflow.kernels.Kernel, values: Sequence[float
     ``.hyperparameters`` property (a list of ``gpflow.Parameter``), not just
     ``AnisotropicSE``.
 
-    Phase 9d: this is called deep inside ``mixture.py``/``acquisition.py``'s hot loops
-    to replay one posterior/mixture-component sample at a time. An extreme outlier
-    sample -- most plausibly from ``lengthscale_2``, deliberately left unconstrained
-    (no positivity bijector; see the module docstring) so nothing bounds how far an
-    HMC leapfrog step can push it -- can round-trip through a bijector's inverse to a
-    non-finite unconstrained value, which gpflow's own ``Parameter.assign`` rejects
-    with a low-level ``InvalidArgumentError`` (``Tensor had NaN/Inf values
-    [Op:CheckNumerics]``) that doesn't say *which* value or parameter caused it. Not a
-    hypothetical: this is the exact error hit mid-investigation in Phase 9b/9c (from a
-    genuinely out-of-range value, in that case an unrelated script bug, not a posterior
-    sample) -- see ``paper/PHASE9B_INVESTIGATION.md``. Re-raised here with the
-    parameter name and value attached; behavior-preserving for every value that was
-    already assignable (which is every value seen in this codebase's tests, reference
-    regressions, and the from-scratch stochastic reproduction runs).
+    This is called deep inside ``mixture.py``/``acquisition.py``'s hot loops to replay
+    one posterior/mixture-component sample at a time. An extreme outlier sample -- most
+    plausibly from ``lengthscale_2``, deliberately left unconstrained (no positivity
+    bijector; see the module docstring) so nothing bounds how far an HMC leapfrog step
+    can push it -- can round-trip through a bijector's inverse to a non-finite
+    unconstrained value, which gpflow's own ``Parameter.assign`` rejects with a
+    low-level ``InvalidArgumentError`` (``Tensor had NaN/Inf values
+    [Op:CheckNumerics]``) that doesn't say *which* value or parameter caused it.
+    Re-raised here with the parameter name and value attached.
     """
     for param, value in zip(kernel.hyperparameters, values):
         try:
@@ -229,8 +223,8 @@ def assign_hyperparameters(kernel: gpflow.kernels.Kernel, values: Sequence[float
 def save_hyperparameters(kernel: gpflow.kernels.Kernel) -> List[float]:
     """Snapshot ``kernel.hyperparameters``' current (constrained) values.
 
-    Phase 9c: pairs with :func:`assign_hyperparameters` to save/restore a kernel's
-    state around code that reassigns it in a loop (``mixture.sample_gp_posterior_mixture``,
+    Pairs with :func:`assign_hyperparameters` to save/restore a kernel's state around
+    code that reassigns it in a loop (``mixture.sample_gp_posterior_mixture``,
     ``acquisition.entropy_objective``) -- see their docstrings. Returns a plain list of
     floats, not live references, so later mutating the kernel cannot change the snapshot.
     """

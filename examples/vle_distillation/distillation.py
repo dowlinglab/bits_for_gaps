@@ -1,9 +1,8 @@
 """McCabe-Thiele-consistent stage-by-stage distillation column solver.
 
-Ported from the paper code's ``distillation_model.py`` + ``solve_distillation.py``
-(itself a Python port of a course MATLAB script, ``distillation_nonlinear_equations.m``
--- see the inline notes on the reboiler equation below, kept verbatim from the original
-port). Solves the column's nonlinear mass-balance + equilibrium-stage system via
+Traces to a course MATLAB script (``distillation_nonlinear_equations.m`` -- see the
+inline notes on the reboiler equation below for the one place its conventions still
+show through). Solves the column's nonlinear mass-balance + equilibrium-stage system via
 ``scipy.optimize.fsolve``, given an equilibrium function ``y = equil(x)`` (see
 ``equilibrium.py`` / ``phase_diagram.py``).
 
@@ -13,7 +12,7 @@ equilibrium relation ``y_i = phi(x_i)``, and the condenser/reboiler closures ``L
 R*D``, ``V_1 = L_0 + D``, ``L_n = V_{n+1} + W``, ``x_D = x_0``, ``x_W = x_n`` -- see
 :func:`_distillation_residuals`'s inline comments for exactly where each appears.
 
-Variable vector layout (0-based), matching the original port exactly:
+Variable vector layout (0-based):
     v = [L_0..L_n, V_1..V_{n+1} (stored at V[0]..V[n]), x_0..x_n, y_1..y_{n+1}
          (stored at y[0]..y[n]), D, R, W, F, xF, q]
 Stage 0 = condenser/distillate, stage n = reboiler/bottoms.
@@ -82,10 +81,10 @@ def _distillation_residuals(v, n, feed_stage_idx, equil, fixed_idx, fixed_vals):
     # SI-4 condenser and reboiler closures.
     offset_eq = 4 * n + len(fixed_idx)
     f[offset_eq + 0] = y[0] - x[0]  # total condenser: y_1 = x_0 (x_D = x_0)
-    # NOTE (kept from the original port): a partial reboiler is usually
-    # y_{n+1} = equil(x_W). The source MATLAB instead sets x_n = y_{n+1} (liquid
-    # leaving stage n equals the vapor leaving the reboiler); replicated as-is here
-    # for physics parity with the paper's published column design.
+    # NOTE: a partial reboiler is usually specified as y_{n+1} = equil(x_W). This
+    # solver instead sets x_n = y_{n+1} (liquid leaving stage n equals the vapor
+    # leaving the reboiler) -- a convention traced to the source MATLAB script, kept
+    # for parity with the paper's published column design.
     f[offset_eq + 1] = x[n] - y[n]
     f[offset_eq + 2] = L[0] - R * D  # SI-4: L_0 = R * D
     f[offset_eq + 3] = V[0] - L[0] - D  # SI-4: V_1 = L_0 + D
@@ -144,8 +143,8 @@ def _resolve_fixed_indices(n_stages, var_names, var_values):
 
 def _try_solve_column(v0, n, feed_stage_idx, equil, fixed_idx, fixed_vals, num_stages):
     """One ``fsolve`` attempt from ``v0``; returns the same dict :func:`solve_column`
-    does. Factored out (Phase 9c) so :func:`solve_column` can retry from alternate
-    initial guesses without duplicating the residual/extraction/diagnostic logic.
+    does. Factored out so :func:`solve_column` can retry from alternate initial guesses
+    without duplicating the residual/extraction/diagnostic logic.
     """
 
     def residual_func(v_solve):
@@ -199,10 +198,10 @@ def _try_solve_column(v0, n, feed_stage_idx, equil, fixed_idx, fixed_vals, num_s
     }
 
 
-# Phase 9c: generic (not physics-informed) alternate (x, y) initial-guess levels to
-# retry with if the default (0.5, 0.5) guess below doesn't converge -- see
-# solve_column. Deliberately generic rather than curve-specific, so this doesn't
-# encode any assumption about which equilibrium curve is passed in.
+# Generic (not physics-informed) alternate (x, y) initial-guess levels to retry with if
+# the default (0.5, 0.5) guess below doesn't converge -- see solve_column. Deliberately
+# generic rather than curve-specific, so this doesn't encode any assumption about which
+# equilibrium curve is passed in.
 _RETRY_INITIAL_GUESS_LEVELS = [(0.3, 0.3), (0.7, 0.7), (0.2, 0.8)]
 
 
@@ -231,16 +230,13 @@ def solve_column(n_stages, feed_stage, equil, var_names, var_values):
 
     Notes
     -----
-    Phase 9c: if the default (0.5, 0.5) initial guess below doesn't converge, retries
-    from a few generic alternate initial guesses before giving up (this is exactly the
-    kind of solver fragility that produced a spurious non-convergence Phase 9b traced
-    to an unrelated bug -- see ``paper/PHASE9B_INVESTIGATION.md``; retrying here is
-    cheap, generic insurance against genuine cases of it, not a fix for that bug).
-    The primary attempt is untouched -- identical inputs/outputs to before this change
-    -- so nothing that already converges is affected; retries only run when the first
-    attempt's own ``converged`` flag is ``False``, and the first converging result
-    (default or a retry) is returned as-is, with a note appended to ``"warnings"`` if
-    a retry was needed.
+    If the default (0.5, 0.5) initial guess below doesn't converge, retries from a few
+    generic alternate initial guesses before giving up -- cheap insurance against
+    ``fsolve``'s sensitivity to the initial guess for a poorly-conditioned equilibrium
+    curve. The primary attempt is unaffected; retries only run when its own
+    ``converged`` flag is ``False``, and the first converging result (default or a
+    retry) is returned as-is, with a note appended to ``"warnings"`` if a retry was
+    needed.
     """
     n = n_stages
     feed_stage_idx = feed_stage - 1

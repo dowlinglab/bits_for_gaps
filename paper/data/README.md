@@ -4,7 +4,7 @@
 output). It's a small, curated subset of the private archive's published run --
 exactly the files `paper/figures/*.py` read, no more -- committed so that
 `python paper/reproduce.py` works from a fresh clone with **no private-archive
-access** (Phase 9, STEP 1).
+access**.
 
 ## Provenance
 
@@ -44,7 +44,7 @@ files, ~16 MB.
 
 Fig 9 (McCabe-Thiele) needs none of this -- it's a pure physics recompute (Wilson via
 live Clapeyron; the surrogate via a fresh LHS + MLE-fit GP, same as
-`tests/regression/test_mccabe_thiele.py`, Phase 6/7).
+`tests/regression/test_mccabe_thiele.py`).
 
 ## Why plain text, not compressed or `gp_model_*.pkl`-recomputed
 

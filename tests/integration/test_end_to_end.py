@@ -1,12 +1,11 @@
 """Seeded end-to-end integration test for the BITS-for-GAPS sampler.
 
 Runs the full sequential-design decision pipeline of ``adaptiveEntropy`` on a *synthetic,
-pure-Python* black box (a smooth 2-D function -- NO Julia), via the Phase 4 in-memory
-``run()`` API. The run must complete and its outputs (the selected next point, the
-R-hat/ESS shapes, and the entropy field) must be stable across two runs with the same
-seed, and reproduce ``tests/integration/data/synthetic_baseline.json`` -- a hard pin of
-this run's exact outputs captured from the pre-Phase-4 (monolithic, disk-based)
-``sampler.py``.
+pure-Python* black box (a smooth 2-D function -- NO Julia), via the in-memory ``run()``
+API. The run must complete and its outputs (the selected next point, the R-hat/ESS
+shapes, and the entropy field) must be stable across two runs with the same seed, and
+reproduce ``tests/integration/data/synthetic_baseline.json`` -- a hard pin of this run's
+exact outputs.
 
 We deliberately don't pass ``predict_grid=True``: it re-pickles the model and computes
 the full-grid posterior-sample array used only for figures, takes ~20 s (100 full-
@@ -38,8 +37,7 @@ def _true_f(x1, x2):
 
 
 def _fwd_model(x1, x2):
-    # Phase 5: the sampler calls FwdModel(*args, *xStar) -- natural dimension order
-    # (was a reversed, 2-D-specific FwdModel(*args, x2, x1) convention pre-Phase-5).
+    # The sampler calls FwdModel(*args, *xStar) in natural dimension order.
     return [float(_true_f(x1, x2))]
 
 
@@ -137,7 +135,7 @@ def test_next_point_appended_via_injected_fwd_model(run_a):
 @pytest.mark.slow
 def test_stable_across_two_runs_with_same_seed(run_a, run_b):
     # Same seed, same process => the sampler must be deterministic. This is the guard
-    # against nondeterminism sneaking in during the Phase 4 decomposition.
+    # against nondeterminism sneaking into the sampler's internals.
     a, b = run_a, run_b
     np.testing.assert_allclose(a["rhat"], b["rhat"], atol=1e-10)
     np.testing.assert_allclose(a["ess"], b["ess"], atol=1e-10)
@@ -148,9 +146,9 @@ def test_stable_across_two_runs_with_same_seed(run_a, run_b):
 
 @pytest.mark.slow
 def test_matches_pre_phase4_baseline(run_a):
-    # Hard pin against tests/integration/data/synthetic_baseline.json, captured from the
-    # monolithic (pre-decomposition) sampler.py. The Phase 4 module split -- and the
-    # disk-as-state removal -- must reproduce these exact numbers, not merely match itself.
+    # Hard pin against tests/integration/data/synthetic_baseline.json -- captured once
+    # and never regenerated, so this must reproduce these exact numbers, not merely
+    # match itself.
     with open(BASELINE_PATH) as f:
         base = json.load(f)
     r = run_a
@@ -166,8 +164,8 @@ def test_matches_pre_phase4_baseline(run_a):
 
 @pytest.mark.slow
 def test_run_writes_no_files_by_default(tmp_path, monkeypatch):
-    # Phase 4 retires disk-as-state: a full run must execute with zero disk writes
-    # unless the caller explicitly opts in via checkpoint_dir.
+    # A full run must execute with zero disk writes unless the caller explicitly opts
+    # in via checkpoint_dir.
     monkeypatch.chdir(tmp_path)
     X_init, y_init = _initial_design(n=12)
     s = _build_sampler()
@@ -217,12 +215,11 @@ def test_run_with_initial_lml_maximization():
 
 @pytest.mark.slow
 def test_run_with_lower_bound_acquisition_objective_completes():
-    # Phase 9d: acquisitionObjective="lower_bound" selects the paper's closed-form
-    # entropy lower bound (Theorem/SI-2) instead of the default 2nd-order Taylor
-    # estimator -- implemented and unit-tested since Phase 2 but never wired up as a
-    # usable acquisition objective before now. Default ("taylor") behavior/baselines
-    # are covered by every other test in this file; this just confirms the
-    # alternative objective runs a full iteration end-to-end without error.
+    # acquisitionObjective="lower_bound" selects the paper's closed-form entropy lower
+    # bound (Theorem/SI-2) instead of the default 2nd-order Taylor estimator. Default
+    # ("taylor") behavior/baselines are covered by every other test in this file; this
+    # just confirms the alternative objective runs a full iteration end-to-end without
+    # error.
     X_init, y_init = _initial_design(n=12)
     s = _build_sampler()
     s.acquisitionObjective = "lower_bound"
@@ -244,14 +241,11 @@ def test_run_rejects_unknown_acquisition_objective():
 
 @pytest.mark.slow
 def test_iteration_record_gpmodel_survives_downstream_mixture_sampling():
-    # Phase 9c regression guard for the exact real-world bug Phase 9b found (see
-    # paper/PHASE9B_INVESTIGATION.md): a caller that reuses history.last.GPmodel for a
-    # second purpose (e.g. building a surrogate phase diagram) AFTER something else
+    # Regression guard: a caller that reuses history.last.GPmodel for a second purpose
+    # (e.g. building a surrogate phase diagram) AFTER something else
     # (mixture.sample_gp_posterior_mixture, e.g. for a test-RMSE metric) has already
     # been called on that same object must not find it left at an arbitrary leftover
-    # hyperparameter state. run()'s own internal acquisition search (entropy_objective,
-    # via optimize()/entropy_surface_2D()) used to leave exactly this kind of leftover
-    # state on record.GPmodel even before any downstream caller touched it.
+    # hyperparameter state.
     from bits_for_gaps import mixture
 
     X_init, y_init = _initial_design(n=12)

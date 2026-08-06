@@ -1,9 +1,10 @@
 """Unit tests for ``mixture.py``'s posterior-mixture sampling.
 
-Phase 9c: the headline behavior under test is that ``sample_gp_posterior_mixture``
-(and ``predict_grid_2D``, which calls it) leave the caller's ``GPmodel`` unchanged --
-Phase 9b traced a real bug to this function leaving the kernel at an arbitrary leftover
-hyperparameter state (see ``paper/PHASE9B_INVESTIGATION.md``).
+The headline behavior under test is that ``sample_gp_posterior_mixture`` (and
+``predict_grid_2D``, which calls it) leave the caller's ``GPmodel`` unchanged -- both
+mutate the kernel's hyperparameters once per posterior draw while running, so a caller
+reusing the same model object afterward must not find it left at an arbitrary leftover
+state.
 """
 
 import gpflow
@@ -93,8 +94,8 @@ def test_sample_gp_posterior_mixture_default_tf_seed_is_unset(gp_model, trace):
 
 
 def test_predict_grid_2d_rejects_non_2d_bounds(gp_model, trace):
-    # predict_grid_2D is a 2-D-only visualization diagnostic (Phase 5) -- it must
-    # raise a clear error for other dimensions rather than silently misbehaving.
+    # predict_grid_2D is a 2-D-only visualization diagnostic -- it must raise a clear
+    # error for other dimensions rather than silently misbehaving.
     with pytest.raises(ValueError, match="2-D-only"):
         predict_grid_2D(
             trace,

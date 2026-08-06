@@ -1,15 +1,14 @@
 """Per-dimension input/output transforms for the GP surrogate.
 
-Lifts the paper code's list-of-lambdas convention (``driver_new.py``'s
-``adaptiveEntropy.XTrsfFwd``/``XTrsfBkwd``/``yTrsfFwd``/``yTrsfBkwd``, one identity
-lambda per input dimension plus a scalar output lambda) into small, testable classes.
-Identity by default -- matches the paper's VLE study, which trains the GP directly on
-mole fraction / temperature / log-activity-coefficient with no rescaling.
+One elementwise callable per input dimension plus a scalar output callable, lifted into
+small, testable classes. Identity by default -- matches the paper's VLE study, which
+trains the GP directly on mole fraction / temperature / log-activity-coefficient with no
+rescaling.
 
 ``forward_fns``/``backward_fns`` (lists of per-dimension callables) are exposed
 alongside the array-oriented ``forward``/``backward`` methods because the acquisition/
 mixture code applies them element-wise to scalars (e.g. a single bound) as well as to
-whole columns -- exactly the calling convention the paper code used.
+whole columns.
 """
 
 from __future__ import annotations

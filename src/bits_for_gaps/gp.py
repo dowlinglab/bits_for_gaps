@@ -1,17 +1,13 @@
 """GP construction, log-marginal-likelihood optimization, and HMC sampling.
 
-Moved from the paper code's ``driver_new.py`` (``adaptiveEntropy.build_gp`` /
-``maximize_lml`` / ``run_mcmc``). These are pure functions over explicit arguments --
-no disk I/O; the orchestrator (``sampler.py``) decides whether/where to checkpoint.
+These are pure functions over explicit arguments -- no disk I/O; the orchestrator
+(``sampler.py``) decides whether/where to checkpoint.
 
-Phase 5: ``run_mcmc`` no longer indexes ``GPmodel.trainable_parameters`` by hardcoded
-position. It uses ``GPmodel.kernel.hyperparameters`` (see
+``run_mcmc`` uses ``GPmodel.kernel.hyperparameters`` (see
 ``kernels.AnisotropicSE.hyperparameters``) directly as the HMC state -- any kernel that
 exposes a ``.hyperparameters`` property (a list of ``gpflow.Parameter``, in whatever
 order that kernel defines as canonical) works here, not just the paper's 3-hyperparameter
-2-D kernel. For the paper's kernel this is verified identity-equal to the old
-``[trainable_parameters[2], [0], [1]]`` indexing (same Parameter objects, same order),
-so d=2 runs are bit-exact with the pre-Phase-5 code.
+2-D kernel.
 """
 
 from __future__ import annotations

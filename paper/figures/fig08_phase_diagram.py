@@ -1,8 +1,7 @@
 """Fig 8 -- T-x-y phase diagram (bubble/dew point) and liquid/vapor equilibrium curve.
 
-Ported from ``new_phase_diagram.py``'s ``PhaseDiagram.plot_phase_diagram``. Two data
-sources, reused per the Phase 7 approach (reuse the ported physics; don't re-run the
-stochastic adaptive loop):
+Two data sources, combining reused physics rather than re-running the stochastic
+adaptive loop:
 
 - **Surrogate ensemble** (many thin lines): the ARCHIVED ``phase_diagram_15`` --
   bubble/dew points from the paper's actual 15-iteration GP posterior samples. Not

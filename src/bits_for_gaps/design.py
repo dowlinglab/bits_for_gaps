@@ -1,8 +1,6 @@
 """Space-filling initial designs over a bounded input space.
 
-Extracted and generalized from the paper code's ``proh_water_class`` (which mixed
-design generation with Julia activity-coefficient calls and disk I/O). These are pure,
-N-dimensional, and return arrays -- no files, no thermodynamics.
+Pure, N-dimensional, and return arrays -- no files, no thermodynamics.
 """
 
 from __future__ import annotations

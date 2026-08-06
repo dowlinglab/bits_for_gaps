@@ -1,10 +1,10 @@
 """Unit tests for the AnisotropicSE covariance kernel.
 
-Pins the 2-D kernel behavior (symmetry, positive semi-definiteness, the (n, m)
-cross-covariance shape, the K_diag shortcut, per-dimension lengthscale scaling) that
-predates the Phase 5 N-D generalization, plus new tests for the generalized API: the
-canonical ``hyperparameters`` order, ``assign_hyperparameters`` round-tripping, and
-explicit N-D (1-D and 3-D) construction with per-dimension prior families.
+Covers both the 2-D kernel behavior (symmetry, positive semi-definiteness, the (n, m)
+cross-covariance shape, the K_diag shortcut, per-dimension lengthscale scaling) and the
+generalized N-D API: the canonical ``hyperparameters`` order, ``assign_hyperparameters``
+round-tripping, and explicit N-D (1-D and 3-D) construction with per-dimension prior
+families.
 """
 
 import gpflow
@@ -93,7 +93,7 @@ def test_anisotropic_lengthscale_scaling(kernel):
 
 
 ## ---------------------------------------------------------------------------
-## Phase 5: N-D generalization -- canonical ordering, generic assignment, N-D construction
+## N-D generalization -- canonical ordering, generic assignment, N-D construction
 ## ---------------------------------------------------------------------------
 
 
@@ -134,8 +134,9 @@ def test_assign_hyperparameters_round_trips(kernel):
 
 
 ## ---------------------------------------------------------------------------
-## Phase 9c: save/restore -- the save_hyperparameters half of the mutation-footgun fix
-## (mixture.py/acquisition.py use these together; see their tests for the full loop).
+## Kernel hyperparameter save/restore (mixture.py/acquisition.py use these together
+## to guard against leaving a GP's kernel mutated mid-loop; see their tests for the
+## full loop).
 ## ---------------------------------------------------------------------------
 
 
@@ -219,12 +220,9 @@ def test_variance_prior_requires_lengthscale_priors():
 
 
 ## ---------------------------------------------------------------------------
-## Phase 9d: assign_hyperparameters raises a clear, specific error instead of a
-## low-level gpflow/TF traceback for a value that can't round-trip through a
-## parameter's transform -- the exact error class hit mid-investigation in Phase 9b/9c
-## (see paper/PHASE9B_INVESTIGATION.md and kernels.py's assign_hyperparameters
-## docstring). Behavior-preserving for every assignable value (every value seen in
-## this codebase's tests/reference regressions/from-scratch reproduction runs).
+## assign_hyperparameters raises a clear, specific error instead of a low-level
+## gpflow/TF traceback for a value that can't round-trip through a parameter's
+## transform (see kernels.py's assign_hyperparameters docstring).
 ## ---------------------------------------------------------------------------
 
 

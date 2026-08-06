@@ -1,8 +1,7 @@
 """Fig 4 -- maximum predictive entropy vs. sequential-design iteration.
 
-Ported from ``fxns/mcmc_plotter.py``'s ``plot_entropy_v_iters`` (``fxns/plot_res.py``'s
-``-m ent_v_iters`` mode). Visual reproduction only (no reference pin) -- spot-check
-against the archived ``entropy_v_iters.png``.
+Visual reproduction only (no reference pin) -- spot-check against the archived
+``entropy_v_iters.png``.
 """
 
 import os

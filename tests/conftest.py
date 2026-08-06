@@ -5,7 +5,7 @@ a ``reference`` loader fixture. The reference files are small JSON snapshots ext
 from the archived published run (iteration 15); see ``paper/reference/README.md``.
 
 Also puts the repo's ``examples/`` directory AND the repo root on ``sys.path`` so
-``examples/`` and ``paper/`` (neither pip-installed -- see REFACTOR_PLAN.md §7.3) are
+``examples/`` and ``paper/`` (neither pip-installed -- both are repo-only) are
 importable in dev/CI as top-level packages, e.g. ``import vle_distillation.
 activity_model`` and ``import paper.figures.fig10_traces``. This also makes
 ``examples/vle_distillation/juliapkg.json`` discoverable by juliapkg (which scans

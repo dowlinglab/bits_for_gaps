@@ -1,8 +1,7 @@
 """Fig 2 -- initial Latin-hypercube design (train/test split) over (z_PrOH, T).
 
-Ported from ``fxns/mcmc_plotter.py``'s ``plot_lhs_2d`` (``fxns/plot_res.py``'s
-``-m lhs_2D`` mode). Visual reproduction only (no reference pin) -- spot-check against
-the archived ``gp_lhs_design.png``.
+Visual reproduction only (no reference pin) -- spot-check against the archived
+``gp_lhs_design.png``.
 """
 
 import os

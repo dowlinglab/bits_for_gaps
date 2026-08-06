@@ -69,7 +69,7 @@ write_json(
 #    y_true from activity_data_1 (fixed 10 train pts) / activity_test_points (10 test).
 #    Predictions: gp_predict_{train,test}_{iter} = (n_points, 500 mixture draws).
 #    Metrics computed per-draw (axis=0 over points) => 500-length distributions,
-#    exactly as fxns/train_test_split_proh.plot_error_bx_n_wskr.
+#    matching the paper's own error-metric computation.
 # ---------------------------------------------------------------------------
 y_train = np.loadtxt(os.path.join(ARCHIVE, "activity_data_1"))[:, 2]
 y_test = np.loadtxt(os.path.join(ARCHIVE, "activity_test_points"))[:, 2]
@@ -126,7 +126,7 @@ write_json(
 # ---------------------------------------------------------------------------
 # 4. McCabe-Thiele stage table (paper Fig 9c) -- values from the paper (the column
 #    design + surrogate/Wilson stage compositions). Reproduction needs the Julia VLE
-#    distillation backend (Phase 6 port), so the recompute test is @pytest.mark.vle.
+#    distillation backend, so the recompute test is @pytest.mark.vle.
 # ---------------------------------------------------------------------------
 write_json(
     "mccabe_thiele_stages.json",

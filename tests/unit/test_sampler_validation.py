@@ -1,6 +1,6 @@
-"""Unit tests for Phase 9c's public-API input validation on ``adaptiveEntropy``/
-``BitsForGaps``: clear, early errors instead of a cryptic failure deep inside
-GPflow/TensorFlow or a confusing downstream shape mismatch.
+"""Unit tests for ``adaptiveEntropy``/``BitsForGaps``'s public-API input validation:
+clear, early errors instead of a cryptic failure deep inside GPflow/TensorFlow or a
+confusing downstream shape mismatch.
 """
 
 import gpflow

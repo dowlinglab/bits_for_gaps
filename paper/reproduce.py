@@ -7,12 +7,12 @@ figures. This does NOT re-run the paper's 15-iteration adaptive HMC loop (stocha
 expensive, and not what "reproduce the figures" requires) -- it loads what that loop
 already produced.
 
-As of Phase 9, the default data source is the curated, committed ``paper/data/``
-subset (~16 MB -- exactly the files the figures read, copied from the private
-archive; see ``paper/data/README.md``), so this runs with **no private-archive
-access** out of the box. Pass ``--archive`` (or set ``BFG_ARCHIVE_DIR``) to point at
-the full private archive instead -- e.g. to regenerate Fig 3/4 with more than the 6
-committed early-iteration panels, or Fig 6/7 at iterations other than 1/15.
+The default data source is the curated, committed ``paper/data/`` subset (~16 MB --
+exactly the files the figures read, copied from the private archive; see
+``paper/data/README.md``), so this runs with **no private-archive access** out of the
+box. Pass ``--archive`` (or set ``BFG_ARCHIVE_DIR``) to point at the full private
+archive instead -- e.g. to regenerate Fig 3/4 with more than the 6 committed
+early-iteration panels, or Fig 6/7 at iterations other than 1/15.
 
 Usage::
 
@@ -36,8 +36,8 @@ EXAMPLES_DIR = os.path.join(REPO_ROOT, "examples")
 if EXAMPLES_DIR not in sys.path:
     sys.path.insert(0, EXAMPLES_DIR)
 
-# Phase 9: default to the curated, committed subset (no private-archive access
-# needed); override with --archive/$BFG_ARCHIVE_DIR to use the full private archive.
+# Default to the curated, committed subset (no private-archive access needed);
+# override with --archive/$BFG_ARCHIVE_DIR to use the full private archive.
 DEFAULT_ARCHIVE = os.path.join(REPO_ROOT, "paper", "data")
 DEFAULT_OUT_DIR = os.path.join(REPO_ROOT, "results_remaked")
 

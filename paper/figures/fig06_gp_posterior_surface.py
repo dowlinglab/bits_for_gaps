@@ -1,8 +1,7 @@
 """Fig 6 -- GP posterior predictive surface (3-D), iterations 1 vs. 15.
 
-Ported from ``fxns/mcmc_plotter.py``'s ``plot_gp_posterior_2D`` (``fxns/plot_res.py``'s
-``-m gp_post_2D`` mode). Visual reproduction only (no reference pin) -- spot-check
-against the archived ``gp_posterior_2D_{1,15}.png``.
+Visual reproduction only (no reference pin) -- spot-check against the archived
+``gp_posterior_2D_{1,15}.png``.
 """
 
 import os

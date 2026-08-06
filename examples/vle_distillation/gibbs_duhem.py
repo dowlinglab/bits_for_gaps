@@ -1,6 +1,5 @@
 """Gibbs-Duhem correction: recover gamma_H2O from a modeled gamma_PrOH curve.
 
-Ported from the paper code's ``new_phase_diagram.py`` (``PhaseDiagram.gibbs_duhem_fast``).
 The GP surrogate used in this case study models only ``gamma_PrOH(z, T)`` -- the water
 coefficient is derived from it via the binary Gibbs-Duhem relation, not learned by a
 second GP output. For an isothermal, isobaric binary mixture (differential form,

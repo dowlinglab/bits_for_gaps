@@ -4,11 +4,10 @@ LHS initial design -> Clapeyron (Wilson) activity-coefficient evaluation ->
 ``BitsForGaps.run`` (adaptive entropy-driven design) -> phase diagram + McCabe-Thiele
 distillation column, all on the public ``bits_for_gaps`` API.
 
-Configuration (bounds, transforms, kernel, seed) matches the paper's published
-``less_x_new_manuscript_revisions`` run (Jones & Dowling 2026) as closely as the
-archived code allows to reconstruct -- see HANDOFF.md for the paper trail. This
-script demonstrates the ported pipeline; it does not reproduce the paper's exact
-15-iteration adaptive run bit-for-bit (that full reproduction is Phase 7's job).
+Configuration (bounds, transforms, kernel, seed) matches the paper's published run
+(Jones & Dowling 2026). This script demonstrates the pipeline with a short 5-iteration
+run, for speed; it does not reproduce the paper's exact 15-iteration adaptive run --
+for that, see ``paper/full_reproduction.py``.
 
 Usage::
 
@@ -33,21 +32,21 @@ from vle_distillation import phase_diagram as pd
 
 # Paper's exact 2-D VLE search space: liquid PrOH mole fraction, temperature [K].
 BOUNDS = [(1e-6, 0.999), (350.0, 367.0)]
-SEED = 10  # matches train_test_split_proh.py's `my_system.seed = 10`
+SEED = 10  # matches the paper's published run configuration
 
-# Paper's exact GP input/output transforms (new_phase_diagram.py's __main__ block):
-# log(x + 0.1) keeps the mole-fraction lengthscale well-scaled near the dilute limit;
-# min-max normalizing T to [0, 1] matches the kernel's O(1) lengthscale priors; log(y)
-# trains the GP on log-activity-coefficient (always positive, roughly linear in log-x).
+# Paper's exact GP input/output transforms: log(x + 0.1) keeps the mole-fraction
+# lengthscale well-scaled near the dilute limit; min-max normalizing T to [0, 1]
+# matches the kernel's O(1) lengthscale priors; log(y) trains the GP on
+# log-activity-coefficient (always positive, roughly linear in log-x).
 INPUT_TRANSFORM = InputTransform(
     forward_fns=[lambda x: np.log(x + 0.1), lambda T: (T - BOUNDS[1][0]) / 17.0],
     backward_fns=[lambda x: np.exp(x) - 0.1, lambda T: 17.0 * T + BOUNDS[1][0]],
 )
 OUTPUT_TRANSFORM = OutputTransform(forward_fn=np.log, backward_fn=np.exp)
 
-N_INIT = 10  # matches PrOHwater(nObs=10, ...) for the manuscript run
-N_ITERS = 5  # adaptive design iterations (paper ran 15; kept small here --
-# full reproduction is Phase 7)
+N_INIT = 10  # matches the paper's published run configuration
+N_ITERS = 5  # adaptive design iterations (paper ran 15; kept small here for a quick
+# demo -- see paper/full_reproduction.py for the exact paper configuration)
 COLUMN_VAR_NAMES = ["xW", "F", "xF", "R", "xD"]
 COLUMN_VAR_VALUES = [0.01, 100.0, 0.10, 1.0, 0.43]  # Geankoplis Ex. 11.4-1
 COLUMN_N_STAGES = 4

@@ -1,34 +1,31 @@
 """The BITS for GAPS sequential-design engine.
 
-Phase 4: ``adaptiveEntropy`` is now an *orchestrator* over the decomposed modules --
-:mod:`bits_for_gaps.gp` (GP construction + HMC + R-hat/ESS), :mod:`bits_for_gaps.mixture`
-(GMM predictive posterior), :mod:`bits_for_gaps.acquisition` (entropy objective + N-D
-optimizer), :mod:`bits_for_gaps.transforms` (per-dimension input/output transforms), and
-:mod:`bits_for_gaps.state` (in-memory run history). It no longer contains the algorithm
+``adaptiveEntropy`` is an *orchestrator* over decomposed modules -- :mod:`bits_for_gaps.gp`
+(GP construction + HMC + R-hat/ESS), :mod:`bits_for_gaps.mixture` (GMM predictive
+posterior), :mod:`bits_for_gaps.acquisition` (entropy objective + N-D optimizer),
+:mod:`bits_for_gaps.transforms` (per-dimension input/output transforms), and
+:mod:`bits_for_gaps.state` (in-memory run history). It does not contain the algorithm
 math itself -- that lives in the modules above, as pure functions over explicit
 arguments, independently testable and reusable.
 
-Disk-as-state is retired: :meth:`adaptiveEntropy.run` takes the initial design directly
-(in memory) and returns a :class:`bits_for_gaps.state.RunHistory` -- a full run executes
-with zero disk writes by default. File output (mirroring the paper code's per-iteration
-``np.savetxt``/``pickle`` dump under ``results/{exp_name}/``) is available but opt-in via
-``checkpoint_dir``. :meth:`run_model` is kept as a deprecated, disk-based shim for
-scripts still relying on the original zero-argument convention.
+State is in memory, not on disk: :meth:`adaptiveEntropy.run` takes the initial design
+directly and returns a :class:`bits_for_gaps.state.RunHistory` -- a full run executes
+with zero disk writes by default. Per-iteration file output (``np.savetxt``/``pickle``
+under ``results/{exp_name}/``) is available but opt-in via ``checkpoint_dir``.
+:meth:`run_model` is kept as a deprecated, disk-based shim for scripts relying on the
+original zero-argument convention.
 
-The decomposition is behavior-preserving: ``tests/integration/data/synthetic_baseline.json``
-pins the tiny seeded synthetic run's exact outputs from before this decomposition, and
-the acquisition/gp/mixture modules were verified bit-exact (atol=1e-12) against the
-pre-decomposition methods before this rewrite.
+``tests/integration/data/synthetic_baseline.json`` pins a tiny seeded synthetic run's
+exact outputs as a regression baseline (atol=1e-10).
 
-Phase 5: generalized to N input dimensions. ``optimize`` (was ``optimize_2D``) -- the
-acquisition path a run actually depends on -- is dimension-general. ``predict_grid_2D``
-and ``entropy_surface_2D`` stay 2-D-only (dense grids are exponential in d; they are
-visualization diagnostics that don't feed the acquisition): :meth:`run` only calls
-``entropy_surface_2D`` when ``len(self.XBnds) == 2``, leaving ``entropy_field=None``
-otherwise, and both raise a clear ``ValueError`` if called directly for d != 2.
-``call_model`` calls the injected black box as ``FwdModel(*FwdModelArgs, *xStar)`` --
-``xStar``'s components in natural dimension order (was a 2-D-specific, reversed
-``FwdModel(*args, x2, x1)`` convention inherited from the VLE example's Julia call).
+The pipeline is dimension-general: ``optimize`` -- the acquisition path a run actually
+depends on -- works at any input dimension. ``predict_grid_2D`` and ``entropy_surface_2D``
+stay 2-D-only (dense grids are exponential in d; they are visualization diagnostics that
+don't feed the acquisition): :meth:`run` only calls ``entropy_surface_2D`` when
+``len(self.XBnds) == 2``, leaving ``entropy_field=None`` otherwise, and both raise a clear
+``ValueError`` if called directly for d != 2. ``call_model`` calls the injected black box
+as ``FwdModel(*FwdModelArgs, *xStar)`` -- ``xStar``'s components in natural dimension
+order.
 """
 
 from __future__ import annotations
@@ -51,7 +48,7 @@ Bounds = Sequence[Tuple[float, float]]
 
 
 def _validate_bounds(x_bounds: Bounds) -> None:
-    """Each entry must be a ``(lo, hi)`` pair with ``lo < hi`` -- Phase 9c."""
+    """Each entry must be a ``(lo, hi)`` pair with ``lo < hi``."""
     for i, b in enumerate(x_bounds):
         if len(b) != 2:
             raise ValueError(f"x_bounds[{i}] must be a (lo, hi) pair, got {b!r}")
@@ -78,10 +75,10 @@ class adaptiveEntropy:
         exp_name, iters, x_bounds, likelihood_var, mean_fxn, kernel_fxn,
         fwd_model, fwd_model_args
 
-        Phase 9c: validates ``x_bounds`` (each ``lo < hi``) and, if ``kernel_fxn``
-        exposes an ``.ndim`` (e.g. ``kernels.AnisotropicSE``), that it matches
-        ``len(x_bounds)`` -- a mismatch here previously surfaced as a cryptic shape
-        error deep inside GPflow/TensorFlow the first time the kernel was evaluated.
+        Validates ``x_bounds`` (each ``lo < hi``) and, if ``kernel_fxn`` exposes an
+        ``.ndim`` (e.g. ``kernels.AnisotropicSE``), that it matches ``len(x_bounds)`` --
+        a mismatch otherwise surfaces as a cryptic shape error deep inside
+        GPflow/TensorFlow the first time the kernel is evaluated.
         """
         _validate_bounds(x_bounds)
         kernel_ndim = getattr(kernel_fxn, "ndim", None)
@@ -103,13 +100,12 @@ class adaptiveEntropy:
         ## Sequential design
         self.noIters = iters
         self.startIter = 0  # iteration offset for resuming a prior run
-        # (was a hardcoded ``i += 50`` in the manuscript run)
         self.noRestarts = 10
         self.noGaussians = 25
         self.entropyMesh = [10 for _ in self.XBnds]
-        # Phase 9d: "taylor" (default, the paper's 2nd-order Taylor estimator, matches
-        # all pre-Phase-9d behavior/baselines) or "lower_bound" (the paper's closed-
-        # form cross-overlap lower bound, Theorem/SI-2) -- see acquisition.py.
+        # "taylor" (default: the paper's 2nd-order Taylor estimator) or "lower_bound"
+        # (the paper's closed-form cross-overlap lower bound, Theorem/SI-2) -- see
+        # acquisition.py.
         self.acquisitionObjective = "taylor"
         self.optMethod = None
         self.optOptions = None
@@ -268,9 +264,8 @@ class adaptiveEntropy:
         """Evaluate the injected black box at ``xStar`` and append it to the design.
 
         Calls ``self.FwdModel(*self.FwdModelArgs, *xStar)`` -- ``xStar``'s components
-        in natural dimension order (Phase 5: was a 2-D-specific, reversed
-        ``FwdModel(*args, x2, x1)`` convention inherited from the VLE example's Julia
-        call). Returns the extended ``(XData, yData)`` -- no disk write.
+        in natural dimension order. Returns the extended ``(XData, yData)`` -- no disk
+        write.
         """
         xStar = np.asarray(xStar, dtype=float).reshape(-1)
         XData = np.atleast_2d(np.asarray(XData, dtype=float))
@@ -291,7 +286,7 @@ class adaptiveEntropy:
     ## ------------------------------------------------------------------
 
     def _validate_config(self) -> None:
-        """Positive/range checks on the HMC + acquisition config -- Phase 9c.
+        """Positive/range checks on the HMC + acquisition config.
 
         Checked here (not in ``__init__``) because every caller sets these via
         attribute assignment *after* construction (e.g. ``bfg.noSamples = 5000``) --
@@ -444,11 +439,11 @@ class adaptiveEntropy:
     ) -> None:
         """Persist one iteration's artifacts to disk (opt-in; off by default).
 
-        A Phase-4, best-effort equivalent of the paper code's per-iteration file dump --
-        not guaranteed byte-identical to the original file layout (e.g. the original
-        also wrote an intermediate ``gp_training_data_`` file); intended for users who
-        want on-disk artifacts, not as the mechanism for state hand-off between
-        iterations (see module docstring).
+        A best-effort equivalent of the paper code's per-iteration file dump -- not
+        guaranteed byte-identical to the original file layout (e.g. the original also
+        wrote an intermediate ``gp_training_data_`` file); intended for users who want
+        on-disk artifacts, not as the mechanism for state hand-off between iterations
+        (see module docstring).
         """
         os.makedirs(checkpoint_dir, exist_ok=True)
         it = record.iteration
@@ -479,16 +474,16 @@ class adaptiveEntropy:
 class BitsForGaps(adaptiveEntropy):
     """Public-API-friendly constructor for the BITS-for-GAPS sequential-design engine.
 
-    A thin wrapper over :class:`adaptiveEntropy` (kept for backward compatibility)
-    using the target public kwarg names from REFACTOR_PLAN.md Sec 4. Numerically
-    identical to ``adaptiveEntropy`` -- no new computation, just friendlier
-    constructor names; all methods (including :meth:`run`) are inherited unchanged.
-    Advanced/legacy configuration (HMC tuning, restarts, mesh density, ...) is still set
-    via the same instance attributes as ``adaptiveEntropy`` (e.g. ``.noSamples``).
+    A thin wrapper over :class:`adaptiveEntropy` (kept for backward compatibility) with
+    friendlier public kwarg names. Numerically identical to ``adaptiveEntropy`` -- no new
+    computation, just friendlier constructor names; all methods (including :meth:`run`)
+    are inherited unchanged. Advanced/legacy configuration (HMC tuning, restarts, mesh
+    density, ...) is still set via the same instance attributes as ``adaptiveEntropy``
+    (e.g. ``.noSamples``).
 
-    TODO(Phase 6): once the VLE example is ported onto this API, this can grow an
-    ``mcmc=MCMCConfig(...)``-style kwarg for HMC tuning, replacing the passthrough
-    instance attributes inherited from ``adaptiveEntropy`` (e.g. ``.noSamples``).
+    TODO: an ``mcmc=MCMCConfig(...)``-style kwarg for HMC tuning would be a cleaner
+    alternative to the passthrough instance attributes inherited from
+    ``adaptiveEntropy`` (e.g. ``.noSamples``).
     """
 
     def __init__(

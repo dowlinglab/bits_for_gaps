@@ -1,36 +1,29 @@
 """Entropy-maximization acquisition function (2nd-order Taylor estimator).
 
-Moved from the paper code's ``driver_new.py`` (``adaptiveEntropy.entropy_objective`` /
-``gen_entropy_surface_data_2D`` / ``optimize_2D``). Pure functions over explicit
-arguments -- no disk I/O; ``entropy.py`` provides the underlying mixture-entropy math.
+Pure functions over explicit arguments -- no disk I/O; ``entropy.py`` provides the
+underlying mixture-entropy math.
 
-Phase 5: ``entropy_objective`` and ``optimize`` (was ``optimize_2D``) are dimension-
-general -- kernel hyperparameters are assigned via ``kernels.assign_hyperparameters``
-(the canonical-order contract, not hardcoded names), and ``optimize``'s Sobol restarts
-and bounds scale with ``len(x_bounds)``. ``entropy_surface_2D`` stays 2-D-only: a dense
-grid is exponential in d, and it is a visualization diagnostic that does not feed the
-acquisition -- it raises a clear error for d != 2 rather than silently degrading.
+``entropy_objective`` and ``optimize`` are dimension-general -- kernel hyperparameters
+are assigned via ``kernels.assign_hyperparameters`` (the canonical-order contract, not
+hardcoded names), and ``optimize``'s Sobol restarts and bounds scale with
+``len(x_bounds)``. ``entropy_surface_2D`` stays 2-D-only: a dense grid is exponential in
+d, and it is a visualization diagnostic that does not feed the acquisition -- it raises
+a clear error for d != 2 rather than silently degrading.
 
-Phase 9c: ``entropy_objective`` is called many times per ``optimize``/
-``entropy_surface_2D`` call (once per Sobol restart x scipy.optimize.minimize
-iteration, or once per grid point), each time reassigning ``GPmodel.kernel``'s
-hyperparameters -- it used to leave the kernel at whichever sample the *last* such call
-happened to use, not any meaningful state. Since ``sampler.py``'s ``run()`` calls
-``optimize``/``entropy_surface_2D`` on the same ``GPmodel`` it then stores in
-``IterationRecord.GPmodel`` (and optionally checkpoints), every iteration's returned
-model used to carry this arbitrary leftover state -- the same class of footgun Phase 9b
-found in ``mixture.sample_gp_posterior_mixture`` (see
-``paper/PHASE9B_INVESTIGATION.md``). Now saves/restores the kernel around each call, so
-``GPmodel`` is unchanged after ``entropy_objective`` returns -- behavior-preserving for
-the entropy value itself (computed before the restore).
+CAUTION -- kernel mutation: ``entropy_objective`` is called many times per
+``optimize``/``entropy_surface_2D`` call (once per Sobol restart x
+``scipy.optimize.minimize`` iteration, or once per grid point), each time reassigning
+``GPmodel.kernel``'s hyperparameters. It saves the kernel's hyperparameters before each
+call and restores them in a ``finally``, so ``GPmodel`` is unchanged after
+``entropy_objective`` returns regardless of how it exits -- ``sampler.py``'s ``run()``
+relies on this, since it calls ``optimize``/``entropy_surface_2D`` on the same
+``GPmodel`` it then stores in ``IterationRecord.GPmodel`` (and optionally checkpoints).
 
-Phase 9d: the paper derives TWO entropy estimators -- the 2nd-order Taylor
-approximation (``entropy.second_order_entropy``, the one that actually drove
-acquisition in the paper and remains the default here) and a closed-form lower bound
-(``entropy.entropy_lower_bound``, paper Theorem/SI-2), implemented and unit-tested
-since Phase 2 but never wired up as a *usable* acquisition objective. ``objective``
-selects between them (default ``"taylor"``, so existing behavior/baselines/reference
-values are unchanged unless a caller explicitly opts into ``"lower_bound"``).
+The paper derives TWO entropy estimators -- the 2nd-order Taylor approximation
+(``entropy.second_order_entropy``, the one that actually drove acquisition in the paper
+and remains the default here) and a closed-form lower bound
+(``entropy.entropy_lower_bound``, paper Theorem/SI-2). ``objective`` selects between
+them (default ``"taylor"``).
 """
 
 from __future__ import annotations
@@ -45,8 +38,8 @@ from scipy.stats.qmc import Sobol
 from . import entropy as max_ent_design
 from . import kernels
 
-# Phase 9d: the two paper-derived entropy estimators, selectable via `objective` below.
-# Both accept (weights, means, covs_or_variances) positionally -- entropy_lower_bound's
+# The two paper-derived entropy estimators, selectable via `objective` below. Both
+# accept (weights, means, covs_or_variances) positionally -- entropy_lower_bound's
 # univariate-GMM assumption holds for every call site below, since entropy_objective
 # always evaluates the entropy of the GP's (scalar) OUTPUT at one point, never a
 # multi-point joint, so `means`/`variances` are always 1-D scalar arrays regardless of
@@ -121,11 +114,9 @@ def entropy_surface_2D(
 ) -> np.ndarray:
     """Entropy field over a 2-D grid spanning ``x_bounds`` at ``mesh`` points per dim.
 
-    Moved from ``adaptiveEntropy.gen_entropy_surface_data_2D``.
-
-    2-D-ONLY VISUALIZATION DIAGNOSTIC (Phase 5): a dense grid is exponential in the
-    input dimension d, so this is intentionally not generalized to N-D. It does not
-    feed the acquisition -- see ``optimize`` for the N-D-general acquisition path.
+    2-D-ONLY VISUALIZATION DIAGNOSTIC: a dense grid is exponential in the input
+    dimension d, so this is intentionally not generalized to N-D. It does not feed the
+    acquisition -- see ``optimize`` for the N-D-general acquisition path.
 
     Returns
     -------
@@ -167,17 +158,16 @@ def optimize(
 ) -> OptimizeResult:
     """Multistart optimization of the entropy objective over ``x_bounds`` (N-D).
 
-    Moved from ``adaptiveEntropy.optimize_2D``; generalized (Phase 5) to arbitrary
-    input dimension ``d = len(x_bounds)`` -- this is the acquisition path an N-D run
-    actually depends on (contrast ``entropy_surface_2D``, a 2-D-only diagnostic).
-    Sobol-scrambled restarts drawn in the physical space, optimized in GP (transformed)
-    space.
+    Works at arbitrary input dimension ``d = len(x_bounds)`` -- this is the acquisition
+    path an N-D run actually depends on (contrast ``entropy_surface_2D``, a 2-D-only
+    diagnostic). Sobol-scrambled restarts drawn in the physical space, optimized in GP
+    (transformed) space.
 
-    For ``d == 2`` this reproduces the pre-Phase-5 ``optimize_2D`` bit-for-bit: the
-    vectorized bound-scaling below (``lo + x0 * (hi - lo)``) is the same floating-point
-    operation order as the original per-dimension expression (IEEE 754 addition is
-    commutative, so ``lo[j] + x0[j] * (hi[j] - lo[j])`` and the original
-    ``x0[j] * (hi[j] - lo[j]) + lo[j]`` round identically).
+    The vectorized bound-scaling below (``lo + x0 * (hi - lo)``) is written in this
+    operand order deliberately: it matters for bit-exactness against
+    ``tests/integration/data/synthetic_baseline.json``'s pinned values at ``d == 2``
+    (IEEE 754 addition is commutative, so ``x0[j] * (hi[j] - lo[j]) + lo[j]`` would be
+    equally correct mathematically, but rounds differently).
 
     Parameters
     ----------

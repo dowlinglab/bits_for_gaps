@@ -2,7 +2,7 @@
 
 These are pure NumPy/SciPy (no TensorFlow), so they run fast and in CI without the
 GP stack. They combine closed-form correctness checks (no magic numbers) with one
-regression pin against the paper code's 5-component mixture example (huber_et_al.py).
+regression pin against the paper's own 5-component mixture example.
 """
 
 import numpy as np
@@ -59,8 +59,8 @@ def test_lower_bound_below_second_order_for_mixture():
 
 
 def test_huber_5d_mixture_regression():
-    # Regression pin against the paper code (fxns/max_ent_design.second_order_entropy)
-    # on the 5-component bivariate mixture from huber_et_al.py, with means[4] = [1, 1].
+    # Regression pin on the paper's own 5-component bivariate mixture example,
+    # with means[4] = [1, 1].
     means = np.array([[0, 0], [3, 2], [1, -0.5], [2.5, 1.5], [1, 1]], dtype=float)
     covs = np.array(
         [
@@ -77,7 +77,7 @@ def test_huber_5d_mixture_regression():
 
 
 ## ---------------------------------------------------------------------------
-## Phase 9c: assert -> explicit exception for the runtime, data-dependent density
+## Explicit exception (not a bare assert) for the runtime, data-dependent density
 ## check (asserts are silently stripped under python -O).
 ## ---------------------------------------------------------------------------
 

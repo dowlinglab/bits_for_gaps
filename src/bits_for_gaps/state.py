@@ -1,11 +1,10 @@
 """In-memory run state for the sequential-design loop.
 
-Replaces the paper code's disk-as-state convention (``np.savetxt``/``pickle`` under
-``results/{exp_name}/``, read back on the next iteration -- see ``driver_new.py``'s
-``adaptiveEntropy.run_model``) with plain in-memory records. Disk output is still
-available, but as an *opt-in* checkpoint (``sampler.adaptiveEntropy.run``'s
-``checkpoint_dir`` argument), not the mechanism by which state is threaded across
-iterations.
+State is threaded across iterations via plain in-memory records, not disk. Disk output
+is still available, but as an *opt-in* checkpoint (``sampler.adaptiveEntropy.run``'s
+``checkpoint_dir`` argument, mirroring the paper code's per-iteration ``np.savetxt``/
+``pickle`` dump under ``results/{exp_name}/``), not the mechanism by which state is
+threaded across iterations.
 """
 
 from __future__ import annotations
@@ -33,7 +32,7 @@ class IterationRecord:
     chains_states: np.ndarray  # all chains, unconstrained
     rhat: np.ndarray
     ess: np.ndarray
-    entropy_field: Optional[np.ndarray] = None  # 2-D only (Phase 5 generalizes)
+    entropy_field: Optional[np.ndarray] = None  # 2-D only; None for N-D runs
     xStar: Optional[np.ndarray] = None
     max_entropy: Optional[float] = None
     lml_result: Optional[Any] = None  # scipy OptimizeResult, if maximize_lml ran
