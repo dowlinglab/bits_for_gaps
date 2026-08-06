@@ -4,13 +4,13 @@
 # TestPyPI each need their own, both naming this workflow file and the `release`
 # environment below) and the full release checklist.
 #
-# `pypa/gh-action-pypi-publish` is referenced by PyPA's own recommended floating tag
-# (`release/v1`, which PyPA moves to point at the latest v1.x release) rather than a
-# commit SHA -- this session had no network access to look up and verify a real SHA,
-# and a fabricated one would be worse than an honest floating-tag reference. Before
-# the first real publish, the maintainer should pin this to a specific released
-# version's commit SHA (see https://github.com/pypa/gh-action-pypi-publish/releases)
-# for a fully immutable reference, e.g. `@<sha> # v1.x.y`.
+# `pypa/gh-action-pypi-publish` is pinned to an immutable commit SHA (supply-chain
+# hardening: a floating tag like `release/v1` can be moved). The pinned SHA
+# dc37677b2e1c63e2034f94d8a5b11f265b73ba33 is release v1.14.2, verified via the GitHub
+# API to be the same commit `release/v1` pointed at for the successful 2026-08-06
+# TestPyPI dry run -- so this pin is the known-good version, not an untested bump.
+# To update: look up the desired release's commit SHA at
+# https://github.com/pypa/gh-action-pypi-publish/releases and change both `uses:` lines.
 name: Publish
 
 on:
@@ -57,7 +57,7 @@ jobs:
           name: dist
           path: dist/
       - name: Publish to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist/
@@ -78,6 +78,6 @@ jobs:
           name: dist
           path: dist/
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
         with:
           packages-dir: dist/

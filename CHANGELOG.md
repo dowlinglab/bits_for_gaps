@@ -1,20 +1,18 @@
 # Changelog
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/); versioning
-follows [Semantic Versioning](https://semver.org/). `v0.1.0` (not yet tagged -- see
-`RELEASE.md`) is the first release; its entry below summarizes everything since the
-package's extraction from the paper's research code (`entropy_driven_hybrid_models_code`)
-began. See `HANDOFF.md` for the full phase-by-phase narrative and
+follows [Semantic Versioning](https://semver.org/). `v0.1.0` is the first release; its
+entry below summarizes everything since the package's extraction from the paper's
+research code (`entropy_driven_hybrid_models_code`) began. See `HANDOFF.md` for the full phase-by-phase narrative and
 `docs/improvements_over_paper.md` for a detailed comparison against the original code.
 
 ## [Unreleased]
 
 Nothing yet -- `v0.1.0` below is the first release.
 
-## [0.1.0] - YYYY-MM-DD
+## [0.1.0] - 2026-08-06
 
-The first release. `YYYY-MM-DD` is a placeholder -- the maintainer sets the actual
-release date at tag time (see `RELEASE.md`).
+The first release.
 
 ### Added
 
