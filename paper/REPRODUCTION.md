@@ -108,7 +108,7 @@ anywhere in this section.
 
 ```bash
 export PYTHON_JULIACALL_HANDLE_SIGNALS=yes
-python paper/full_reproduction.py --out-dir results_remaked/phase9_fullrun   # ~25 min
+python paper/full_reproduction.py --out-dir results_remaked/full_reproduction   # ~25 min
 ```
 
 This is a **one-time validation exercise**, not a regression test -- there is no

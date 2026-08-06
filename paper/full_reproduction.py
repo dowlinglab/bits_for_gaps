@@ -12,14 +12,14 @@ expected to be *qualitatively*, not bitwise, consistent with the paper. Document
 runtime is ~25-30 minutes on a laptop (15 outer iterations, each running a
 4-chain/5000-sample HMC fit plus a 50-draw full-grid posterior-predictive diagnostic).
 
-All artifacts go to ``--out-dir`` (default ``results_remaked/phase9_fullrun/``,
+All artifacts go to ``--out-dir`` (default ``results_remaked/full_reproduction/``,
 already gitignored) -- nothing this script produces is committed; only the numbers in
 its ``full_run_summary.json`` feed the write-up appended to ``paper/REPRODUCTION.md``.
 
 Usage::
 
     export PYTHON_JULIACALL_HANDLE_SIGNALS=yes
-    python paper/full_reproduction.py --out-dir results_remaked/phase9_fullrun
+    python paper/full_reproduction.py --out-dir results_remaked/full_reproduction
 """
 
 import argparse
@@ -111,7 +111,7 @@ def run(out_dir, n_init=N_INIT, n_test=N_TEST, n_iters=N_ITERS, seed=SEED):
         input_transform=INPUT_TRANSFORM,
         output_transform=OUTPUT_TRANSFORM,
         iters=n_iters,
-        exp_name="phase9_fullrun",
+        exp_name="full_reproduction",
     )
     bfg.seed = seed
     bfg.noSamples, bfg.noBurnIn = 5000, 0
@@ -221,8 +221,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "--out-dir",
-        default=os.path.join(REPO_ROOT, "results_remaked", "phase9_fullrun"),
-        help="Gitignored output directory (default: results_remaked/phase9_fullrun)",
+        default=os.path.join(REPO_ROOT, "results_remaked", "full_reproduction"),
+        help="Gitignored output directory (default: results_remaked/full_reproduction)",
     )
     parser.add_argument("--n-iters", type=int, default=N_ITERS)
     args = parser.parse_args()

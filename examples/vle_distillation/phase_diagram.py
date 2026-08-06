@@ -119,8 +119,8 @@ def surrogate_gamma_averaged(
         HMC posterior samples (e.g. ``bits_for_gaps.state.IterationRecord.trace``), in
         ``GPmodel.kernel.hyperparameters``'s canonical order.
     n_draws : int
-        Number of posterior draws to average (50, matching the paper's
-        ``PhaseDiagram.n_draws``).
+        Number of posterior draws to average. The default of 50 matches the number of
+        draws behind the paper's Fig 8/9 surrogate curves.
     """
     from bits_for_gaps.kernels import assign_hyperparameters
 

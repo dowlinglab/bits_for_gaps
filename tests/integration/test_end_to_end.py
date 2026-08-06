@@ -145,7 +145,7 @@ def test_stable_across_two_runs_with_same_seed(run_a, run_b):
 
 
 @pytest.mark.slow
-def test_matches_pre_phase4_baseline(run_a):
+def test_matches_synthetic_baseline(run_a):
     # Hard pin against tests/integration/data/synthetic_baseline.json -- captured once
     # and never regenerated, so this must reproduce these exact numbers, not merely
     # match itself.
