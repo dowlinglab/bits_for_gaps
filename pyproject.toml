@@ -128,8 +128,35 @@ quote-style = "double"
 testpaths = ["tests"]
 # `vle` tests need the Julia/Clapeyron backend; deselect them by default so a plain
 # `pytest -q` is green on the pure-Python core. Run them with `pytest -m vle`.
+# Deliberately NOT `--cov=...` here: a plain `pytest -q` (what a contributor runs day
+# to day) stays fast and its output stays unchanged. Measure coverage explicitly with
+# `pytest --cov=bits_for_gaps --cov-report=term-missing` (see README.md/docs); CI wires
+# that invocation in on one job so `fail_under` below actually gates something.
 addopts = "-ra -m 'not vle'"
 markers = [
     "vle: requires the Julia/Clapeyron VLE example backend (deselected by default)",
     "slow: slower end-to-end tests (still run by default)",
 ]
+
+[tool.coverage.run]
+# Measure only the shipped package -- examples/, paper/, and tests/ are repo-only
+# (see docs/installation.md) and would otherwise dilute the denominator with code
+# that was never meant to ship.
+source = ["bits_for_gaps"]
+branch = true
+
+[tool.coverage.report]
+# `pytest -m vle`'s 2 Julia-backed tests are deselected by default (see above), so
+# default-suite coverage never reflects them -- that's expected, not a gap to chase.
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+]
+# 100% measured on the default suite (`pytest -q --cov=bits_for_gaps --cov-branch`,
+# 605 statements + 134 branches) as of the commit that added this config -- 1 point of
+# slack for legitimate small variation (coverage.py branch-counting differences across
+# supported Python versions), not to paper over a regression.
+fail_under = 99

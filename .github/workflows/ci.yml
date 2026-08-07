@@ -7,6 +7,14 @@
 # import anything Julia-touching at module import time, so this runs clean without the
 # [vle] extra. Julia-backed VLE + regression tests that need it stay a separate, gated
 # job for whenever CI grows a Julia-capable runner.
+#
+# Coverage is measured on the 3.12 matrix leg only (one upload, not four -- Codecov
+# would otherwise report the same numbers repeatedly) and uploaded to Codecov, which
+# works without a token for public repos (see README.md's badge). `pytest-cov`'s own
+# `fail_under` (pyproject.toml's [tool.coverage.report]) is what actually gates
+# coverage regressions -- Codecov's upload is reporting/visibility on top of that, not
+# a second gate, so a transient upload failure (e.g. codecov.io being briefly
+# unreachable) doesn't fail CI (`fail_ci_if_error: false`).
 name: CI
 
 on:
@@ -46,4 +54,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
       - name: Run the default test suite (unit + integration + regression, not vle)
+        if: matrix.python-version != '3.12'
         run: pytest -q
+      - name: Run the default test suite with coverage (3.12 only, for Codecov)
+        if: matrix.python-version == '3.12'
+        run: pytest -q --cov=bits_for_gaps --cov-report=xml --cov-report=term-missing
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false

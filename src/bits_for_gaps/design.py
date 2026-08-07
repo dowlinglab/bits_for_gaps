@@ -69,7 +69,10 @@ def full_factorial_design(
     levels = int(np.ceil(n_total ** (1 / d)))
     grid_unit = np.array(list(product(*[np.linspace(0, 1, levels) for _ in range(d)])))
 
-    if len(grid_unit) < n_total:
+    if len(grid_unit) < n_total:  # pragma: no cover
+        # Unreachable for any (bounds, n_train, n_test): levels = ceil(n_total**(1/d))
+        # guarantees levels**d >= n_total. Defensive dead code -- see the NOTE in
+        # tests/unit/test_design.py.
         raise ValueError(f"Factorial grid has {len(grid_unit)} points, need {n_total}.")
     if len(grid_unit) > n_total:
         rng = np.random.default_rng(seed)

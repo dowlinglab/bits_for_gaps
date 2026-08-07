@@ -10,6 +10,7 @@ import pytest
 from scipy import stats
 
 from bits_for_gaps.entropy import (
+    cholesky,
     entropy_lower_bound,
     first_order_entropy_approx,
     gaussian_mixture_density,
@@ -124,3 +125,21 @@ def test_gaussian_mixture_density_multivariate_matches_scipy():
     cov = np.diag([1.0, 0.5])
     density = gaussian_mixture_density(x, means=[mean], covs=[cov], weights=[1.0])
     assert density == pytest.approx(stats.multivariate_normal.pdf(x, mean=mean, cov=cov), rel=1e-12)
+
+
+## ---------------------------------------------------------------------------
+## cholesky: not currently called elsewhere in this package (second_order_entropy's
+## multivariate branch uses np.linalg.inv directly) but a public, documented utility
+## a caller could rely on -- tested directly on its own mathematical contract.
+## ---------------------------------------------------------------------------
+
+
+def test_cholesky_matches_direct_matrix_inverse():
+    C = np.array([[4.0, 1.0], [1.0, 3.0]])
+    np.testing.assert_allclose(cholesky(C), np.linalg.inv(C), rtol=1e-12)
+
+
+def test_cholesky_result_is_a_true_inverse():
+    C = np.array([[2.0, 0.3, 0.1], [0.3, 1.5, 0.2], [0.1, 0.2, 1.0]])
+    C_inv = cholesky(C)
+    np.testing.assert_allclose(C @ C_inv, np.eye(3), atol=1e-12)

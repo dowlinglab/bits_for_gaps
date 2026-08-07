@@ -1,6 +1,7 @@
 # BITS for GAPS
 
 [![CI](https://github.com/dowlinglab/bits_for_gaps/actions/workflows/ci.yml/badge.svg)](https://github.com/dowlinglab/bits_for_gaps/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/dowlinglab/bits_for_gaps/branch/main/graph/badge.svg)](https://codecov.io/gh/dowlinglab/bits_for_gaps)
 [![PyPI](https://img.shields.io/pypi/v/bits_for_gaps.svg)](https://pypi.org/project/bits_for_gaps/)
 [![Docs](https://readthedocs.org/projects/bits-for-gaps/badge/?version=latest)](https://bits-for-gaps.readthedocs.io/en/latest/?badge=latest)
 
@@ -68,6 +69,13 @@ docs/                Sphinx documentation (ReadTheDocs)
 
 ```bash
 pytest -q
+```
+
+To measure coverage locally (scoped to `src/bits_for_gaps` -- `examples/`, `paper/`,
+and `tests/` are repo-only and excluded from the denominator):
+
+```bash
+pytest --cov=bits_for_gaps --cov-report=term-missing
 ```
 
 ## Provenance

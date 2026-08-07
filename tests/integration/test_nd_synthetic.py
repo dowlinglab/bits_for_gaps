@@ -170,3 +170,17 @@ def test_stable_across_two_runs_with_same_seed(run_a, run_b):
     np.testing.assert_allclose(a.trace, b.trace, atol=1e-10)
     np.testing.assert_allclose(a.xStar, b.xStar, atol=1e-10)
     assert a.max_entropy == pytest.approx(b.max_entropy, abs=1e-10)
+
+
+@pytest.mark.slow
+def test_checkpoint_skips_entropy_file_for_non_2d(case, tmp_path):
+    # _write_checkpoint only writes entropy_{it} when record.entropy_field is not
+    # None -- which test_end_to_end.py's 2-D checkpoint test always has, so the d != 2
+    # (entropy_field is None) branch is otherwise never exercised.
+    X_init, y_init = _initial_design(case["bounds"], case["true_f"], n=10)
+    bfg = _build_bfg(case)
+    checkpoint_dir = tmp_path / "checkpoints"
+    bfg.run(X_init, y_init, checkpoint_dir=str(checkpoint_dir))
+    written = {p.name for p in checkpoint_dir.iterdir()}
+    assert {"rhat_value_1.txt", "ess_value_1.txt", "activity_data_2", "gp_model_1.pkl"} <= written
+    assert "entropy_1" not in written
