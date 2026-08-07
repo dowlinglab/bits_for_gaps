@@ -6,6 +6,10 @@
 
 **B**ayesian **I**nformation-**T**heoretic **S**ampling for hierarchical **GA**ussian **P**rocess **S**urrogates.
 
+![BITS for GAPS framework overview: a hierarchical Gaussian process surrogate (GAPS) places priors on the kernel hyperparameters; Bayesian information-theoretic sampling (BITS) repeatedly selects the next input by maximizing the predictive differential entropy and collects data there; the result is an information-optimal surrogate whose predictions average over the hyperparameter posterior.](https://raw.githubusercontent.com/dowlinglab/bits_for_gaps/main/docs/graphical_abstract.jpg)
+
+*Graphical abstract from the paper (© 2026 The Authors, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).*
+
 A framework for information-theoretic sequential experimental design with Bayesian
 hierarchical Gaussian-process surrogates. Prior physical knowledge is encoded through
 priors on the GP hyperparameters; sampling is guided by maximizing the predictive

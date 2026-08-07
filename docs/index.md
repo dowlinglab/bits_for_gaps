@@ -12,6 +12,19 @@ data acquisition. Many other adaptive sampling methods in literature use the GP'
 and ignore uncertainty in the hyperparameters themselves, which (we argue) matters most exactly when data are scarce.
 BITS for GAPS addresses this limitation.
 
+```{figure} graphical_abstract.jpg
+:alt: BITS for GAPS framework overview: a hierarchical Gaussian process surrogate (GAPS) places priors on the kernel hyperparameters; Bayesian information-theoretic sampling (BITS) repeatedly selects the next input by maximizing the predictive differential entropy and collects data there; the result is an information-optimal surrogate whose predictions average over the hyperparameter posterior.
+:align: center
+:width: 100%
+
+The BITS for GAPS framework. A hierarchical GP surrogate (**GAPS**) carries priors on its
+kernel hyperparameters; **BITS** repeatedly picks the next input by maximizing the
+predictive differential entropy of the hierarchical posterior, collects data there, and
+updates the surrogate; predictions then average over the hyperparameter posterior.
+*Graphical abstract from the paper (© 2026 The Authors,
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).*
+```
+
 ```{admonition} Reference
 K. D. Jones and A. W. Dowling, "BITS for GAPS: Bayesian Information-Theoretic
 Sampling for hierarchical GAussian Process Surrogates," *Computers & Chemical
