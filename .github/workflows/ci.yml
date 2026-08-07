@@ -24,6 +24,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manual re-run, e.g. to retry a Codecov upload after rotating CODECOV_TOKEN
+  # without having to push an empty commit.
+  workflow_dispatch: {}
 
 jobs:
   lint:
