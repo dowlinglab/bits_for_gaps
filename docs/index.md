@@ -9,7 +9,7 @@ knowledge is encoded through priors on the GP hyperparameters; new data is chose
 maximizing the predictive differential entropy of the resulting hierarchical
 posterior, so *hyperparameter uncertainty* -- not just predictive variance -- drives
 data acquisition. Many other adaptive sampling methods in literature use the GP's predictive variance 
-and ignore uncertainty in the hyperparameters themselves, which (we argue) matters most exactly when data is scarce.
+and ignore uncertainty in the hyperparameters themselves, which (we argue) matters most exactly when data are scarce.
 BITS for GAPS addresses this limitation.
 
 ```{admonition} Reference
