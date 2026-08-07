@@ -5,7 +5,7 @@
 
 `bits_for_gaps` is a small library for information-theoretic sequential experimental
 design with Bayesian hierarchical Gaussian-process (GP) surrogates. Prior physical
-knowledge is encoded through priors on the GP hyperparameters; new data is chosen by
+knowledge is encoded through priors on the GP hyperparameters; new data are chosen by
 maximizing the predictive differential entropy of the resulting hierarchical
 posterior, so *hyperparameter uncertainty* -- not just predictive variance -- drives
 data acquisition. Many other adaptive sampling methods in literature use the GP's predictive variance 
