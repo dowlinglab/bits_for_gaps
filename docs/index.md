@@ -37,9 +37,13 @@ The paper is also bundled in the repository —
 read the method alongside the code. Please cite the DOI.
 ```
 
-```{admonition} Status
+```{admonition} Source code
 :class: note
-0.x: released on PyPI, but the public API may still change before a 1.0 release.
+`bits_for_gaps` is developed in the open at
+[github.com/dowlinglab/bits_for_gaps](https://github.com/dowlinglab/bits_for_gaps) —
+source, the worked examples, the paper-reproduction scripts, and the issue tracker. Install
+the library with `pip install bits_for_gaps`; the examples and reproduction scripts live in
+the repository only (see {doc}`installation`).
 ```
 
 ## Where to start
