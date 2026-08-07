@@ -213,3 +213,53 @@ considerably tighter than "qualitative" on the deterministic parts of the pipeli
 (HMC diagnostics, hyperparameter posterior, entropy field). Reproduce via
 `paper/full_reproduction.py` (module docstring has the exact constants used); not
 gated in CI (see above).
+
+### Cross-Python-version check: the same rerun on Python 3.12
+
+The numbers above are from a Python 3.9 run (this package's original dev environment).
+When widening supported Python versions to 3.9-3.12, `paper/full_reproduction.py` was
+rerun from scratch on **3.12** (same TF 2.16.2/GPflow 2.9.2 pins -- only the
+interpreter changed) to confirm the science, not just the test suite, holds across
+versions. Completed in 0.47 h (28 min, inside the documented ~25-30 min range).
+
+**Iterations 1-2 reproduced the 3.9 run's max entropy to 6+ significant figures**
+(1.4576908 vs. 1.4577 at iteration 1; 1.2470073 vs. 1.2470 at iteration 2) -- striking,
+given no bitwise-reproducibility guarantee was made across interpreters. From
+iteration 3 on, the two runs' design trajectories diverge (expected: each iteration's
+`predict_grid`-style posterior-predictive diagnostic draws from TensorFlow's ambient,
+unseeded RNG -- see `bits_for_gaps/mixture.py`'s module docstring -- so the *same*
+non-reproducibility this package already documents *within* one Python version also
+separates two versions' runs once it fires). What matters for this check is that the
+statistical conclusions survive that divergence:
+
+| | R-hat (iter 15) | ESS (iter 15) |
+|---|---|---|
+| Python 3.9 fresh run (above) | 1.00523, 1.00730, 1.00879 | 1468.29, 2428.09, 653.15 |
+| Python 3.12 fresh run | 1.00527, 1.00736, 1.00879 | 1468.06, 2424.94, 653.15 |
+
+Both comfortably under the R-hat < 1.1 threshold, both healthy ESS -- HMC convergence
+is not Python-version-sensitive.
+
+| | mean | median |
+|---|---|---|
+| Python 3.9 fresh run (above) | 1.35645, 0.86239, 3.19502 | 1.28619, 0.81949, 3.04407 |
+| Python 3.12 fresh run | 1.35606, 0.86216, 3.19502 | 1.28501, 0.81881, 3.04407 |
+
+Same ordering (`lengthscale_2` > `lengthscale_1`) as every other run of this model.
+
+Max entropy still decays from **1.458** (iteration 1) to **-0.224** (iteration 15),
+crossing zero in the same iteration range as the 3.9 run. Test RMSE still drops from
+**4.385** (iteration 1) to **0.856** (iteration 15) -- a ~5.1x reduction, matching the
+3.9 fresh run's ~4.9x (4.337 -> 0.887) and the paper's own ~6.5x (4.34 -> 0.67); same
+non-monotonic-between-iterations trend, expected for an entropy- (not error-) driven
+acquisition. Both the Wilson and the 15-iteration-adaptive surrogate McCabe-Thiele
+columns converged, tracking each other within 0.027 mole fraction (liquid) / 0.014
+(vapor) at every stage -- inside the 0.03/0.014 band the 3.9 run and the regression
+suite's own tolerance already use.
+
+**Conclusion: Python 3.12 gives statistically equivalent science to Python 3.9**, with
+the deterministic parts of the pipeline (HMC diagnostics, hyperparameter posterior
+ordering) landing close enough to look almost version-independent, and the
+RNG-sensitive parts (entropy trajectory past iteration 2, test RMSE, column stage
+values) landing in the same regime as every other independent rerun of this model,
+3.9 included.

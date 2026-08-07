@@ -8,9 +8,9 @@ design with Bayesian hierarchical Gaussian-process (GP) surrogates. Prior physic
 knowledge is encoded through priors on the GP hyperparameters; new data is chosen by
 maximizing the predictive differential entropy of the resulting hierarchical
 posterior, so *hyperparameter uncertainty* -- not just predictive variance -- drives
-data acquisition. That distinction is the paper's contribution and the reason the
-library exists: a plain GP's predictive variance ignores uncertainty in the
-hyperparameters themselves, which matters most exactly when data is scarce.
+data acquisition. Many other adaptive sampling methods in literature use the GP's predictive variance 
+and ignore uncertainty in the hyperparameters themselves, which (we argue) matters most exactly when data is scarce.
+BITS for GAPS addresses this limitation.
 
 ```{admonition} Reference
 K. D. Jones and A. W. Dowling, "BITS for GAPS: Bayesian Information-Theoretic

@@ -7,7 +7,7 @@ name = "bits_for_gaps"
 dynamic = ["version"]
 description = "Bayesian Information-Theoretic Sampling for hierarchical GAussian Process Surrogates (BITS for GAPS)"
 readme = "README.md"
-requires-python = ">=3.9,<3.10"
+requires-python = ">=3.9,<3.13"
 license = { file = "LICENSE" }
 authors = [
     { name = "Alexander W. Dowling", email = "adowling@nd.edu" },
@@ -23,6 +23,9 @@ classifiers = [
     "License :: OSI Approved :: BSD License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Operating System :: OS Independent",
@@ -30,7 +33,10 @@ classifiers = [
 
 # Frozen reproduction baseline: an exact, verified-working stack rather than floating
 # version ranges, since GPflow's TensorFlow dependency makes casual version bumps
-# risky. tensorflow-macos on Apple Silicon; plain tensorflow elsewhere.
+# risky. tensorflow-macos on Apple Silicon; plain tensorflow elsewhere. Verified on
+# Python 3.9-3.12 (see docs/installation.md); the numpy<2 pin is also why 3.13+ isn't
+# available -- GPflow requires numpy<2 in every release, and no numpy 1.x supports
+# Python 3.13 (an upstream constraint -- see docs/installation.md).
 dependencies = [
     "numpy>=1.26,<2",
     "scipy>=1.13,<1.14",

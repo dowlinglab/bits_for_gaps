@@ -5,6 +5,17 @@
 #   conda activate bits_for_gaps
 #   pip install -e ".[dev,vle]"
 #
+# Python 3.12 (moved here from 3.9 -- see CHANGELOG.md's Python-3.9-3.12 entry): the
+# package supports 3.9-3.12, and this dev/reproduction env now uses the top of that
+# range so day-to-day development and `paper/reproduce.py`/`paper/full_reproduction.py`
+# runs exercise the newest supported interpreter. Verified with a from-scratch,
+# ~28-minute `paper/full_reproduction.py` rerun on 3.12: HMC R-hat/ESS, the
+# hyperparameter posterior, and the McCabe-Thiele column all reproduce the paper's
+# statistical/qualitative behavior (see paper/REPRODUCTION.md). If you specifically
+# need the interpreter the archived published results (`paper/data/`, `paper/reference/`)
+# were originally produced on, change `python=3.12` below to `python=3.9` -- every
+# other pin in this file is unaffected either way.
+#
 # IMPORTANT (macOS): export PYTHON_JULIACALL_HANDLE_SIGNALS=yes before running
 # anything that imports juliacall, or Julia crashes with a bus error (SIGBUS).
 name: bits_for_gaps
@@ -12,7 +23,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.9
+  - python=3.12
   - pip
   - numpy=1.26.*
   - scipy=1.13.*

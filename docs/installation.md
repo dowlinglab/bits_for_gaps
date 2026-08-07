@@ -10,13 +10,26 @@ optional VLE/distillation example, and even then only when you actually call int
 pip install bits_for_gaps
 ```
 
-```{admonition} Frozen dependency stack
+```{admonition} Frozen dependency stack, Python 3.9-3.12
 :class: note
-The core pins an exact, verified-working stack rather than floating version ranges:
-Python 3.9, NumPy 1.26, SciPy 1.13, GPflow 2.9.2, TensorFlow 2.16.2, TensorFlow
-Probability 0.24.0. This is a deliberate reproducibility choice -- GPflow's TensorFlow
-dependency makes casual version bumps risky, so modernizing the stack is left as a
-separate, later effort.
+The core pins an exact, verified-working dependency stack rather than floating version
+ranges: NumPy 1.26, SciPy 1.13, GPflow 2.9.2, TensorFlow 2.16.2, TensorFlow Probability
+0.24.0. This is a deliberate reproducibility choice -- GPflow's TensorFlow dependency
+makes casual version bumps risky, so modernizing the stack is left as a separate, later
+effort. The package itself supports **Python 3.9 through 3.12**, verified with a real
+test-suite run (including the exact-value regression pins) on every one of those four
+versions.
+```
+
+```{admonition} Why not Python 3.13+?
+:class: important
+This is an **upstream constraint**, not a project choice: `bits_for_gaps` depends on
+GPflow, and GPflow requires `numpy<2` in every release it has ever published, including
+the latest (2.11.1). No 1.x release of NumPy publishes a Python 3.13 wheel -- the first
+NumPy version that does is 2.1.0. So GPflow (and therefore this package) cannot run on
+Python 3.13 at all, regardless of what this package's own pins say. TensorFlow's newest
+release similarly has no Python 3.14 wheels yet. Python 3.12 is the ceiling until GPflow
+adds NumPy 2 support upstream -- no timeline is promised or implied.
 ```
 
 Verify it imports (no Julia touched):
@@ -30,7 +43,8 @@ python -c "import bits_for_gaps; print(bits_for_gaps.__version__)"
 ```bash
 git clone https://github.com/dowlinglab/bits_for_gaps
 cd bits_for_gaps
-conda env create -f environment.yml   # Python 3.9 + the pinned stack
+conda env create -f environment.yml   # Python 3.12 + the pinned stack (see the file's
+                                       # header comment for using 3.9 instead)
 conda activate bits_for_gaps
 pip install -e .
 ```
