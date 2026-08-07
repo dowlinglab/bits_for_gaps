@@ -16,6 +16,7 @@ dist/
 htmlcov/
 .coverage
 .coverage.*
+coverage.xml
 
 # Local environments
 .venv/

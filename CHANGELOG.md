@@ -20,6 +20,24 @@ entry below summarizes the library relative to the paper's original research cod
   `numpy<2` in every release, and no NumPy 1.x publishes a Python 3.13 wheel -- an
   upstream constraint, not a limitation of this package's own pins. See
   `docs/installation.md`.
+- Measured, reported, and floor-gated code coverage for `src/bits_for_gaps` (the
+  shipped package only -- `examples/`, `paper/`, and `tests/` are repo-only and
+  excluded from the denominator). `pyproject.toml`'s `[tool.coverage.run]`/
+  `[tool.coverage.report]` configure branch coverage, honest exclusions
+  (`pragma: no cover`, `TYPE_CHECKING`, `NotImplementedError`, `__repr__`, the
+  `__main__` guard), and a `fail_under = 99` floor. `pytest -q` alone is unaffected
+  (fast, no coverage overhead); measure explicitly with `pytest --cov=bits_for_gaps
+  --cov-report=term-missing` (documented in `README.md`/`docs/installation.md`). CI
+  uploads coverage from the Python 3.12 matrix leg to Codecov (works without a token
+  for this public repo); see the new Codecov badge in `README.md`. Closed all 18
+  statements missed on the pre-existing 97% baseline -- 15 with real tests (the PEP
+  562 lazy-import path, a grid-trimming branch, `entropy.cholesky`'s correctness, two
+  unused-elsewhere `adaptiveEntropy` wrapper methods, the `showLMLres` diagnostic
+  branch, the deprecated `run_model` entry point, and a checkpoint-writing branch for
+  non-2-D runs) and 3 with a `# pragma: no cover` plus a documented reason (one
+  mathematically-unreachable guard, already noted in the test suite; one
+  `@tf.function`-wrapped line that genuinely executes but is invisible to
+  coverage.py's line tracer once AutoGraph compiles it into a TF graph).
 
 ## [0.1.2] - 2026-08-06
 

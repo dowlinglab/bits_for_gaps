@@ -52,12 +52,26 @@ pip install -e .
 ## Development install
 
 ```bash
-pip install -e ".[dev]"     # adds pytest, pytest-cov
-pytest -q                   # 204 passed, 2 deselected
+pip install -e ".[dev]"     # adds pytest, pytest-cov, ruff
+pytest -q                   # 218 passed, 2 deselected
 ```
 
 The 2 deselected tests need Julia (`@pytest.mark.vle`) -- run them with
 `pytest -m vle` after installing the `[vle]` extra below. See {doc}`reproduce_paper`.
+
+```{admonition} Coverage
+:class: note
+`pytest -q` alone never measures coverage -- it stays fast and its output stays
+unchanged for a plain local run. Measure it explicitly, scoped to the shipped
+package (`examples/`, `paper/`, and `tests/` are repo-only and excluded):
+
+    pytest --cov=bits_for_gaps --cov-report=term-missing
+
+CI measures coverage this way on one Python version (3.12) per run and uploads it to
+[Codecov](https://codecov.io/gh/dowlinglab/bits_for_gaps) (works without a token for
+this public repo); `pyproject.toml`'s `[tool.coverage.report]` sets a `fail_under`
+floor so coverage can't silently regress.
+```
 
 ## `examples/` and `paper/` are repo-only
 
