@@ -9,8 +9,10 @@
 # job for whenever CI grows a Julia-capable runner.
 #
 # Coverage is measured on the 3.12 matrix leg only (one upload, not four -- Codecov
-# would otherwise report the same numbers repeatedly) and uploaded to Codecov, which
-# works without a token for public repos (see README.md's badge). `pytest-cov`'s own
+# would otherwise report the same numbers repeatedly) and uploaded to Codecov. Codecov
+# requires a repository token even for public repos, supplied via the CODECOV_TOKEN
+# repository secret; without it the upload is rejected ("Token required - not valid
+# tokenless upload") and the README badge reads "unknown". `pytest-cov`'s own
 # `fail_under` (pyproject.toml's [tool.coverage.report]) is what actually gates
 # coverage regressions -- Codecov's upload is reporting/visibility on top of that, not
 # a second gate, so a transient upload failure (e.g. codecov.io being briefly
@@ -64,4 +66,5 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false

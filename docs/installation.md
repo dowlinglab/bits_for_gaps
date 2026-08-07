@@ -68,9 +68,9 @@ package (`examples/`, `paper/`, and `tests/` are repo-only and excluded):
     pytest --cov=bits_for_gaps --cov-report=term-missing
 
 CI measures coverage this way on one Python version (3.12) per run and uploads it to
-[Codecov](https://codecov.io/gh/dowlinglab/bits_for_gaps) (works without a token for
-this public repo); `pyproject.toml`'s `[tool.coverage.report]` sets a `fail_under`
-floor so coverage can't silently regress.
+[Codecov](https://codecov.io/gh/dowlinglab/bits_for_gaps) using the repository's
+`CODECOV_TOKEN` secret; `pyproject.toml`'s `[tool.coverage.report]` sets a
+`fail_under = 99` floor so coverage can't silently regress.
 ```
 
 ## `examples/` and `paper/` are repo-only
