@@ -32,6 +32,38 @@ repo and following the linked README.
    solver, given the phase diagram's liquid-vapor equilibrium curve and a column
    specification (feed composition, reflux ratio, product purities).
 
+## The governing equations
+
+Three equations from the paper's phase-equilibrium model are implemented directly
+here, outside `bits_for_gaps` itself -- the package never sees the underlying VLE
+physics, only the black-box PrOH activity coefficient it designs experiments for.
+
+Extended Raoult's law relates each vapor-phase partial pressure to the liquid
+composition, activity coefficient, and pure-component vapor pressure
+(`phase_diagram.eqm_residual`, `phase_diagram.dew_point_vapor_fraction`):
+
+$$z_b^{(v)} P = z_b^{(\ell)}\, \gamma_b\, P_b^* \tag{10}$$
+
+The GP surrogate models only $\gamma_{\mathrm{PrOH}}(z, T)$; the water coefficient is
+*derived* from it via the binary Gibbs-Duhem relation
+($z_1\, \mathrm{d}\ln\gamma_1 + z_2\, \mathrm{d}\ln\gamma_2 = 0$), integrated from a
+dilute reference state (`gibbs_duhem.gamma_water_from_gamma_proh`):
+
+$$\ln \gamma_2(z_1) = -\int_{\ln\gamma_1(0)}^{\ln\gamma_1(z_1)}
+\frac{z_1}{1 - z_1}\, \mathrm{d}\ln\gamma_1 \tag{11}$$
+
+The McCabe-Thiele column solver's stage balances and condenser/reboiler closures
+(`distillation.solve_column`) are given in full in **SI-4** ("Binary Distillation
+Model and Solution Procedure"); at constant molar overflow, the top/bottom closures
+are:
+
+$$L_0 = R D, \qquad V_1 = L_0 + D, \qquad L_n = V_{n+1} + W, \qquad
+x_D = x_0, \qquad x_W = x_n$$
+
+with the vapor-liquid equilibrium relation $y_i = \phi(x_i)$ on each stage $i$
+supplied by `equilibrium.make_equilibrium_function` (a cubic interpolant of the
+Eq (10) equilibrium curve).
+
 ## Wiring it to `bits_for_gaps`
 
 `run_case_study.py` ties the pieces together: a Latin-hypercube initial design over
