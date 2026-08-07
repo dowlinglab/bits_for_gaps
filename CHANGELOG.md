@@ -36,8 +36,8 @@ from 0.1.x -- no dependency version moved, and no tolerance or reference value w
   `__main__` guard), and a `fail_under = 99` floor. `pytest -q` alone is unaffected
   (fast, no coverage overhead); measure explicitly with `pytest --cov=bits_for_gaps
   --cov-report=term-missing` (documented in `README.md`/`docs/installation.md`). CI
-  uploads coverage from the Python 3.12 matrix leg to Codecov (works without a token
-  for this public repo); see the new Codecov badge in `README.md`. Closed all 18
+  uploads coverage from the Python 3.12 matrix leg to Codecov (via the repository's
+  `CODECOV_TOKEN` secret); see the new Codecov badge in `README.md`. Closed all 18
   statements missed on the pre-existing 97% baseline -- 15 with real tests (the PEP
   562 lazy-import path, a grid-trimming branch, `entropy.cholesky`'s correctness, two
   unused-elsewhere `adaptiveEntropy` wrapper methods, the `showLMLres` diagnostic
