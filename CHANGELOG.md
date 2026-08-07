@@ -7,7 +7,33 @@ entry below summarizes the library relative to the paper's original research cod
 
 ## [Unreleased]
 
-Nothing yet.
+Documentation and CI fixes only. Nothing in the installed package changed, so this content
+is already correct for anyone running `pip install bits_for_gaps==0.2.0`.
+
+### Fixed
+
+- **Codecov uploads were silently rejected**, leaving the coverage badge blank. Codecov
+  now requires an upload token even for public repositories, and the workflow wasn't
+  passing one (`{"message":"Token required - not valid tokenless upload"}`). The upload
+  step now passes the **organization-level** `CODECOV_TOKEN` secret. CI never failed over
+  this -- the step sets `fail_ci_if_error: false`, because Codecov is reporting and
+  `fail_under = 99` is the actual coverage gate -- so only the badge was affected.
+- Corrected the claim, in `ci.yml`, `docs/installation.md`, and this changelog, that
+  Codecov "works without a token for public repos". That was true once but no longer is.
+- Grammar on the documentation landing page: "new data is chosen" -> "new data **are**
+  chosen", matching the neighbouring "when data are scarce" ("data" as a plural noun).
+
+### Changed
+
+- The documentation landing page's "Status" admonition (a 0.x/pre-1.0 caveat, already
+  conveyed by the PyPI badge and this changelog) is replaced by a **Source code** box
+  linking to the GitHub repository, which also surfaces the distinction between the
+  pip-installed library and the repo-only examples and reproduction scripts.
+
+### Added
+
+- `workflow_dispatch` on the CI workflow, so it can be re-run from the Actions tab or
+  `gh workflow run ci.yml --ref main` without pushing a commit.
 
 ## [0.2.0] - 2026-08-06
 
@@ -36,17 +62,16 @@ from 0.1.x -- no dependency version moved, and no tolerance or reference value w
   `__main__` guard), and a `fail_under = 99` floor. `pytest -q` alone is unaffected
   (fast, no coverage overhead); measure explicitly with `pytest --cov=bits_for_gaps
   --cov-report=term-missing` (documented in `README.md`/`docs/installation.md`). CI
-  uploads coverage from the Python 3.12 matrix leg to Codecov (via the repository's
-  `CODECOV_TOKEN` secret); see the new Codecov badge in `README.md`. Closed all 18
-  statements missed on the pre-existing 97% baseline -- 15 with real tests (the PEP
-  562 lazy-import path, a grid-trimming branch, `entropy.cholesky`'s correctness, two
-  unused-elsewhere `adaptiveEntropy` wrapper methods, the `showLMLres` diagnostic
+  uploads coverage from the Python 3.12 matrix leg to Codecov; see the new Codecov badge
+  in `README.md`. Closed all 18 statements missed on the pre-existing 97% baseline -- 15
+  with real tests (the PEP 562 lazy-import path, a grid-trimming branch,
+  `entropy.cholesky`'s correctness, two unused-elsewhere `adaptiveEntropy` wrapper
+  methods, the `showLMLres` diagnostic
   branch, the deprecated `run_model` entry point, and a checkpoint-writing branch for
   non-2-D runs) and 3 with a `# pragma: no cover` plus a documented reason (one
   mathematically-unreachable guard, already noted in the test suite; one
   `@tf.function`-wrapped line that genuinely executes but is invisible to
   coverage.py's line tracer once AutoGraph compiles it into a TF graph).
-
 - The paper's graphical abstract (`docs/graphical_abstract.jpg`) on the README and the
   documentation landing page, with descriptive alt text and CC BY 4.0 attribution.
 
