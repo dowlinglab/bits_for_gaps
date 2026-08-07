@@ -174,7 +174,11 @@ def run_mcmc(
 
     @tf.function
     def run_chain_fn(chain_seed):
-        return tfp.mcmc.sample_chain(
+        # This line genuinely executes on every HMC run (every integration test that
+        # calls run() exercises it, repeatedly) -- it shows as uncovered because
+        # @tf.function's AutoGraph compiles this body into a TF graph, which runs
+        # outside CPython's normal per-line trace hooks that coverage.py relies on.
+        return tfp.mcmc.sample_chain(  # pragma: no cover
             num_results=no_samples,
             num_burnin_steps=no_burn_in,
             current_state=hmc_helper.current_state,

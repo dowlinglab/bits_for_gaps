@@ -128,8 +128,11 @@ def cholesky(C: np.ndarray) -> np.ndarray:
     -------
     np.ndarray, shape (d, d)
         ``C`` inverse, computed as ``L^-T L^-1`` where ``C = L L^T`` -- more
-        numerically stable than a direct ``np.linalg.inv`` for the covariance matrices
-        that arise here (used by :func:`second_order_entropy`'s multivariate branch).
+        numerically stable than a direct ``np.linalg.inv`` for well-conditioned
+        covariance matrices. Not currently called elsewhere in this package (
+        :func:`second_order_entropy`'s multivariate branch uses ``np.linalg.inv``
+        directly); kept as a public, tested utility for callers who want the more
+        numerically stable inverse.
     """
     L = np.linalg.cholesky(C)
     L_inv = np.linalg.inv(L)

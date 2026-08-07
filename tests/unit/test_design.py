@@ -48,7 +48,26 @@ def test_full_factorial_exact_grid_size_needs_no_trimming():
     assert test.shape == (0, 2)
 
 
-## NOTE: `full_factorial_design`'s "grid too small" `ValueError` (design.py:74-75) is
+def test_full_factorial_overshoot_grid_is_trimmed_and_seed_dependent():
+    # d=2, n_total=10 -> levels = ceil(sqrt(10)) = 4 -> a 4x4=16-point grid, which
+    # overshoots n_total=10 and must be randomly trimmed (the `rng.choice` branch
+    # `test_full_factorial_exact_grid_size_needs_no_trimming` above doesn't reach,
+    # since 9 is a perfect square).
+    bounds = [(0.0, 1.0), (0.0, 1.0)]
+    train, test = full_factorial_design(bounds, n_train=10, n_test=0, seed=0)
+    assert train.shape == (10, 2)
+    assert test.shape == (0, 2)
+    assert train.min() >= 0.0 and train.max() <= 1.0
+    # No duplicate points -- confirms `replace=False` trimming, not resampling.
+    assert len(np.unique(train, axis=0)) == 10
+
+    # A different seed must select a different subset of the 16-point grid (proves
+    # the trim is actually seeded, not silently deterministic regardless of `seed`).
+    train_b, _ = full_factorial_design(bounds, n_train=10, n_test=0, seed=1)
+    assert not np.array_equal(np.sort(train, axis=0), np.sort(train_b, axis=0))
+
+
+## NOTE: `full_factorial_design`'s "grid too small" `ValueError` (design.py:72-73) is
 ## unreachable for any (bounds, n_train, n_test): `levels = ceil(n_total ** (1/d))`
-## guarantees `levels ** d >= n_total`. Defensive dead code, not a bug -- not exercised
-## here since no input triggers it.
+## guarantees `levels ** d >= n_total`. Defensive dead code, not a bug -- marked
+## `# pragma: no cover` at the source rather than faked with a test.
