@@ -7,6 +7,14 @@ entry below summarizes the library relative to the paper's original research cod
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] - 2026-08-06
+
+A consolidation release: broader Python support, complete test coverage, and substantially
+clearer documentation. The algorithm, its defaults, and its numerical results are unchanged
+from 0.1.x -- no dependency version moved, and no tolerance or reference value was touched.
+
 ### Added
 
 - Support for Python 3.10, 3.11, and 3.12, alongside the existing 3.9 (`pyproject.toml`'s
@@ -38,6 +46,22 @@ entry below summarizes the library relative to the paper's original research cod
   mathematically-unreachable guard, already noted in the test suite; one
   `@tf.function`-wrapped line that genuinely executes but is invisible to
   coverage.py's line tracer once AutoGraph compiles it into a TF graph).
+
+- The paper's graphical abstract (`docs/graphical_abstract.jpg`) on the README and the
+  documentation landing page, with descriptive alt text and CC BY 4.0 attribution.
+
+### Changed
+
+- The VLE case study's own thermodynamics -- extended Raoult's law (Eq 10), the
+  Gibbs-Duhem relation (Eq 11), and the SI-4 McCabe-Thiele column closures -- moved from
+  the Theory page to the VLE/distillation example page, where each equation now sits
+  beside the component it describes. The Theory page is about the method; the package
+  itself never sees the VLE physics, only the black-box activity coefficient.
+
+### Fixed
+
+- Grammar on the documentation landing page: "when data is scarce" -> "when data are
+  scarce".
 
 ## [0.1.2] - 2026-08-06
 
